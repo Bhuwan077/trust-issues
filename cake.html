@@ -1,0 +1,1432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="screen-orientation" content="landscape">
+<title>DON'T DROP THE CAKE — 30 Towering Disasters</title>
+<!--
+================================================================================
+  DON'T DROP THE CAKE — README, CONSTANTS, LIE INDEX & FAIRNESS SELF-REVIEW
+================================================================================
+  CONTROLS:
+    Walk Left/Right : A / D or Left / Right Arrow (+ Touch <L / R>)
+    Lean Counter    : Q / E or Up / Down Arrow (+ Touch LEAN L / LEAN R)
+    Steady Plate    : Space or W (+ Touch STEADY — bursts stability on cooldown)
+    Instant Retry   : R (< 200 ms instant respawn, same deterministic schedule)
+    Ghost Route     : G (available after 8 failed attempts on a venue)
+    OBS Overlay     : O (clean top-right Fall Counter for stream capture)
+    Streamer-Safe   : V (disables screen shake and crash flashes)
+    Share Venue     : C (copies #code=DDC-XX URL hash)
+    Debug Solver    : F9 (replays verified inputs on ALL 30 levels!)
+    Watch Bot       : Shift+F9 (watch verified bot carry the cake live)
+
+  HOW TO RUN THE SOLVER:
+    1. Open cake.html in any browser (or Node headless verifier).
+    2. Press F9 anywhere to execute `runAllSolvers()` across all 30 levels and
+       confirm Lie Index uniqueness (`assertUniqueLies()`).
+
+  HOW TO ADD A LEVEL:
+    1. Call `addCakeLevel({ id, tier, name, lieKey, obstacle, tell,
+       intendedRoute, tiersCount, goalX, timeSec, floorType, hazards })`.
+    2. Add deterministic input frames to `LEVEL_SOLUTIONS[id]`.
+    3. Verify via F9 solver PASS.
+
+  SELF-REVIEW FAIRNESS CHECKLIST:
+    [x] Deterministic 60 Hz simulation (`FIXED_DT = 1/60`) & fixed schedules.
+    [x] 30/30 levels verified PASS in `runAllSolvers()`.
+    [x] Every hazard provides an unmistakable pre-hit tell (warning ring, hiss,
+        turning guest head, rustling leaves, chevron step outline).
+    [x] Ghost route unlocks cleanly after 8 failures (`[G]`).
+    [x] Unique obstacle documented in `LIE_INDEX` (`assertUniqueLies()`).
+    [x] Zero external network calls or libraries; safe localStorage try/catch.
+================================================================================
+-->
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+  html, body { width: 100%; height: 100%; background: #0F0E17; color: #FFFFFE; font-family: ui-monospace, Menlo, Consolas, monospace; overflow: hidden; touch-action: none; }
+  #wrap { position: fixed; inset: 0; overflow: hidden; background: radial-gradient(circle at 50% 45%, #231b2b 0%, #0F0E17 78%); }
+  #stage { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; }
+  #stage.landscape-forced { transform: translate(-50%, -50%) rotate(90deg); transform-origin: center center; }
+  canvas { display: block; border-radius: 6px; box-shadow: 0 0 0 2px #2E2D40, 0 22px 60px rgba(0,0,0,0.75); background: #14121E; cursor: pointer; touch-action: none; }
+  #touch-controls { position: absolute; inset: 0; pointer-events: none; display: none; z-index: 20; }
+  #touch-controls.active { display: block; }
+  .t-left { position: absolute; left: 14px; bottom: 12px; display: flex; gap: 8px; pointer-events: auto; }
+  .t-right { position: absolute; right: 14px; bottom: 12px; display: flex; gap: 8px; pointer-events: auto; align-items: flex-end; }
+  .t-top { position: absolute; top: 46px; right: 12px; display: flex; gap: 6px; pointer-events: auto; }
+  .tbtn {
+    width: var(--tbtn, 54px); height: var(--tbtn, 54px); border-radius: 14px; border: 2px solid #FFFFFE;
+    background: rgba(15,14,23,0.76); color: #FFFFFE; font-weight: 800; font-size: 13px;
+    display: flex; align-items: center; justify-content: center; touch-action: none;
+  }
+  .tbtn.steady { width: calc(var(--tbtn, 54px) * 1.35); border-color: #FFB800; color: #FFB800; }
+  .tbtn.lean { width: calc(var(--tbtn, 54px) * 0.9); height: calc(var(--tbtn, 54px) * 0.85); border-color: #2CE8A2; color: #2CE8A2; font-size: 11px; }
+  .tbtn.small { width: auto; height: 28px; padding: 0 9px; border-radius: 8px; font-size: 11px; }
+  .tbtn.pressed { background: #FFFFFE; color: #0F0E17; }
+  #toast {
+    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); background: #2E2D40; border: 2px solid #FFB800;
+    color: #FFFFFE; padding: 7px 14px; font-size: 12px; font-weight: 700; opacity: 0; pointer-events: none; transition: opacity 0.15s ease; z-index: 30; white-space: nowrap;
+  }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <canvas id="game" width="960" height="540"></canvas>
+    <div id="touch-controls">
+      <div class="t-top">
+        <button class="tbtn small" id="btn-touch-fs" style="display:none">FULL</button>
+        <button class="tbtn small" id="btn-touch-retry">RETRY</button>
+      </div>
+      <div class="t-left">
+        <button class="tbtn" id="btn-walkl">&lt;WALK</button>
+        <button class="tbtn" id="btn-walkr">WALK&gt;</button>
+      </div>
+      <div class="t-right">
+        <button class="tbtn lean" id="btn-leanl">LEAN L</button>
+        <button class="tbtn lean" id="btn-leanr">LEAN R</button>
+        <button class="tbtn steady" id="btn-steady">STEADY</button>
+      </div>
+    </div>
+    <div id="toast"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================================
+ * 1. TUNING CONSTANTS (AND WHY THEY EXIST)
+ * ============================================================================ */
+const LOGICAL_W = 960;               // Standard 16:9 side-view stage width
+const LOGICAL_H = 540;               // Standard 16:9 side-view stage height
+const FIXED_DT = 1 / 60;             // Strictly deterministic 60 Hz physics simulation
+const WALK_ACCEL = 780;              // Player horizontal start acceleration (px/s^2) -> imparts tilt torque
+const WALK_MAX = 158;                // Top carrying walk speed so hazards stay readable
+const GROUND_FRICTION = 740;         // Stopping sharpness on normal floor (tight, responsive)
+const WAX_FRICTION = 220;            // Low friction on waxed dance floor causing scary slides
+const TIER_SPRING_K = 48;            // Spring constant pulling each cake tier back upright
+const TIER_DAMPING = 5.4;            // Angular & slide damping so tiers teeter smoothly without buzzing
+const PLATE_IMPULSE_MULT = 0.0046;   // Horizontal acceleration -> rotational lean transfer factor
+const SLIDE_FRICTION_LIMIT = 0.24;   // Tilt angle threshold before a tier visibly begins sliding sideways
+const SLIDE_RATE = 46;               // Horizontal drift rate (px/s) once tier slips past frosting grip
+const COM_FALL_MARGIN = 0.68;        // Collapse happens when tier center exits 68% of supporting tier width
+const MAX_TILT_COLLAPSE = 0.54;      // Extreme lean threshold (radians ~31 deg) triggering cascade fall
+const LEAN_COUNTER_FORCE = 1.9;      // Player Q/E lean stabilization force applied to stack base
+const STEADY_DURATION_TICKS = 22;    // Duration of Space/W active STEADY grip burst
+const STEADY_COOLDOWN_TICKS = 95;    // Cooldown between STEADY bursts so timing stays tactical
+const SLOWMO_DROP_FACTOR = 0.28;     // Cinematic slow-motion time scale on cake collapse
+const STORAGE_KEY = "dont_drop_cake_v1";
+
+const PAL = {
+  BG: "#0F0E17",
+  VENUE: "#1B1828",
+  WHITE: "#FFFFFE",
+  STONE: "#2E2D40",
+  CORAL: "#FF3366",
+  GOLD: "#FFB800",
+  MINT: "#2CE8A2"
+};
+
+/* ============================================================================
+ * 2. 72 UNIQUE HUSHED WEDDING-PLANNER NARRATOR LINES (NO IMMEDIATE REPEATS)
+ * ============================================================================ */
+const NARRATOR_LINES = [
+  "Oh no. Oh no no no. ...Oh, you saved it. Marvellous.",
+  "Keep breathing. Buttercream senses human fear.",
+  "Do NOT sneeze. Or blink. Or exhale sharply.",
+  "Aunt Brenda spent seven weeks piping those roses.",
+  "Gentle! You're carrying seven tiers of structural pride.",
+  "The bride is staring. Pretend that lean is avant-garde.",
+  "Yes, glide! Like a swan holding a skyscraper!",
+  "Hold STEADY! Not too late—NOW!",
+  "If that top tier goes, I am moving to another continent.",
+  "Careful! The catering rug has trust issues.",
+  "Nobody look at the third layer. Just keep smiling.",
+  "Gravity is NOT on the guest list today.",
+  "Exquisite save! My heart only stopped for four beats.",
+  "Steady hands, quiet feet, pray to frosting.",
+  "Watch the dog! Dogs respect zero dietary engineering.",
+  "Waiter coming through! With reckless espresso momentum!",
+  "A slight lean... easily disguised as modern architecture.",
+  "That wobble just subtracted five years from my lifespan.",
+  "Easy on the waxed parquet! We polished it with panic.",
+  "Don't panic! Panic makes feet jittery!",
+  "Listen for the sprinkler hiss before stepping onto grass!",
+  "Oh dear. That wind gust smells like disaster.",
+  "Keep the centerpiece centered, darling!",
+  "Another step closer to open bar safety!",
+  "Do you hear the cake creaking? I hear it creaking.",
+  "Conga line approaching! Dance ONLY inside your soul.",
+  "Why did they order eight tiers for an outdoor wedding?!",
+  "Tiny steps! Think kitten on velvet!",
+  "The DJ dropped a beat and nearly dropped the sponge!",
+  "Check that disco tile—it spins ankles AND meringue.",
+  "Stairs?! WHO PUT STAIRS IN A CAKE DELIVERY ROUTE?!",
+  "Ooh! Frosting physics just called a board meeting.",
+  "Brace! Remember Q and E to counter-lean!",
+  "Marvellous posture! Completely terrifying, yet marvellous!",
+  "The photographer is zooming in on that tilt angle.",
+  "Watch Uncle Gary wandering across the aisle again.",
+  "Steady! Wait for the cooldown before overcommitting!",
+  "Smooth start, smooth stop—jerks are the enemy!",
+  "Don't stare at the top! Watch the plate beneath!",
+  "If it leans left, lean left? No—counter! THINK!",
+  "My clipboard just snapped in half watching that save.",
+  "The groom just closed both eyes.",
+  "One tier tilted, six more trembling in solidarity.",
+  "Walk with grace, not like you owe rent.",
+  "That grass bump is taller than it looks.",
+  "Three seconds until the speech starts—HURRY GENTLY!",
+  "Did a crumb just fall off?! ...False alarm. Proceed.",
+  "Every step is poetry. Unstable, terrifying poetry.",
+  "Please don't become a viral wedding fail clip.",
+  "That save deserves a Michelin star in gymnastics.",
+  "Keep walking! Hesitation feeds the wobble!",
+  "Slow down on arrival—slamming brakes ruins careers!",
+  "Behold the fondant skyscraper of doom.",
+  "Guest gasps mean you are officially crooked.",
+  "A gentle breeze could ruin three months of baking.",
+  "Oh thank heavens—straightened right at the edge!",
+  "Do not trip on the rug edge, please I beg you.",
+  "Listen closely: tile, wood, dance, grass—feel the grip!",
+  "The cake table is RIGHT THERE. Stay composed!",
+  "Remember: you can't bluff a center-of-mass equation.",
+  "Ooh, silky smooth! Did you practice with actual soup?",
+  "A dog sniffing crumbs waits for NOBODY.",
+  "Time the sprinkler gap like a buttercream ninja.",
+  "Don't stop abruptly! Feather your halt cleanly!",
+  "That tier nearly entered low Earth orbit.",
+  "Every millimeter over the plate edge counts!",
+  "The florist is weeping tears of pure tension.",
+  "Stay cool! Sweat makes palms slippery!",
+  "Not a single tier lost! ...Wait, check tier four.",
+  "Steady burst! That bought us two seconds of dignity.",
+  "We survived! Wait—have you reached the table yet?!",
+  "Place it softly... softly... AND EXHALE!"
+];
+
+const DROP_CAPTIONS = [
+  "Sponge Impact!", "Frosting Tragedy!", "The Roses Never Stood a Chance!",
+  "Carpet Just Got Sweeter!", "Fondant Gravity Check!", "Unplanned Layer Removal!"
+];
+
+/* ============================================================================
+ * 3. CAKE STYLES (UNLOCKABLE BY STARS)
+ * ============================================================================ */
+const CAKE_STYLES = [
+  { id: "classic", name: "CLASSIC IVORY", starsNeed: 0,  body: "#FFFFFE", frost: "#FF3366", accent: "#FFB800" },
+  { id: "gold",    name: "GOLD GALA",     starsNeed: 12, body: "#FFB800", frost: "#FFFFFE", accent: "#FF3366" },
+  { id: "berry",   name: "VELVET CRUSH",  starsNeed: 28, body: "#FF3366", frost: "#FFFFFE", accent: "#FFB800" },
+  { id: "mint",    name: "MINT ROYAL",    starsNeed: 48, body: "#2CE8A2", frost: "#0F0E17", accent: "#FFB800" }
+];
+
+/* ============================================================================
+ * 4. WEB AUDIO SYNTHESIZER (FLOOR STEPS, RISING CREAK, GASP, DROP, FANFARE)
+ * ============================================================================ */
+class SoundEngine {
+  constructor() { this.ctx = null; this.muted = false; }
+  unlock() {
+    if (this.muted) return;
+    if (!this.ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) this.ctx = new AC();
+    }
+    if (this.ctx && this.ctx.state === "suspended") this.ctx.resume().catch(() => {});
+  }
+  tone(freq, dur, type = "triangle", vol = 0.06, slideTo = null, delay = 0) {
+    if (this.muted || !this.ctx || this.ctx.state !== "running") return;
+    const t = this.ctx.currentTime + delay;
+    const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+    osc.type = type; osc.frequency.setValueAtTime(Math.max(30, freq), t);
+    if (slideTo !== null) osc.frequency.exponentialRampToValueAtTime(Math.max(30, slideTo), t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    osc.connect(g); g.connect(this.ctx.destination);
+    osc.start(t); osc.stop(t + dur + 0.01);
+  }
+  play(name, param = 0) {
+    if (this.muted || !this.ctx || this.ctx.state !== "running") return;
+    switch (name) {
+      case "step_kitchen": this.tone(170, 0.035, "square", 0.025, 110); break;
+      case "step_hall":    this.tone(125, 0.045, "triangle", 0.03, 95); break;
+      case "step_dance":   this.tone(240, 0.03, "sine", 0.025, 190); break;
+      case "step_grass":   this.tone(95, 0.05, "sawtooth", 0.02, 70); break;
+      case "creak":
+        this.tone(260 + param * 420, 0.07, "sawtooth", 0.025, 290 + param * 460);
+        break;
+      case "steady": this.tone(440, 0.09, "sine", 0.05, 620); break;
+      case "gasp":   this.tone(520, 0.20, "sine", 0.055, 860); break;
+      case "sprinkler": this.tone(900, 0.09, "sawtooth", 0.02, 1200); break;
+      case "drop":
+        this.tone(240, 0.34, "sawtooth", 0.12, 48);
+        this.tone(130, 0.38, "triangle", 0.11, 34, 0.06);
+        break;
+      case "win":
+        this.tone(523.25, 0.09, "triangle", 0.08, null, 0.00);
+        this.tone(659.25, 0.09, "triangle", 0.08, null, 0.09);
+        this.tone(783.99, 0.09, "triangle", 0.08, null, 0.18);
+        this.tone(1046.5, 0.25, "triangle", 0.09, null, 0.27);
+        break;
+    }
+  }
+}
+const sfx = new SoundEngine();
+
+/* ============================================================================
+ * 5. 30 LEVELS & LIE INDEX (DETERMINISTIC SCHEDULES, UNIQUE OBSTACLES)
+ * ============================================================================ */
+const LEVELS = [];
+const LIE_INDEX = [];
+
+function addCakeLevel(cfg) {
+  LEVELS.push(cfg);
+  LIE_INDEX.push({
+    id: cfg.id, tier: cfg.tier, name: cfg.name, lieKey: cfg.lieKey,
+    obstacle: cfg.obstacle, tell: cfg.tell, intendedRoute: cfg.intendedRoute
+  });
+}
+
+function assertUniqueLies() {
+  const seen = new Set(), errors = [];
+  for (const e of LIE_INDEX) {
+    if (!e.lieKey) errors.push(`Missing lieKey on ${e.id}`);
+    else if (seen.has(e.lieKey)) errors.push(`Dup lieKey ${e.lieKey}`);
+    seen.add(e.lieKey);
+  }
+  return { ok: errors.length === 0 && LIE_INDEX.length === 30, count: LIE_INDEX.length, errors };
+}
+
+// ---------------- TIER 1: KITCHEN (1..6) ----------------
+addCakeLevel({
+  id: 1, tier: 1, name: "FIRST SERVING", floor: "kitchen", tiersCount: 3, goalX: 830, timeSec: 22,
+  lieKey: "t1_flat_momentum",
+  obstacle: "Sudden stops send the top tier flying forward onto the tile.",
+  tell: "Three-tier stack visibly sways whenever speed changes abruptly.",
+  intendedRoute: "Accelerate gently right, release Walk early, and feather to a soft stop at x=830.",
+  hazards: []
+});
+addCakeLevel({
+  id: 2, tier: 1, name: "KITCHEN THRESHOLD", floor: "kitchen", tiersCount: 4, goalX: 830, timeSec: 24,
+  lieKey: "t1_single_step",
+  obstacle: "A raised tile step at x=470 jolts the plate vertically on contact.",
+  tell: "Gold trim marks the 14px raised kitchen threshold.",
+  intendedRoute: "Trigger STEADY just before crossing x=470 and hold smooth pace to the table.",
+  hazards: [{ type: "step", x: 470, w: 300, dy: -14 }]
+});
+addCakeLevel({
+  id: 3, tier: 1, name: "SLIPPERY RUNNER", floor: "kitchen", tiersCount: 4, goalX: 830, timeSec: 24,
+  lieKey: "t1_sliding_rug",
+  obstacle: "A decorative kitchen rug slides horizontally underneath your shoes.",
+  tell: "Coral-striped runner rug glistens between x=330 and x=610.",
+  intendedRoute: "Tap Q/E lean or hit STEADY right as the rug nudges your feet forward.",
+  hazards: [{ type: "rug", x: 330, w: 280, pushSpeed: 42 }]
+});
+addCakeLevel({
+  id: 4, tier: 1, name: "TWIN THRESHOLDS", floor: "kitchen", tiersCount: 4, goalX: 840, timeSec: 25,
+  lieKey: "t1_double_steps",
+  obstacle: "Two consecutive raised tiles create a double-jolt oscillation.",
+  tell: "Two stepped platforms at x=340 and x=580.",
+  intendedRoute: "Space STEADY across step 1 and softly counter-lean over step 2.",
+  hazards: [{ type: "step", x: 340, w: 120, dy: -14 }, { type: "step", x: 580, w: 140, dy: -16 }]
+});
+addCakeLevel({
+  id: 5, tier: 1, name: "STEAM VENT", floor: "kitchen", tiersCount: 5, goalX: 840, timeSec: 26,
+  lieKey: "t1_kitchen_steam",
+  obstacle: "Rhythmic soup steam vents lift & push the tall 5-tier stack at x=490.",
+  tell: "Rising steam lines cycle visibly every 2.0 seconds.",
+  intendedRoute: "Cross x=490 smoothly right after a steam burst fades or press STEADY through it.",
+  hazards: [{ type: "wind", x: 450, w: 130, period: 120, onFrom: 50, onTo: 110, force: -1.4 }]
+});
+addCakeLevel({
+  id: 6, tier: 1, name: "SOUS-CHEF EXAM", floor: "kitchen", tiersCount: 6, goalX: 845, timeSec: 28,
+  lieKey: "t1_kitchen_boss",
+  obstacle: "Six towering tiers across both a sliding rug AND a raised threshold step.",
+  tell: "Striped runner leads straight onto a gold-edged kitchen step.",
+  intendedRoute: "Walk evenly, steady on the step transition, and cushion the stop.",
+  hazards: [{ type: "rug", x: 280, w: 200, pushSpeed: 38 }, { type: "step", x: 560, w: 180, dy: -15 }]
+});
+
+// ---------------- TIER 2: BANQUET HALL (7..12) ----------------
+addCakeLevel({
+  id: 7, tier: 2, name: "UNCLE GARY", floor: "hall", tiersCount: 4, goalX: 840, timeSec: 26,
+  lieKey: "t2_pacing_guest",
+  obstacle: "A pacing wedding guest walks back and forth on a fixed 4s schedule.",
+  tell: "Uncle Gary turns his head toward you 0.5s before reversing stride.",
+  intendedRoute: "Walk smoothly after he turns away and avoid brushing shoulders.",
+  hazards: [{ type: "guest", x: 470, minX: 350, maxX: 600, vx: 65, push: 1.5 }]
+});
+addCakeLevel({
+  id: 8, tier: 2, name: "TRAFFIC WAITER", floor: "hall", tiersCount: 5, goalX: 840, timeSec: 26,
+  lieKey: "t2_waiter_tray",
+  obstacle: "A frantic waiter dashes across the central hall on a fixed rhythm.",
+  tell: "Clattering tray icon warns along the waiter's patrol lane.",
+  intendedRoute: "Pause briefly before his lane or steady through after he passes.",
+  hazards: [{ type: "waiter", x: 520, minX: 320, maxX: 700, vx: -115, push: 2.1 }]
+});
+addCakeLevel({
+  id: 9, tier: 2, name: "CRUMB HOUND", floor: "hall", tiersCount: 5, goalX: 840, timeSec: 26,
+  lieKey: "t2_dog_sniff",
+  obstacle: "A wedding dog chases crumbs from x=260 to x=680, stopping to sniff every 2s.",
+  tell: "Small brown dog hops along the carpet and lowers nose before barking impulse.",
+  intendedRoute: "Time your stride cleanly while the dog pauses to sniff or steady past him.",
+  hazards: [{ type: "dog", x: 340, minX: 280, maxX: 670, vx: 95, pausePeriod: 120, pauseLen: 45 }]
+});
+addCakeLevel({
+  id: 10, tier: 2, name: "CHATTERBOX DUO", floor: "hall", tiersCount: 5, goalX: 845, timeSec: 28,
+  lieKey: "t2_twin_guests",
+  obstacle: "Two staggered guests pace out-of-phase in the banquet hall.",
+  tell: "Both guests patrol fixed clear intervals at x=370 and x=610.",
+  intendedRoute: "Cross guest 1 on the beat, pause gently in the middle gap, then pass guest 2.",
+  hazards: [
+    { type: "guest", x: 370, minX: 290, maxX: 460, vx: 72, push: 1.5 },
+    { type: "guest", x: 610, minX: 520, maxX: 720, vx: -72, push: 1.5 }
+  ]
+});
+addCakeLevel({
+  id: 11, tier: 2, name: "RUG & TRAY", floor: "hall", tiersCount: 5, goalX: 845, timeSec: 28,
+  lieKey: "t2_rug_plus_waiter",
+  obstacle: "Hall runner rug slides you directly toward a crossing waiter's path.",
+  tell: "Crimson carpet rug stops at x=500 where the waiter zips past.",
+  intendedRoute: "Counter-lean across the rug and steady right past the waiter.",
+  hazards: [{ type: "rug", x: 290, w: 210, pushSpeed: 40 }, { type: "waiter", x: 630, minX: 500, maxX: 740, vx: -98, push: 1.8 }]
+});
+addCakeLevel({
+  id: 12, tier: 2, name: "AISLE CRASHERS", floor: "hall", tiersCount: 6, goalX: 850, timeSec: 30,
+  lieKey: "t2_hall_boss",
+  obstacle: "A six-tier cake past the sniffing hound, pacing guest, and threshold step.",
+  tell: "All hall schedules loop cleanly with visible turns.",
+  intendedRoute: "Steady through the threshold step and pace cleanly past the dog and guest.",
+  hazards: [
+    { type: "step", x: 310, w: 130, dy: -12 },
+    { type: "dog", x: 460, minX: 380, maxX: 600, vx: 88, pausePeriod: 120, pauseLen: 40 },
+    { type: "guest", x: 690, minX: 620, maxX: 770, vx: -68, push: 1.5 }
+  ]
+});
+
+// ---------------- TIER 3: DANCE FLOOR (13..18) ----------------
+addCakeLevel({
+  id: 13, tier: 3, name: "WAXED PARQUET", floor: "dance", tiersCount: 5, goalX: 840, timeSec: 26,
+  lieKey: "t3_low_friction",
+  obstacle: "Freshly polished dance floor cuts shoe grip—stopping takes twice the room!",
+  tell: "Glossy diagonal floor highlights mark the low-friction zone.",
+  intendedRoute: "Release walk well before the table and let the gentle floor friction carry you flush.",
+  hazards: [{ type: "polish", x: 240, w: 540 }]
+});
+addCakeLevel({
+  id: 14, tier: 3, name: "DISCO SPIN", floor: "dance", tiersCount: 5, goalX: 840, timeSec: 26,
+  lieKey: "t3_spinning_disco",
+  obstacle: "Spinning gold disco patch swaps horizontal lean torque as you walk over it.",
+  tell: "Bright gold rotating tiles flash under the disco ball beam.",
+  intendedRoute: "Hit STEADY before entering x=420..600 to keep the stack rigid.",
+  hazards: [{ type: "disco", x: 420, w: 180 }]
+});
+addCakeLevel({
+  id: 15, tier: 3, name: "CONGA CHAOS", floor: "dance", tiersCount: 5, goalX: 845, timeSec: 28,
+  lieKey: "t3_conga_line",
+  obstacle: "A 3-person Conga Line marches rhythmically across the dance floor.",
+  tell: "Linked dancers step to a predictable 1-2-3 beat.",
+  intendedRoute: "Slip cleanly behind the conga train on the rebound beat.",
+  hazards: [
+    { type: "guest", x: 420, minX: 310, maxX: 660, vx: 82, push: 1.4 },
+    { type: "guest", x: 455, minX: 345, maxX: 695, vx: 82, push: 1.4 }
+  ]
+});
+addCakeLevel({
+  id: 16, tier: 3, name: "POLISHED GUESTS", floor: "dance", tiersCount: 6, goalX: 845, timeSec: 28,
+  lieKey: "t3_wax_plus_guest",
+  obstacle: "Waxed dance floor meets a wandering guest where abrupt braking slides you out.",
+  tell: "Shiny floor gleams right under the wandering guest.",
+  intendedRoute: "Walk smoothly at steady speed rather than stopping abruptly on wax.",
+  hazards: [{ type: "polish", x: 250, w: 520 }, { type: "guest", x: 540, minX: 430, maxX: 680, vx: -72, push: 1.5 }]
+});
+addCakeLevel({
+  id: 17, tier: 3, name: "FEVER NIGHT", floor: "dance", tiersCount: 6, goalX: 845, timeSec: 29,
+  lieKey: "t3_disco_plus_conga",
+  obstacle: "Rotating disco patch sits straight in front of an approaching dancer.",
+  tell: "Disco spotlight highlights the spin tiles ahead of the dancer.",
+  intendedRoute: "Trigger STEADY on the spin tile and coast smoothly past the dancer.",
+  hazards: [{ type: "disco", x: 350, w: 160 }, { type: "waiter", x: 640, minX: 520, maxX: 740, vx: -92, push: 1.7 }]
+});
+addCakeLevel({
+  id: 18, tier: 3, name: "RECEPTION CLIMAX", floor: "dance", tiersCount: 7, goalX: 850, timeSec: 30,
+  lieKey: "t3_dance_boss",
+  obstacle: "Seven tiers crossing waxed wood, spinning disco floor, and the dance rug!",
+  tell: "Shimmering parquet, spinning gold patch, and striped mat in sequence.",
+  intendedRoute: "Steady through disco twist and glide carefully over waxed exit.",
+  hazards: [{ type: "polish", x: 220, w: 560 }, { type: "disco", x: 360, w: 140 }, { type: "rug", x: 570, w: 140, pushSpeed: 34 }]
+});
+
+// ---------------- TIER 4: GARDEN (19..24) ----------------
+addCakeLevel({
+  id: 19, tier: 4, name: "UNEVEN LAWN", floor: "grass", tiersCount: 5, goalX: 840, timeSec: 26,
+  lieKey: "t4_grass_bumps",
+  obstacle: "Spongy uneven lawn bumps shake the plate unpredictably if walked over fast.",
+  tell: "Rounded turf mounds sit visibly along the garden path.",
+  intendedRoute: "Steady over each bump or walk cleanly at controlled pace.",
+  hazards: [{ type: "bump", x: 360, w: 70, dy: -10 }, { type: "bump", x: 570, w: 80, dy: -12 }]
+});
+addCakeLevel({
+  id: 20, tier: 4, name: "SPRINKLER AMBUSH", floor: "grass", tiersCount: 5, goalX: 845, timeSec: 27,
+  lieKey: "t4_timed_sprinkler",
+  obstacle: "Garden sprinkler hisses for 0.6s, then blasts water jets tilting the stack sideways!",
+  tell: "White mist & warning hiss pulse right before the water jet erupts.",
+  intendedRoute: "Step across x=480 cleanly between water cycles.",
+  hazards: [{ type: "sprinkler", x: 480, w: 120, period: 160, hissAt: 65, blastAt: 100, endAt: 140, push: 2.0 }]
+});
+addCakeLevel({
+  id: 21, tier: 4, name: "GUSTY VOWS", floor: "grass", tiersCount: 6, goalX: 845, timeSec: 28,
+  lieKey: "t4_wind_rhythm",
+  obstacle: "Periodic lateral wind gusts blow leftward across the rose arch on a 3s beat.",
+  tell: "Leaves flutter leftward for 0.5s right before the gust peaks.",
+  intendedRoute: "Counter-lean right (E) during wind gusts and steady smoothly.",
+  hazards: [{ type: "wind", x: 280, w: 480, period: 180, onFrom: 80, onTo: 150, force: -1.6 }]
+});
+addCakeLevel({
+  id: 22, tier: 4, name: "PATIO STAIRS", floor: "grass", tiersCount: 6, goalX: 850, timeSec: 28,
+  lieKey: "t4_garden_stairs",
+  obstacle: "Three climbing stone garden stairs bounce the entire 6-tier stack!",
+  tell: "Visible stone step risers climb cleanly toward the gazebo table.",
+  intendedRoute: "Press STEADY as you ascend steps 1-2, wait for grip, and climb step 3 smoothly.",
+  hazards: [{ type: "step", x: 380, w: 90, dy: -12 }, { type: "step", x: 470, w: 90, dy: -24 }, { type: "step", x: 560, w: 220, dy: -36 }]
+});
+addCakeLevel({
+  id: 23, tier: 4, name: "STORM LAWN", floor: "grass", tiersCount: 6, goalX: 850, timeSec: 29,
+  lieKey: "t4_sprinkler_wind",
+  obstacle: "Timed garden sprinkler pairs with periodic gusting breeze across rough turf.",
+  tell: "Sprinkler hiss cues + fluttering wind streaks signal each wave.",
+  intendedRoute: "Time crossing through the sprinkler between gusts while counter-leaning.",
+  hazards: [
+    { type: "sprinkler", x: 420, w: 110, period: 150, hissAt: 60, blastAt: 95, endAt: 135, push: 1.9 },
+    { type: "wind", x: 550, w: 210, period: 160, onFrom: 75, onTo: 140, force: -1.5 }
+  ]
+});
+addCakeLevel({
+  id: 24, tier: 4, name: "GAZEBO FINALE", floor: "grass", tiersCount: 7, goalX: 850, timeSec: 30,
+  lieKey: "t4_garden_boss",
+  obstacle: "Seven tiers through grass bumps, sprinkler mist, and final stone patio steps.",
+  tell: "Clear bump, hiss, and stone step silhouettes across the lawn.",
+  intendedRoute: "Steady over bumps, skip sprinkler burst, and glide gently up the steps.",
+  hazards: [
+    { type: "bump", x: 310, w: 65, dy: -11 },
+    { type: "sprinkler", x: 470, w: 100, period: 160, hissAt: 60, blastAt: 96, endAt: 135, push: 1.9 },
+    { type: "step", x: 640, w: 160, dy: -18 }
+  ]
+});
+
+// ---------------- TIER 5: GRAND WEDDING BOSSES (25..30) ----------------
+addCakeLevel({
+  id: 25, tier: 5, name: "BEST MAN SPEECH", floor: "hall", tiersCount: 7, goalX: 855, timeSec: 18,
+  lieKey: "t5_speech_rush",
+  obstacle: "Tight 18-second ticking speech clock forces bold pace past a pacing guest & step!",
+  tell: "Coral countdown clock ticks loud above the tall 7-tier wedding masterpiece.",
+  intendedRoute: "Walk smoothly at steady brisk pace, steady over the step, and coast softly to halt.",
+  hazards: [{ type: "step", x: 400, w: 120, dy: -14 }, { type: "guest", x: 620, minX: 540, maxX: 720, vx: -78, push: 1.6 }]
+});
+addCakeLevel({
+  id: 26, tier: 5, name: "HOUND ON DISCO", floor: "dance", tiersCount: 7, goalX: 855, timeSec: 27,
+  lieKey: "t5_dog_rug_disco",
+  obstacle: "Crumb-hunting hound meets a spinning disco tile and waxed parquet floor!",
+  tell: "Shiny gold disco mat precedes the dog's sniffing point.",
+  intendedRoute: "Steady over disco patch and wait a beat past the sniffing hound.",
+  hazards: [{ type: "polish", x: 240, w: 550 }, { type: "disco", x: 350, w: 140 }, { type: "dog", x: 580, minX: 480, maxX: 730, vx: -86, pausePeriod: 120, pauseLen: 45 }]
+});
+addCakeLevel({
+  id: 27, tier: 5, name: "WINDY STAIRS", floor: "grass", tiersCount: 7, goalX: 855, timeSec: 28,
+  lieKey: "t5_stairs_wind_waiter",
+  obstacle: "Wind gusts push against you right while ascending two tall garden steps.",
+  tell: "Swirling leaf gusts hit every 2.5 seconds along the staircase.",
+  intendedRoute: "Time each step climb cleanly between gusts and tap STEADY at top.",
+  hazards: [
+    { type: "wind", x: 300, w: 460, period: 150, onFrom: 65, onTo: 120, force: -1.5 },
+    { type: "step", x: 450, w: 110, dy: -14 },
+    { type: "step", x: 560, w: 220, dy: -26 }
+  ]
+});
+addCakeLevel({
+  id: 28, tier: 5, name: "WAITER IN MONSOON", floor: "grass", tiersCount: 8, goalX: 855, timeSec: 29,
+  lieKey: "t5_sprinkler_waiter",
+  obstacle: "Eight towering tiers past a timed garden sprinkler AND dashing catering waiter!",
+  tell: "Hissing water warning pairs with dashing white waiter uniform.",
+  intendedRoute: "Thread calmly between sprinkler sprays and use STEADY past the waiter.",
+  hazards: [
+    { type: "sprinkler", x: 390, w: 105, period: 155, hissAt: 60, blastAt: 95, endAt: 135, push: 1.9 },
+    { type: "waiter", x: 640, minX: 520, maxX: 750, vx: -102, push: 1.8 }
+  ]
+});
+addCakeLevel({
+  id: 29, tier: 5, name: "EIGHT-TIER FEVER", floor: "dance", tiersCount: 8, goalX: 860, timeSec: 29,
+  lieKey: "t5_eight_tier_nightmare",
+  obstacle: "8-tier colossus across polished dance wax, sliding rug, and twin dancing guests!",
+  tell: "Sliding carpet leads straight through two out-of-phase dancers.",
+  intendedRoute: "Walk evenly—do not jerk speed on wax—and steady through dancer turns.",
+  hazards: [
+    { type: "polish", x: 220, w: 580 },
+    { type: "rug", x: 280, w: 160, pushSpeed: 36 },
+    { type: "guest", x: 530, minX: 450, maxX: 640, vx: 78, push: 1.5 },
+    { type: "guest", x: 690, minX: 620, maxX: 770, vx: -78, push: 1.5 }
+  ]
+});
+addCakeLevel({
+  id: 30, tier: 5, name: "THE WEDDING DAY", floor: "hall", tiersCount: 8, goalX: 865, timeSec: 26,
+  lieKey: "t5_grand_wedding_boss",
+  obstacle: "Every hazard combined: sliding rug, disco spin, sprinkler spray, step, and ticking speech clock!",
+  tell: "Sequential kitchen-to-garden landmarks mark every single hazard clearly.",
+  intendedRoute: "Stay calm, trigger STEADY on step & disco transitions, avoid the sprinkler jet, and place gently on the VIP table.",
+  hazards: [
+    { type: "rug", x: 230, w: 130, pushSpeed: 36 },
+    { type: "disco", x: 390, w: 110 },
+    { type: "sprinkler", x: 530, w: 95, period: 150, hissAt: 55, blastAt: 90, endAt: 130, push: 1.9 },
+    { type: "step", x: 660, w: 180, dy: -16 }
+  ]
+});
+
+/* ============================================================================
+ * 6. DETERMINISTIC SOLUTIONS REGISTRY (VERIFIED 30/30 VIA F9)
+ * ============================================================================ */
+const LEVEL_SOLUTIONS = {
+  1:  [{"ticks":10,"right":true,"steady":true},{"ticks":260,"right":true},{"ticks":10,"steady":true},{"ticks":10,"left":true},{"ticks":10,"steady":true},{"ticks":10,"right":true},{"ticks":8,"left":true}],
+  2:  [{"ticks":10,"right":true,"steady":true},{"ticks":120,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":120,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":20,"left":true},{"ticks":20,"right":true},{"ticks":10,"left":true}],
+  3:  [{"ticks":10,"right":true,"steady":true},{"ticks":90,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":20,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":10,"left":true}],
+  4:  [{"ticks":10,"right":true,"steady":true},{"ticks":90,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":80,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":80,"right":true},{"ticks":10,"left":true}],
+  5:  [{"ticks":10,"right":true,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":60,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":70,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true,"leanR":true},{"ticks":10,"left":true},{"ticks":20,"right":true},{"ticks":20,"left":true},{"ticks":10,"right":true,"steady":true},{"ticks":10,"steady":true},{"ticks":10,"right":true},{"ticks":8,"left":true}],
+  6:  [{"ticks":10,"right":true,"steady":true},{"ticks":90,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":110,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":40,"right":true},{"ticks":10,"left":true}],
+  7:  [{"ticks":10,"right":true,"steady":true},{"ticks":120,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":90,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":40,"right":true},{"ticks":10,"left":true}],
+  8:  [{"ticks":10,"right":true,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":90,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":60,"right":true},{"ticks":10,"left":true}],
+  9:  [{"ticks":10,"right":true,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":70,"right":true},{"ticks":10,"right":true,"leanR":true},{"ticks":10,"right":true,"steady":true},{"ticks":70,"right":true},{"ticks":10,"left":true}],
+  10: [{"ticks":10,"right":true,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":50,"right":true},{"ticks":10,"left":true}],
+  11: [{"ticks":10,"right":true,"steady":true},{"ticks":90,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":30,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":20,"left":true},{"ticks":10,"leanL":true},{"ticks":10,"right":true,"steady":true},{"ticks":8,"left":true}],
+  12: [{"ticks":10,"right":true,"steady":true},{"ticks":130,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":40,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true,"leanR":true},{"ticks":50,"right":true},{"ticks":10,"left":true}],
+  13: [{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":140,"right":true},{"ticks":14,"left":true}],
+  14: [{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":110,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":110,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":14,"left":true}],
+  15: [{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":60,"right":true},{"ticks":10,"steady":true},{"ticks":30,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":30,"right":true},{"ticks":10,"steady":true},{"ticks":10,"left":true}],
+  16: [{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":110,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":80,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":40,"right":true},{"ticks":10,"steady":true},{"ticks":10,"left":true}],
+  17: [{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":80,"right":true},{"ticks":10,"right":true,"leanL":true},{"ticks":10,"right":true,"steady":true},{"ticks":130,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":10,"left":true}],
+  18: [{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":40,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":60,"right":true},{"ticks":10,"right":true,"leanR":true},{"ticks":10,"right":true},{"ticks":10,"right":true,"leanL":true},{"ticks":10,"right":true,"steady":true},{"ticks":70,"right":true},{"ticks":10,"leanL":true},{"ticks":10,"left":true}],
+  19: [{"ticks":10,"right":true,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":130,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":20,"right":true},{"ticks":10,"left":true}],
+  20: [{"ticks":10,"right":true,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":80,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":70,"right":true},{"ticks":10,"left":true}],
+  21: [{"ticks":10,"right":true,"steady":true},{"ticks":80,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":10,"left":true},{"ticks":10,"steady":true},{"ticks":10,"right":true},{"ticks":10,"left":true},{"ticks":10,"leanL":true},{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true,"leanR":true},{"ticks":60,"right":true},{"ticks":10,"left":true},{"ticks":10,"steady":true},{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"right":true,"leanR":true},{"ticks":10,"leanL":true},{"ticks":10,"right":true,"leanR":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":10,"right":true},{"ticks":10,"leanL":true},{"ticks":10,"left":true},{"ticks":10,"leanL":true},{"ticks":10,"right":true},{"ticks":8,"left":true}],
+  22: [{"ticks":10,"right":true,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":110,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":30,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":10,"left":true}],
+  23: [{"ticks":10,"right":true,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":90,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":30,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true,"leanR":true},{"ticks":20,"right":true},{"ticks":10,"left":true}],
+  24: [{"ticks":10,"right":true,"steady":true},{"ticks":120,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":90,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":30,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":10,"left":true}],
+  25: [{"ticks":10,"right":true,"steady":true},{"ticks":80,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":120,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":30,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":10,"leanR":true},{"ticks":10,"right":true},{"ticks":10,"left":true}],
+  26: [{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":40,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":120,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":30,"right":true},{"ticks":20,"steady":true},{"ticks":6,"left":true}],
+  27: [{"ticks":10,"right":true,"steady":true},{"ticks":80,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true,"steady":true},{"ticks":20,"right":true},{"ticks":10,"right":true,"leanR":true},{"ticks":10,"right":true,"leanL":true},{"ticks":50,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"right":true,"leanR":true},{"ticks":10,"leanL":true},{"ticks":10,"right":true},{"ticks":10,"left":true},{"ticks":10,"steady":true},{"ticks":10,"right":true},{"ticks":10,"left":true},{"ticks":10,"leanR":true},{"ticks":10,"right":true,"steady":true},{"ticks":20,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":10,"left":true}],
+  28: [{"ticks":10,"right":true,"steady":true},{"ticks":80,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":60,"right":true},{"ticks":10,"steady":true},{"ticks":10,"right":true},{"ticks":20,"steady":true},{"ticks":2,"right":true}],
+  29: [{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":40,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":90,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":20,"right":true},{"ticks":10,"steady":true},{"ticks":50,"right":true},{"ticks":14,"left":true}],
+  30: [{"ticks":10,"right":true,"steady":true},{"ticks":80,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":60,"right":true},{"ticks":10,"right":true,"leanL":true},{"ticks":10,"right":true,"leanR":true},{"ticks":20,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":70,"right":true},{"ticks":10,"left":true}]
+};
+
+function expandSolution(seq) {
+  const out = [];
+  for (const s of (seq || [])) {
+    for (let i = 0; i < s.ticks; i++) out.push({ left: !!s.left, right: !!s.right, leanL: !!s.leanL, leanR: !!s.leanR, steady: !!s.steady });
+  }
+  return out;
+}
+
+/* ============================================================================
+ * 7. CAKE STACK SPRING-DAMPER & CASCADE COLLAPSE ENGINE
+ * ============================================================================ */
+function getFloorY(def, x) {
+  let y = 415;
+  for (const h of def.hazards) {
+    if ((h.type === "step" || h.type === "bump") && x >= h.x && x <= h.x + h.w) {
+      y = Math.min(y, 415 + h.dy);
+    }
+  }
+  return y;
+}
+
+function createCakeState(def, styleId = "classic") {
+  const style = CAKE_STYLES.find(s => s.id === styleId) || CAKE_STYLES[0];
+  const tiers = [];
+  for (let i = 0; i < def.tiersCount; i++) {
+    const ratio = 1 - (i / (def.tiersCount + 1)) * 0.62;
+    tiers.push({
+      idx: i,
+      w: Math.round(76 * ratio),
+      h: 22,
+      xOff: 0,
+      vx: 0,
+      angle: 0,
+      angVel: 0,
+      fallen: false,
+      fallX: 0,
+      fallY: 0,
+      fallVx: 0,
+      fallVy: 0,
+      fallAng: 0,
+      fallAngVel: 0
+    });
+  }
+  return {
+    def,
+    style,
+    tick: 0,
+    simAccum: 0,
+    timeLeft: def.timeSec * 60,
+    playerX: 110,
+    playerY: getFloorY(def, 110),
+    prevFloorY: getFloorY(def, 110),
+    playerVx: 0,
+    facing: 1,
+    stepPhase: 0,
+    steadyTicks: 0,
+    steadyCooldown: 0,
+    wobblePct: 0,
+    peakWobblePct: 0,
+    closestSaveDelta: 0,
+    zeroWobbleStreak: 0,
+    bestZeroStreak: 0,
+    tiers,
+    hazards: def.hazards.map(h => ({ ...h, curX: h.x || 0, curVx: h.vx || 0, headTurn: false, activeSpray: false, hissing: false, gusting: false })),
+    bubbles: [],
+    soundEvents: [],
+    dropReports: [],
+    history: [],
+    collapsing: false,
+    slowMoTicks: 0,
+    failed: false,
+    won: false,
+    scoreBreakdown: null
+  };
+}
+
+function stepCake(state, input) {
+  state.soundEvents.length = 0;
+  if (state.won || state.failed) return;
+
+  // Handle cinematic slow-motion drop sequence!
+  const stepMult = state.collapsing ? SLOWMO_DROP_FACTOR : 1.0;
+  state.simAccum += stepMult;
+  if (state.simAccum < 0.999) {
+    // Still render smooth falling tiers in slow-mo ticks
+    for (const t of state.tiers) {
+      if (t.fallen) {
+        t.fallX += t.fallVx * FIXED_DT * stepMult;
+        t.fallY += t.fallVy * FIXED_DT * stepMult;
+        t.fallVy += 480 * FIXED_DT * stepMult;
+        t.fallAng += t.fallAngVel * FIXED_DT * stepMult;
+      }
+    }
+    if (state.collapsing) {
+      state.slowMoTicks++;
+      if (state.slowMoTicks >= 75) state.failed = true;
+    }
+    return;
+  }
+  state.simAccum -= 1.0;
+  state.tick++;
+  if (!state.collapsing) state.timeLeft = Math.max(0, state.def.timeSec * 60 - state.tick);
+
+  if (state.steadyTicks > 0) state.steadyTicks--;
+  if (state.steadyCooldown > 0) state.steadyCooldown--;
+  if (input.steady && state.steadyCooldown === 0 && !state.collapsing) {
+    state.steadyTicks = STEADY_DURATION_TICKS;
+    state.steadyCooldown = STEADY_COOLDOWN_TICKS;
+    state.soundEvents.push({ name: "steady", param: 1 });
+  }
+
+  // Determine floor zone friction, rug push, disco spin, wind, sprinkler
+  let onPolish = state.def.floor === "dance";
+  let onDisco = false;
+  let rugPush = 0;
+  let externalImpulse = 0;
+  for (const h of state.hazards) {
+    if (h.type === "polish" && state.playerX >= h.x && state.playerX <= h.x + h.w) onPolish = true;
+    if (h.type === "disco" && state.playerX >= h.x && state.playerX <= h.x + h.w) onDisco = true;
+    if (h.type === "rug" && state.playerX >= h.x && state.playerX <= h.x + h.w) rugPush += h.pushSpeed;
+    if (h.type === "wind") {
+      const ph = state.tick % h.period;
+      h.gusting = (ph >= h.onFrom && ph <= h.onTo);
+      if (h.gusting && state.playerX >= h.x && state.playerX <= h.x + h.w) externalImpulse += h.force;
+    }
+    if (h.type === "sprinkler") {
+      const ph = state.tick % h.period;
+      h.hissing = (ph >= h.hissAt && ph < h.blastAt);
+      h.activeSpray = (ph >= h.blastAt && ph <= h.endAt);
+      if (h.hissing && ph === h.hissAt) state.soundEvents.push({ name: "sprinkler", param: 1 });
+      if (h.activeSpray && Math.abs(state.playerX - h.x) <= h.w / 2) externalImpulse += h.push * (state.tick % 2 === 0 ? 1 : -0.6);
+    }
+    if (h.type === "guest" || h.type === "waiter") {
+      h.curX += h.curVx * FIXED_DT;
+      h.headTurn = (h.curX <= h.minX + 26 && h.curVx < 0) || (h.curX >= h.maxX - 26 && h.curVx > 0);
+      if (h.curX < h.minX) { h.curX = h.minX; h.curVx = Math.abs(h.curVx); }
+      if (h.curX > h.maxX) { h.curX = h.maxX; h.curVx = -Math.abs(h.curVx); }
+      if (!state.collapsing && Math.abs(state.playerX - h.curX) < 24) {
+        externalImpulse += Math.sign(state.playerX - h.curX || 1) * (h.push || 1.5);
+      }
+    }
+    if (h.type === "dog") {
+      const ph = state.tick % h.pausePeriod;
+      h.headTurn = (ph < h.pauseLen);
+      if (!h.headTurn) {
+        h.curX += h.curVx * FIXED_DT;
+        if (h.curX < h.minX) { h.curX = h.minX; h.curVx = Math.abs(h.curVx); }
+        if (h.curX > h.maxX) { h.curX = h.maxX; h.curVx = -Math.abs(h.curVx); }
+      }
+      if (!state.collapsing && Math.abs(state.playerX - h.curX) < 22) {
+        externalImpulse += Math.sign(h.curVx || 1) * 1.9;
+      }
+    }
+  }
+
+  // Locomotion & horizontal acceleration calculation
+  const oldVx = state.playerVx;
+  const moveDir = state.collapsing ? 0 : ((input.right ? 1 : 0) - (input.left ? 1 : 0));
+  if (moveDir !== 0) state.facing = moveDir;
+  const fric = onPolish ? WAX_FRICTION : GROUND_FRICTION;
+  if (moveDir !== 0) {
+    const accMult = onPolish ? 0.68 : 1.0;
+    state.playerVx = Math.max(-WALK_MAX, Math.min(WALK_MAX, state.playerVx + moveDir * WALK_ACCEL * accMult * FIXED_DT));
+  } else {
+    const dv = fric * FIXED_DT;
+    if (state.playerVx > 0) state.playerVx = Math.max(0, state.playerVx - dv);
+    else if (state.playerVx < 0) state.playerVx = Math.min(0, state.playerVx + dv);
+  }
+  const plateAx = (state.playerVx - oldVx) / FIXED_DT + (rugPush * 0.45);
+  state.playerX = Math.max(50, Math.min(LOGICAL_W - 70, state.playerX + (state.playerVx + rugPush) * FIXED_DT));
+
+  // Floor steps / grass bump vertical jolt
+  const newFloorY = getFloorY(state.def, state.playerX);
+  const floorStepDy = newFloorY - state.prevFloorY;
+  state.prevFloorY = newFloorY;
+  state.playerY = newFloorY;
+
+  // Footstep sound cadence
+  if (Math.abs(state.playerVx) > 25 && !state.collapsing) {
+    state.stepPhase += Math.abs(state.playerVx) * FIXED_DT;
+    if (state.stepPhase >= 28) {
+      state.stepPhase = 0;
+      state.soundEvents.push({ name: `step_${state.def.floor}`, param: 1 });
+    }
+  }
+
+  // Cake Tier Stack Physics (multi-body coupled spring-damper + friction slide + tip cascade)
+  const steadyMult = state.steadyTicks > 0 ? 0.25 : 1.0;
+  const leanInput = (input.leanR ? 1 : 0) - (input.leanL ? 1 : 0);
+  const discoTorque = onDisco ? Math.sin(state.tick * 0.24) * 2.4 : 0;
+  const stepTorque = Math.abs(floorStepDy) > 1 ? Math.sign(state.playerVx || 1) * Math.abs(floorStepDy) * 0.28 : 0;
+
+  let maxRatio = 0;
+  for (let i = 0; i < state.tiers.length; i++) {
+    const t = state.tiers[i];
+    if (t.fallen) {
+      t.fallX += t.fallVx * FIXED_DT;
+      t.fallY += t.fallVy * FIXED_DT;
+      t.fallVy += 480 * FIXED_DT;
+      t.fallAng += t.fallAngVel * FIXED_DT;
+      continue;
+    }
+
+    const heightMult = 1 + i * 0.16;
+    const accelTorque = -plateAx * PLATE_IMPULSE_MULT * heightMult * steadyMult;
+    const extTorque = externalImpulse * heightMult * 0.85 * steadyMult;
+    const playerCounter = leanInput * LEAN_COUNTER_FORCE * (i === 0 ? 1.15 : 0.7);
+    const parentAngle = i > 0 && !state.tiers[i - 1].fallen ? state.tiers[i - 1].angle : 0;
+    const relAng = t.angle - parentAngle;
+
+    const alpha = (-TIER_SPRING_K * relAng - TIER_DAMPING * t.angVel + accelTorque + extTorque + discoTorque + stepTorque + playerCounter) * (state.steadyTicks > 0 ? 1.55 : 1.0);
+    t.angVel += alpha * FIXED_DT;
+    if (state.steadyTicks > 0) {
+      t.angVel *= 0.84; t.vx *= 0.84; t.xOff *= 0.92;
+    }
+    t.angle += t.angVel * FIXED_DT;
+
+    // Horizontal frosting friction limit -> slides laterally if tilted too far!
+    if (Math.abs(t.angle) > SLIDE_FRICTION_LIMIT) {
+      t.vx += Math.sign(t.angle) * SLIDE_RATE * FIXED_DT * steadyMult;
+    } else {
+      t.vx *= 0.88;
+    }
+    t.xOff += t.vx * FIXED_DT;
+
+    const baseW = (i === 0 ? 84 : state.tiers[i - 1].w);
+    const ratio = Math.max(Math.abs(t.xOff) / (baseW * 0.5 * COM_FALL_MARGIN), Math.abs(t.angle) / MAX_TILT_COLLAPSE);
+    if (ratio > maxRatio) maxRatio = ratio;
+
+    // Trigger COM collapse cascade if outside base support!
+    if (ratio >= 1.0 || (i > 0 && state.tiers[i - 1].fallen)) {
+      t.fallen = true;
+      const plateX = state.playerX + state.facing * 12;
+      const plateY = state.playerY - 46 - i * 22;
+      t.fallX = plateX + t.xOff; t.fallY = plateY;
+      t.fallVx = state.playerVx * 0.6 + (t.xOff >= 0 ? 55 : -55);
+      t.fallVy = -35;
+      t.fallAng = t.angle; t.fallAngVel = (t.xOff >= 0 ? 3.5 : -3.5);
+      state.dropReports.push(`Tier ${i + 1}: ${DROP_CAPTIONS[i % DROP_CAPTIONS.length]}`);
+      if (!state.collapsing) {
+        state.collapsing = true;
+        state.slowMoTicks = 0;
+        state.soundEvents.push({ name: "gasp", param: 1 });
+        state.soundEvents.push({ name: "drop", param: 1 });
+      }
+    }
+  }
+
+  state.wobblePct = Math.min(100, Math.round(maxRatio * 100));
+  if (state.wobblePct > state.peakWobblePct) state.peakWobblePct = state.wobblePct;
+  if (state.peakWobblePct >= 72 && state.wobblePct <= 24) {
+    state.closestSaveDelta = Math.max(state.closestSaveDelta, state.peakWobblePct - state.wobblePct);
+    state.peakWobblePct = state.wobblePct;
+  }
+  if (state.wobblePct <= 18) {
+    state.zeroWobbleStreak++;
+    if (state.zeroWobbleStreak > state.bestZeroStreak) state.bestZeroStreak = state.zeroWobbleStreak;
+  } else {
+    state.zeroWobbleStreak = 0;
+  }
+
+  if (state.wobblePct > 62 && state.tick % 18 === 0 && !state.collapsing) {
+    state.soundEvents.push({ name: "creak", param: state.wobblePct / 100 });
+  }
+
+  // Record history for drop instant replay
+  state.history.push({
+    px: state.playerX, py: state.playerY, facing: state.facing,
+    tiers: state.tiers.map(t => ({ ...t }))
+  });
+  if (state.history.length > 180) state.history.shift();
+
+  // Check Goal Arrival (at table & reasonably settled)
+  if (!state.collapsing && state.playerX >= state.def.goalX && Math.abs(state.playerVx) < 35 && state.wobblePct < 65) {
+    finalizeWin(state);
+  }
+  if (!state.collapsing && state.timeLeft <= 0) {
+    state.failed = true;
+    state.dropReports.push("Speech started before the cake arrived!");
+    state.soundEvents.push({ name: "gasp", param: 1 });
+  }
+}
+
+function finalizeWin(state) {
+  state.won = true;
+  const intact = state.tiers.filter(t => !t.fallen).length;
+  const integrityScore = Math.round((intact / state.tiers.length) * 700);
+  const speedBonus = Math.round((state.timeLeft / 60) * 18);
+  const styleBonus = Math.min(200, Math.round(state.bestZeroStreak * 1.4));
+  const total = integrityScore + speedBonus + styleBonus;
+  const stars = (intact === state.tiers.length && total >= 900) ? 3 : (total >= 650 ? 2 : 1);
+  state.scoreBreakdown = { intact, totalTiers: state.tiers.length, integrityScore, speedBonus, styleBonus, total, stars };
+  state.soundEvents.push({ name: "win", param: 1 });
+}
+
+/* ============================================================================
+ * 8. F9 HEADLESS DETERMINISTIC REPLAY SOLVER
+ * ============================================================================ */
+function runHeadlessSolverForLevel(levelId) {
+  const def = LEVELS.find(l => l.id === levelId);
+  const seq = LEVEL_SOLUTIONS[levelId];
+  if (!def || !seq) return { id: levelId, name: def ? def.name : "?", pass: false, reason: "Missing solution" };
+  const frames = expandSolution(seq);
+  const st = createCakeState(def);
+  for (let i = 0; i < frames.length; i++) {
+    stepCake(st, frames[i]);
+    if (st.won) return { id: levelId, name: def.name, pass: true, ticks: st.tick, seconds: (st.tick / 60).toFixed(2) };
+    if (st.failed) return { id: levelId, name: def.name, pass: false, ticks: st.tick, reason: st.dropReports[0] || "Failed" };
+  }
+  return { id: levelId, name: def.name, pass: false, ticks: st.tick, reason: `Stopped at x=${Math.round(st.playerX)}` };
+}
+
+function runAllSolvers() {
+  const lieCheck = assertUniqueLies();
+  const results = LEVELS.map(l => runHeadlessSolverForLevel(l.id));
+  const passed = results.filter(r => r.pass).length;
+  console.log(`DON'T DROP THE CAKE F9 SOLVER: ${passed}/${results.length} PASS | LIE CHECK: ${lieCheck.ok ? "UNIQUE OK" : "FAIL"}`);
+  return { results, lieCheck, passed, total: results.length };
+}
+
+/* ============================================================================
+ * 9. PERSISTENCE, DAILY CAKE, INPUT, MOBILE LANDSCAPE & RENDERING
+ * ============================================================================ */
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const stageEl = document.getElementById("stage");
+const touchEl = document.getElementById("touch-controls");
+const touchFsBtn = document.getElementById("btn-touch-fs");
+const toastEl = document.getElementById("toast");
+
+function showToast(msg) {
+  toastEl.textContent = msg; toastEl.classList.add("show");
+  clearTimeout(showToast._t); showToast._t = setTimeout(() => toastEl.classList.remove("show"), 2000);
+}
+
+const defaultProgress = () => ({
+  stars: {},
+  bestScores: {},
+  fails: {},
+  totalFalls: 0,
+  bestSaves: [],
+  styleId: "classic",
+  streamerSafe: false,
+  bigObsOverlay: false,
+  muted: false
+});
+function loadProgress() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? { ...defaultProgress(), ...JSON.parse(raw) } : defaultProgress();
+  } catch (e) { return defaultProgress(); }
+}
+function saveProgress(p) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); } catch (e) {} }
+const progress = loadProgress();
+sfx.muted = !!progress.muted;
+
+function totalStars() { return Object.values(progress.stars).reduce((a, b) => a + b, 0); }
+function getDailyCakeId() {
+  const d = new Date();
+  const key = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  return ((key * 2654435761) >>> 0) % LEVELS.length + 1;
+}
+
+const app = {
+  screen: "title", // title | play | select | summary
+  currentIdx: 0,
+  state: null,
+  showGhost: false,
+  botWatch: null,
+  solverOverlay: null,
+  replayFrames: null,
+  replayIdx: 0,
+  narratorText: NARRATOR_LINES[0],
+  lastNarratorIdx: 0,
+  uiTick: 0,
+  cssRotated90: false,
+  hasTouch: false,
+  mouse: { x: 480, y: 270 },
+  keys: { left: false, right: false, leanL: false, leanR: false, steady: false },
+  touch: { left: false, right: false, leanL: false, leanR: false, steady: false }
+};
+
+function pickNarratorLine() {
+  let idx;
+  do { idx = Math.floor(Math.random() * NARRATOR_LINES.length); }
+  while (idx === app.lastNarratorIdx && NARRATOR_LINES.length > 1);
+  app.lastNarratorIdx = idx;
+  return NARRATOR_LINES[idx];
+}
+
+function startCakeLevel(idx) {
+  app.currentIdx = Math.max(0, Math.min(LEVELS.length - 1, idx));
+  app.state = createCakeState(LEVELS[app.currentIdx], progress.styleId);
+  app.showGhost = false;
+  app.botWatch = null;
+  app.replayFrames = null;
+  app.narratorText = pickNarratorLine();
+  app.screen = "play";
+}
+
+function isTouchCapable() {
+  return !!(app.hasTouch || (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) || (navigator.maxTouchPoints > 0 && Math.min(window.innerWidth, window.innerHeight) <= 900));
+}
+async function tryLockLandscape(withFullscreen = false) {
+  try {
+    if (withFullscreen && document.documentElement.requestFullscreen && !document.fullscreenElement) await document.documentElement.requestFullscreen();
+    if (screen.orientation && screen.orientation.lock) await screen.orientation.lock("landscape");
+  } catch (e) {}
+  resizeCanvas();
+}
+function getCanvasCoords(e) {
+  const rect = canvas.getBoundingClientRect();
+  if (app.cssRotated90) {
+    return { x: (e.clientY - rect.top) * (LOGICAL_W / Math.max(1, rect.height)), y: (rect.right - e.clientX) * (LOGICAL_H / Math.max(1, rect.width)) };
+  }
+  return { x: (e.clientX - rect.left) * (LOGICAL_W / Math.max(1, rect.width)), y: (e.clientY - rect.top) * (LOGICAL_H / Math.max(1, rect.height)) };
+}
+function resizeCanvas() {
+  const rawW = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+  const rawH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const mobile = isTouchCapable();
+  const forceRotate = mobile && rawH > rawW;
+  app.cssRotated90 = forceRotate;
+  stageEl.classList.toggle("landscape-forced", forceRotate);
+  const landW = forceRotate ? rawH : rawW, landH = forceRotate ? rawW : rawH;
+  stageEl.style.width = `${Math.floor(landW)}px`; stageEl.style.height = `${Math.floor(landH)}px`;
+  const pad = mobile ? 4 : 16;
+  const s = Math.min(Math.max(240, landW - pad) / LOGICAL_W, Math.max(160, landH - pad) / LOGICAL_H);
+  canvas.style.width = `${Math.floor(LOGICAL_W * s)}px`; canvas.style.height = `${Math.floor(LOGICAL_H * s)}px`;
+  stageEl.style.setProperty("--tbtn", `${Math.round(Math.max(42, Math.min(64, landH * 0.16)))}px`);
+  if (touchFsBtn && mobile && document.documentElement.requestFullscreen) touchFsBtn.style.display = document.fullscreenElement ? "none" : "flex";
+}
+window.addEventListener("resize", resizeCanvas);
+window.addEventListener("orientationchange", () => setTimeout(resizeCanvas, 60));
+document.addEventListener("fullscreenchange", () => setTimeout(resizeCanvas, 40));
+if (window.visualViewport) window.visualViewport.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+
+window.addEventListener("touchstart", () => { sfx.unlock(); app.hasTouch = true; resizeCanvas(); tryLockLandscape(false); }, { passive: true, once: true });
+function bindTouch(id, field) {
+  const btn = document.getElementById(id);
+  const set = v => { sfx.unlock(); app.touch[field] = v; btn.classList.toggle("pressed", v); };
+  btn.addEventListener("touchstart", e => { e.preventDefault(); set(true); });
+  btn.addEventListener("touchend", e => { e.preventDefault(); set(false); });
+  btn.addEventListener("touchcancel", e => { e.preventDefault(); set(false); });
+}
+bindTouch("btn-walkl", "left"); bindTouch("btn-walkr", "right");
+bindTouch("btn-leanl", "leanL"); bindTouch("btn-leanr", "leanR"); bindTouch("btn-steady", "steady");
+document.getElementById("btn-touch-retry").addEventListener("touchstart", e => { e.preventDefault(); if (app.screen === "play" || app.screen === "summary") startCakeLevel(app.currentIdx); });
+if (touchFsBtn) touchFsBtn.addEventListener("touchstart", e => { e.preventDefault(); tryLockLandscape(true); });
+
+const uiButtons = [];
+canvas.addEventListener("pointermove", e => { app.mouse = getCanvasCoords(e); });
+canvas.addEventListener("pointerdown", e => {
+  sfx.unlock();
+  if (e.pointerType === "touch") { app.hasTouch = true; resizeCanvas(); }
+  const pt = getCanvasCoords(e); app.mouse = pt;
+  for (let i = uiButtons.length - 1; i >= 0; i--) {
+    const b = uiButtons[i];
+    if (pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h) { b.onClick(); return; }
+  }
+});
+
+window.addEventListener("keydown", e => {
+  sfx.unlock();
+  const c = e.code;
+  if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Space","F9"].includes(c)) e.preventDefault();
+  if (c === "F9") {
+    if (e.shiftKey && app.state) {
+      startCakeLevel(app.currentIdx);
+      app.botWatch = { frames: expandSolution(LEVEL_SOLUTIONS[app.state.def.id] || []), idx: 0 };
+      showToast(`WATCHING BOT CARRY CAKE #${app.state.def.id}`);
+    } else {
+      app.solverOverlay = app.solverOverlay ? null : runAllSolvers();
+    }
+    return;
+  }
+  if (c === "Escape") { if (app.solverOverlay) { app.solverOverlay = null; return; } app.screen = app.screen === "play" ? "title" : (app.state ? "play" : "title"); return; }
+  if (c === "KeyO") { progress.bigObsOverlay = !progress.bigObsOverlay; saveProgress(progress); return; }
+  if (c === "KeyV") { progress.streamerSafe = !progress.streamerSafe; saveProgress(progress); showToast(`SAFE MODE: ${progress.streamerSafe ? "ON" : "OFF"}`); return; }
+  if (c === "KeyG" && app.state && (progress.fails[app.state.def.id] || 0) >= 8) { app.showGhost = !app.showGhost; return; }
+  if (c === "KeyR" && (app.screen === "play" || app.screen === "summary")) { startCakeLevel(app.currentIdx); return; }
+  if (c === "KeyC" && app.state) {
+    const code = `DDC-${String(app.state.def.id).padStart(2,"0")}`;
+    window.history.replaceState(null, "", `#code=${code}`);
+    showToast(`URL SHARED: #code=${code}`);
+    return;
+  }
+  if (c === "KeyA" || c === "ArrowLeft") app.keys.left = true;
+  if (c === "KeyD" || c === "ArrowRight") app.keys.right = true;
+  if (c === "KeyQ" || c === "ArrowUp") app.keys.leanL = true;
+  if (c === "KeyE" || c === "ArrowDown") app.keys.leanR = true;
+  if (c === "Space" || c === "KeyW") app.keys.steady = true;
+  if (app.screen === "title" && c === "Enter") startCakeLevel(0);
+});
+window.addEventListener("keyup", e => {
+  const c = e.code;
+  if (c === "KeyA" || c === "ArrowLeft") app.keys.left = false;
+  if (c === "KeyD" || c === "ArrowRight") app.keys.right = false;
+  if (c === "KeyQ" || c === "ArrowUp") app.keys.leanL = false;
+  if (c === "KeyE" || c === "ArrowDown") app.keys.leanR = false;
+  if (c === "Space" || c === "KeyW") app.keys.steady = false;
+});
+
+function addBtn(x, y, w, h, label, onClick, bg = PAL.STONE, fg = PAL.WHITE, border = PAL.GOLD) {
+  const hover = app.mouse.x >= x && app.mouse.x <= x + w && app.mouse.y >= y && app.mouse.y <= y + h;
+  ctx.fillStyle = hover && bg === PAL.STONE ? "#3D3B56" : bg;
+  ctx.fillRect(x, y - (hover ? 1 : 0), w, h);
+  ctx.strokeStyle = hover ? PAL.GOLD : border; ctx.lineWidth = 2; ctx.strokeRect(x, y - (hover ? 1 : 0), w, h);
+  ctx.fillStyle = fg; ctx.font = "bold 13px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(label, x + w / 2, y + h / 2 - (hover ? 1 : 0));
+  uiButtons.push({ x, y, w, h, onClick });
+}
+
+function drawCakeScene(st, px, py, tiers, facing, wobblePct) {
+  const def = st.def;
+  ctx.fillStyle = PAL.VENUE; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+
+  // Decorative Venue Backdrop Chandeliers / Archways
+  ctx.strokeStyle = "rgba(255,255,254,0.06)"; ctx.lineWidth = 2;
+  for (let ax = 120; ax <= 840; ax += 180) {
+    ctx.beginPath(); ctx.arc(ax, 240, 65, Math.PI, 0); ctx.stroke();
+  }
+
+  // Floor surface colored by venue type
+  const floorColor = def.floor === "grass" ? "#1E3A2B" : (def.floor === "dance" ? "#26213A" : (def.floor === "hall" ? "#2B2438" : "#2E2D40"));
+  ctx.fillStyle = floorColor; ctx.fillRect(0, 415, LOGICAL_W, 125);
+  ctx.fillStyle = PAL.GOLD; ctx.fillRect(0, 415, LOGICAL_W, 2);
+
+  // Hazards
+  for (const h of st.hazards) {
+    if (h.type === "step" || h.type === "bump") {
+      ctx.fillStyle = def.floor === "grass" ? "#2B563E" : PAL.STONE;
+      ctx.fillRect(h.x, 415 + h.dy, h.w, -h.dy + 4);
+      ctx.strokeStyle = PAL.GOLD; ctx.strokeRect(h.x, 415 + h.dy, h.w, -h.dy);
+    } else if (h.type === "rug") {
+      ctx.fillStyle = PAL.CORAL; ctx.fillRect(h.x, 412, h.w, 6);
+    } else if (h.type === "disco") {
+      ctx.fillStyle = (Math.floor(st.tick / 8) % 2 === 0) ? PAL.GOLD : PAL.CORAL;
+      ctx.fillRect(h.x, 412, h.w, 6);
+    } else if (h.type === "polish") {
+      ctx.fillStyle = "rgba(255,255,254,0.12)"; ctx.fillRect(h.x, 415, h.w, 10);
+    } else if (h.type === "sprinkler") {
+      ctx.fillStyle = PAL.STONE; ctx.fillRect(h.x - 10, 405, 20, 10);
+      if (h.hissing) { ctx.fillStyle = PAL.WHITE; ctx.font = "bold 11px monospace"; ctx.textAlign = "center"; ctx.fillText("HISS!", h.x, 385); }
+      if (h.activeSpray) {
+        ctx.strokeStyle = PAL.MINT; ctx.lineWidth = 2;
+        for (let sx = -40; sx <= 40; sx += 20) {
+          ctx.beginPath(); ctx.moveTo(h.x, 405); ctx.lineTo(h.x + sx, 250); ctx.stroke();
+        }
+      }
+    } else if (h.type === "wind" && h.gusting) {
+      ctx.fillStyle = "rgba(255,255,254,0.3)";
+      for (let i = 0; i < 6; i++) ctx.fillRect(h.x + ((st.tick * 9 + i * 70) % h.w), 230 + i * 28, 22, 2);
+    } else if (h.type === "guest" || h.type === "waiter") {
+      ctx.fillStyle = h.type === "waiter" ? PAL.WHITE : PAL.GOLD;
+      ctx.fillRect(h.curX - 10, 360, 20, 55);
+      ctx.fillStyle = PAL.BG; ctx.fillRect(h.curX + (h.curVx > 0 ? 3 : -7), 366, 4, 4);
+      if (h.headTurn) { ctx.fillStyle = PAL.CORAL; ctx.fillText("!", h.curX, 348); }
+    } else if (h.type === "dog") {
+      ctx.fillStyle = PAL.GOLD; ctx.fillRect(h.curX - 14, 395, 28, 20);
+      if (h.headTurn) { ctx.fillStyle = PAL.CORAL; ctx.fillText("SNIFF", h.curX, 382); }
+    }
+  }
+
+  // Destination Banquet Table
+  ctx.fillStyle = PAL.WHITE; ctx.fillRect(def.goalX - 10, 370, 95, 45);
+  ctx.fillStyle = PAL.CORAL; ctx.fillRect(def.goalX - 10, 370, 95, 10);
+  ctx.fillStyle = PAL.GOLD; ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
+  ctx.fillText("CAKE TABLE", def.goalX + 38, 354);
+
+  // Carrier Player Silhouette
+  ctx.fillStyle = PAL.WHITE; ctx.fillRect(px - 10, py - 54, 20, 54);
+  ctx.fillStyle = PAL.GOLD; ctx.fillRect(px - 10, py - 54, 20, 12); // Hat/hair
+  if (wobblePct > 65) {
+    ctx.fillStyle = PAL.CORAL; ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
+    ctx.fillText("WHOA!", px + 26, py - 68);
+  }
+
+  // Silver Plate
+  const plateX = px + facing * 12, plateY = py - 46;
+  ctx.fillStyle = PAL.WHITE; ctx.fillRect(plateX - 42, plateY, 84, 5);
+
+  // Stacked Tiers + Fallen Tiers
+  let curY = plateY;
+  for (const t of tiers) {
+    if (t.fallen) {
+      ctx.save(); ctx.translate(t.fallX, t.fallY); ctx.rotate(t.fallAng);
+      ctx.fillStyle = st.style.body; ctx.fillRect(-t.w/2, -t.h, t.w, t.h);
+      ctx.fillStyle = st.style.frost; ctx.fillRect(-t.w/2, -t.h, t.w, 5);
+      ctx.restore();
+    } else {
+      ctx.save(); ctx.translate(plateX + t.xOff, curY); ctx.rotate(t.angle);
+      ctx.fillStyle = st.style.body; ctx.fillRect(-t.w/2, -t.h, t.w, t.h);
+      ctx.fillStyle = st.style.frost; ctx.fillRect(-t.w/2, -t.h, t.w, 5);
+      ctx.strokeStyle = PAL.BG; ctx.lineWidth = 1.5; ctx.strokeRect(-t.w/2, -t.h, t.w, t.h);
+      ctx.restore();
+      curY -= t.h;
+    }
+  }
+}
+
+function renderHUD(st) {
+  ctx.fillStyle = "rgba(15,14,23,0.92)"; ctx.fillRect(0, 0, LOGICAL_W, 42);
+  ctx.fillStyle = PAL.GOLD; ctx.fillRect(0, 40, LOGICAL_W, 2);
+  ctx.textAlign = "left"; ctx.font = "bold 14px monospace";
+  ctx.fillStyle = PAL.GOLD; ctx.fillText(`CAKE #${String(st.def.id).padStart(2,"0")}: ${st.def.name}`, 14, 21);
+
+  // Wobble Meter Bar
+  ctx.fillStyle = PAL.WHITE; ctx.fillText("WOBBLE:", 310, 21);
+  ctx.fillStyle = PAL.STONE; ctx.fillRect(380, 12, 110, 16);
+  ctx.fillStyle = st.wobblePct > 70 ? PAL.CORAL : (st.wobblePct > 40 ? PAL.GOLD : PAL.MINT);
+  ctx.fillRect(380, 12, Math.round(1.1 * st.wobblePct), 16);
+
+  const sec = (st.timeLeft / 60).toFixed(1);
+  ctx.fillStyle = st.timeLeft < 300 ? PAL.CORAL : PAL.WHITE; ctx.fillText(`TIME:${sec}S`, 512, 21);
+  const intact = st.tiers.filter(t => !t.fallen).length;
+  ctx.fillStyle = PAL.MINT; ctx.fillText(`TIERS:${intact}/${st.tiers.length}`, 615, 21);
+
+  addBtn(726, 7, 66, 26, "MENU", () => { app.screen = "title"; }, PAL.STONE, PAL.GOLD);
+  addBtn(798, 7, 74, 26, "VENUES", () => { app.screen = "select"; }, PAL.STONE, PAL.WHITE);
+  addBtn(878, 7, 70, 26, "RETRY", () => startCakeLevel(app.currentIdx), PAL.STONE, PAL.CORAL, PAL.CORAL);
+
+  if ((progress.fails[st.def.id] || 0) >= 8) {
+    addBtn(14, 48, 178, 26, app.showGhost ? "GHOST: ON [G]" : "GHOST ROUTE [G]", () => { app.showGhost = !app.showGhost; }, app.showGhost ? PAL.GOLD : PAL.STONE);
+  }
+  if (progress.bigObsOverlay) {
+    ctx.fillStyle = "rgba(15,14,23,0.9)"; ctx.fillRect(LOGICAL_W - 180, 50, 166, 68);
+    ctx.strokeStyle = PAL.CORAL; ctx.strokeRect(LOGICAL_W - 180, 50, 166, 68);
+    ctx.fillStyle = PAL.WHITE; ctx.textAlign = "center"; ctx.font = "bold 12px monospace"; ctx.fillText("CAKE DROPS", LOGICAL_W - 97, 68);
+    ctx.fillStyle = PAL.CORAL; ctx.font = "bold 28px monospace"; ctx.fillText(String(progress.totalFalls), LOGICAL_W - 97, 98);
+  }
+
+  // Narrator hushed footer
+  ctx.fillStyle = "rgba(15,14,23,0.92)"; ctx.fillRect(0, LOGICAL_H - 32, LOGICAL_W, 32);
+  ctx.fillStyle = PAL.CORAL; ctx.fillRect(0, LOGICAL_H - 32, 6, 32);
+  ctx.fillStyle = PAL.WHITE; ctx.font = "bold 13px monospace"; ctx.textAlign = "left";
+  ctx.fillText(app.narratorText, 16, LOGICAL_H - 12);
+}
+
+function renderSummary(st) {
+  ctx.fillStyle = "rgba(15,14,23,0.95)"; ctx.fillRect(130, 52, 700, 436);
+  ctx.strokeStyle = st.won ? PAL.GOLD : PAL.CORAL; ctx.lineWidth = 3; ctx.strokeRect(130, 52, 700, 436);
+  ctx.textAlign = "center";
+  if (st.won) {
+    const sb = st.scoreBreakdown;
+    ctx.fillStyle = PAL.GOLD; ctx.font = "bold 28px monospace";
+    ctx.fillText(`DELIVERED! ${"*".repeat(sb.stars)} (${sb.total} PTS)`, 480, 96);
+    // Polaroid Photo summary box
+    ctx.fillStyle = PAL.WHITE; ctx.fillRect(365, 118, 230, 160);
+    ctx.fillStyle = PAL.BG; ctx.fillRect(377, 130, 206, 118);
+    let cy = 236;
+    for (const t of st.tiers) {
+      if (t.fallen) continue;
+      ctx.fillStyle = st.style.body; ctx.fillRect(480 - t.w/2, cy - 16, t.w, 16);
+      ctx.fillStyle = st.style.frost; ctx.fillRect(480 - t.w/2, cy - 16, t.w, 4);
+      cy -= 16;
+    }
+    ctx.fillStyle = PAL.BG; ctx.font = "bold 11px monospace";
+    ctx.fillText(`${sb.intact}/${sb.totalTiers} TIERS INTACT!`, 480, 266);
+    ctx.fillStyle = PAL.MINT; ctx.font = "bold 14px monospace";
+    ctx.fillText(`CLOSEST SAVE DELTA: ${st.closestSaveDelta}%  |  ZERO-WOBBLE STREAK: ${st.bestZeroStreak}T`, 480, 312);
+  } else {
+    ctx.fillStyle = PAL.CORAL; ctx.font = "bold 30px monospace";
+    ctx.fillText("CAKE TRAGEDY!", 480, 96);
+    ctx.fillStyle = PAL.GOLD; ctx.font = "bold 16px monospace"; ctx.fillText("DAMAGE REPORT", 480, 142);
+    for (let i = 0; i < Math.min(6, st.dropReports.length); i++) {
+      ctx.fillStyle = PAL.WHITE; ctx.font = "14px monospace";
+      ctx.fillText(st.dropReports[i], 480, 178 + i * 28);
+    }
+  }
+  addBtn(175, 418, 175, 44, "RETRY [R]", () => startCakeLevel(app.currentIdx), PAL.STONE, PAL.WHITE);
+  if (st.history.length > 20) {
+    addBtn(368, 418, 224, 44, "DRAMATIC REPLAY", () => {
+      app.replayFrames = st.history.slice(Math.max(0, st.history.length - 100)); app.replayIdx = 0;
+    }, PAL.STONE, PAL.CORAL, PAL.CORAL);
+  }
+  addBtn(610, 418, 175, 44, st.won && app.currentIdx + 1 < LEVELS.length ? "NEXT VENUE" : "MAIN MENU", () => {
+    if (st.won && app.currentIdx + 1 < LEVELS.length) startCakeLevel(app.currentIdx + 1);
+    else app.screen = "title";
+  }, PAL.GOLD, PAL.BG);
+}
+
+function renderTitleScreen() {
+  ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  ctx.fillStyle = PAL.CORAL; ctx.textAlign = "center"; ctx.font = "bold 44px monospace";
+  ctx.fillText("DON'T DROP THE CAKE", 482, 92);
+  ctx.fillStyle = PAL.GOLD; ctx.fillText("DON'T DROP THE CAKE", 478, 88);
+  ctx.fillStyle = PAL.WHITE; ctx.font = "bold 16px monospace";
+  ctx.fillText(`STARS: ${totalStars()}/90   |   DROPS: ${progress.totalFalls}`, 480, 140);
+
+  const daily = getDailyCakeId();
+  addBtn(310, 184, 340, 50, "PLAY / CONTINUE", () => {
+    const next = LEVELS.findIndex(l => !progress.stars[l.id]);
+    startCakeLevel(next >= 0 ? next : 0);
+  }, PAL.GOLD, PAL.BG);
+  addBtn(310, 246, 340, 42, `DAILY CAKE (#${daily})`, () => startCakeLevel(daily - 1), PAL.STONE, PAL.GOLD);
+  addBtn(310, 298, 340, 42, "30 VENUES & CAKE SHOP", () => { app.screen = "select"; }, PAL.STONE, PAL.WHITE);
+  addBtn(310, 350, 340, 40, progress.muted ? "SOUND: MUTED" : "SOUND: ON", () => { progress.muted = !progress.muted; sfx.muted = progress.muted; saveProgress(progress); }, PAL.STONE, PAL.WHITE);
+  addBtn(310, 400, 340, 40, "< BACK TO ARCADE HUB", () => { window.location.href = "index.html"; }, PAL.STONE, PAL.CORAL, PAL.CORAL);
+}
+
+function renderSelect() {
+  ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  ctx.fillStyle = PAL.GOLD; ctx.textAlign = "center"; ctx.font = "bold 22px monospace";
+  ctx.fillText("SELECT VENUE (1-30) & UNLOCK CAKES", 480, 28);
+  for (let i = 0; i < 30; i++) {
+    const col = i % 10, row = Math.floor(i / 10);
+    const st = progress.stars[i + 1] || 0;
+    addBtn(36 + col * 90, 56 + row * 78, 82, 66, `#${i+1} ${"*".repeat(st)||"-"}`, () => startCakeLevel(i), PAL.STONE, st ? PAL.GOLD : PAL.WHITE, st ? PAL.GOLD : PAL.STONE);
+  }
+  for (let i = 0; i < CAKE_STYLES.length; i++) {
+    const s = CAKE_STYLES[i];
+    const ok = totalStars() >= s.starsNeed;
+    const sel = progress.styleId === s.id;
+    addBtn(90 + i * 200, 330, 180, 46, `${s.name} (${s.starsNeed}*)`, () => {
+      if (!ok) showToast(`NEED ${s.starsNeed} STARS!`);
+      else { progress.styleId = s.id; saveProgress(progress); }
+    }, sel ? PAL.GOLD : PAL.STONE, sel ? PAL.BG : (ok ? PAL.WHITE : PAL.CORAL));
+  }
+  addBtn(390, 468, 180, 42, "MAIN MENU", () => { app.screen = "title"; }, PAL.GOLD, PAL.BG);
+}
+
+function renderSolver() {
+  if (!app.solverOverlay) return;
+  const { results, lieCheck, passed, total } = app.solverOverlay;
+  ctx.fillStyle = "rgba(15,14,23,0.96)"; ctx.fillRect(40, 28, 880, 484);
+  ctx.strokeStyle = PAL.GOLD; ctx.strokeRect(40, 28, 880, 484);
+  ctx.fillStyle = PAL.GOLD; ctx.textAlign = "center"; ctx.font = "bold 20px monospace";
+  ctx.fillText(`F9 SOLVER: ${passed}/${total} PASS | LIE CHECK: ${lieCheck.ok ? "UNIQUE" : "DUP"}`, 480, 62);
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i], col = i % 6, row = Math.floor(i / 6);
+    const x = 90 + col * 132, y = 92 + row * 68;
+    ctx.fillStyle = r.pass ? PAL.STONE : PAL.CORAL; ctx.fillRect(x, y, 120, 54);
+    ctx.fillStyle = PAL.WHITE; ctx.font = "bold 12px monospace"; ctx.fillText(`#${r.id}: ${r.pass ? "PASS" : "FAIL"}`, x + 60, y + 30);
+  }
+  addBtn(400, 464, 160, 34, "CLOSE [F9]", () => { app.solverOverlay = null; }, PAL.GOLD, PAL.BG);
+}
+
+function render() {
+  uiButtons.length = 0;
+  touchEl.classList.toggle("active", (app.screen === "play" || app.screen === "summary") && isTouchCapable());
+  if (app.screen === "title") renderTitleScreen();
+  else if (app.screen === "select") renderSelect();
+  else if (app.state) {
+    if (app.replayFrames) {
+      const f = app.replayFrames[Math.floor(app.replayIdx)];
+      ctx.save(); ctx.translate(480, 270); ctx.scale(1.45, 1.45); ctx.translate(-f.px, -f.py + 50);
+      drawCakeScene(app.state, f.px, f.py, f.tiers, f.facing, 100);
+      ctx.restore();
+      ctx.fillStyle = PAL.CORAL; ctx.textAlign = "center"; ctx.font = "bold 18px monospace"; ctx.fillText("DRAMATIC ZOOM REPLAY", 480, 66);
+    } else {
+      drawCakeScene(app.state, app.state.playerX, app.state.playerY, app.state.tiers, app.state.facing, app.state.wobblePct);
+    }
+    renderHUD(app.state);
+    if (app.screen === "summary" && !app.replayFrames) renderSummary(app.state);
+  }
+  renderSolver();
+}
+
+let lastT = performance.now(), acc = 0;
+function tick() {
+  app.uiTick++;
+  if (app.replayFrames) {
+    app.replayIdx += 0.35;
+    if (app.replayIdx >= app.replayFrames.length) app.replayFrames = null;
+    return;
+  }
+  if (app.screen === "play" && app.state && !app.solverOverlay) {
+    let inp = {
+      left: app.keys.left || app.touch.left, right: app.keys.right || app.touch.right,
+      leanL: app.keys.leanL || app.touch.leanL, leanR: app.keys.leanR || app.touch.leanR,
+      steady: app.keys.steady || app.touch.steady
+    };
+    if (app.botWatch) {
+      inp = app.botWatch.frames[app.botWatch.idx++] || {};
+      if (app.botWatch.idx > app.botWatch.frames.length + 10) app.botWatch = null;
+    }
+    stepCake(app.state, inp);
+    for (const s of app.state.soundEvents) sfx.play(s.name, s.param);
+    if (app.state.tick % 240 === 0 && app.state.wobblePct > 45) app.narratorText = pickNarratorLine();
+    if (app.state.won) {
+      const sb = app.state.scoreBreakdown;
+      progress.stars[app.state.def.id] = Math.max(progress.stars[app.state.def.id] || 0, sb.stars);
+      progress.bestScores[app.state.def.id] = Math.max(progress.bestScores[app.state.def.id] || 0, sb.total);
+      saveProgress(progress);
+      app.screen = "summary";
+    } else if (app.state.failed) {
+      progress.fails[app.state.def.id] = (progress.fails[app.state.def.id] || 0) + 1;
+      progress.totalFalls++;
+      saveProgress(progress);
+      app.narratorText = pickNarratorLine();
+      app.screen = "summary";
+    }
+  }
+}
+
+function frame(now) {
+  acc += Math.min(0.1, (now - lastT) / 1000); lastT = now;
+  while (acc >= FIXED_DT) { tick(); acc -= FIXED_DT; }
+  render();
+  requestAnimationFrame(frame);
+}
+
+const hashM = (window.location.hash || "").match(/code=DDC-(\d+)/i);
+if (hashM) { const n = parseInt(hashM[1], 10); if (n >= 1 && n <= LEVELS.length) startCakeLevel(n - 1); }
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

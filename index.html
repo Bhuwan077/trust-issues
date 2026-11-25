@@ -4898,114 +4898,125 @@ function renderMindWin() {
   addButton(320, 354, 320, 46, "MAIN MENU", () => { app.screen = "title"; }, PAL.STONE, PAL.GOLD, PAL.GOLD);
 }
 
+function readExtGameStats(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return { stars: 0, fails: 0 };
+    const d = JSON.parse(raw);
+    const stars = Object.values(d.stars || {}).reduce((a, b) => a + b, 0);
+    return { stars, fails: d.totalFails || d.totalFalls || 0 };
+  } catch (e) { return { stars: 0, fails: 0 }; }
+}
+
 function renderTitleScreen() {
   ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
 
-  // Atmospheric vignette + rising dark embers + drifting Watchful Eye
-  const rad = ctx.createRadialGradient(480, 130, 30, 480, 260, 560);
+  const rad = ctx.createRadialGradient(480, 110, 30, 480, 260, 560);
   rad.addColorStop(0, "rgba(46,45,64,0.34)");
   rad.addColorStop(1, "rgba(15,14,23,0)");
   ctx.fillStyle = rad; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
 
   if (!progress.streamerSafe) {
-    for (let i = 0; i < 14; i++) {
-      const ex = ((i * 73 + 29) % LOGICAL_W);
+    for (let i = 0; i < 12; i++) {
+      const ex = ((i * 79 + 31) % LOGICAL_W);
       const ey = ((520 - ((app.uiTick * (0.4 + (i % 3) * 0.2) + i * 47) % 520)));
       ctx.fillStyle = i % 3 === 0 ? "rgba(255,51,102,0.22)" : "rgba(255,184,0,0.16)";
       ctx.fillRect(ex, ey, 3, 3);
     }
   }
 
-  // Reticle diamond behind the Watchful Eye
-  ctx.save();
-  ctx.strokeStyle = "rgba(255,255,254,0.09)"; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(480, 38); ctx.lineTo(590, 124); ctx.lineTo(480, 210); ctx.lineTo(370, 124); ctx.closePath(); ctx.stroke();
-  ctx.restore();
-  drawAtmosphereAndEye(app.mouse.x, app.mouse.y, 124);
+  drawAtmosphereAndEye(app.mouse.x, app.mouse.y, 92);
 
-  // Minimal floating top-corner telemetry badges
-  const totalSuffering = progress.totalDeaths + (progress.g2TotalFails || 0);
-  ctx.fillStyle = "rgba(46,45,64,0.72)"; ctx.fillRect(26, 14, 194, 28);
-  ctx.fillStyle = app.trustScore > 25 ? PAL.GOLD : PAL.CORAL; ctx.fillRect(26, 14, 4, 28);
-  drawPixelText(ctx, `TRUST: ${app.trustScore}%`, 40, 21, 2, app.trustScore > 25 ? PAL.GOLD : PAL.CORAL, "left");
+  const pStat = readExtGameStats("parking_spot_panic_v1");
+  const cStat = readExtGameStats("dont_drop_cake_v1");
+  const totalSuffering = progress.totalDeaths + (progress.g2TotalFails || 0) + pStat.fails + cStat.fails;
 
-  ctx.fillStyle = "rgba(46,45,64,0.72)"; ctx.fillRect(722, 14, 212, 28);
-  ctx.fillStyle = PAL.CORAL; ctx.fillRect(930, 14, 4, 28);
-  drawPixelText(ctx, `FAILS: ${totalSuffering}`, 918, 21, 2, PAL.WHITE, "right");
+  ctx.fillStyle = "rgba(46,45,64,0.78)"; ctx.fillRect(26, 12, 198, 26);
+  ctx.fillStyle = app.trustScore > 25 ? PAL.GOLD : PAL.CORAL; ctx.fillRect(26, 12, 4, 26);
+  drawPixelText(ctx, `TRUST: ${app.trustScore}%`, 38, 18, 2, app.trustScore > 25 ? PAL.GOLD : PAL.CORAL, "left");
 
-  // Kinetic split-layer wordmark
+  ctx.fillStyle = "rgba(46,45,64,0.78)"; ctx.fillRect(722, 12, 212, 26);
+  ctx.fillStyle = PAL.CORAL; ctx.fillRect(930, 12, 4, 26);
+  drawPixelText(ctx, `FAILS: ${totalSuffering}`, 920, 18, 2, PAL.WHITE, "right");
+
   const jitter = progress.streamerSafe ? 0 : Math.round(Math.sin(app.uiTick * 0.14) * 2);
-  drawPixelText(ctx, "TRUST ISSUES", 484 + jitter, 32, 6, PAL.CORAL, "center");
-  drawPixelText(ctx, "TRUST ISSUES", 476 - jitter, 28, 6, PAL.GOLD, "center");
-  drawPixelText(ctx, "TRUST ISSUES", 480, 30, 6, PAL.WHITE, "center");
+  drawPixelText(ctx, "TRUST ISSUES ARCADE", 483 + jitter, 22, 5, PAL.CORAL, "center");
+  drawPixelText(ctx, "TRUST ISSUES ARCADE", 477 - jitter, 18, 5, PAL.GOLD, "center");
+  drawPixelText(ctx, "TRUST ISSUES ARCADE", 480, 20, 5, PAL.WHITE, "center");
+  drawPixelText(ctx, "FOUR RAGE GAMES. ZERO HINTS. ZERO MERCY.", 480, 74, 2, PAL.GOLD, "center");
 
-  ctx.fillStyle = "rgba(15,14,23,0.9)"; ctx.fillRect(210, 96, 540, 26);
-  ctx.strokeStyle = PAL.STONE; ctx.lineWidth = 1.5; ctx.strokeRect(210, 96, 540, 26);
-  drawPixelText(ctx, "TWO WAYS TO LOSE YOUR MIND. ZERO HINTS. ZERO MERCY.", 480, 102, 1, PAL.GOLD, "center");
-
-  // ---------------- GAME 01 SHOWCASE CARD (PLATFORMER) ----------------
+  // ---- CARD 1: PLATFORMER (Top-Left) ----
   const g1Cleared = Object.keys(progress.cleared).filter(id => Number(id) <= 100).length;
   const firstG1 = LEVELS.findIndex((l, idx) => idx < 100 && !progress.cleared[l.id]);
   const playG1Idx = app.state ? app.currentLevelIndex : (firstG1 >= 0 ? firstG1 : 0);
   const playG1Num = LEVELS[playG1Idx] ? LEVELS[playG1Idx].id : 1;
-
-  ctx.fillStyle = "rgba(15,14,23,0.94)"; ctx.fillRect(54, 186, 416, 224);
-  ctx.strokeStyle = PAL.STONE; ctx.lineWidth = 2; ctx.strokeRect(54, 186, 416, 224);
-  ctx.fillStyle = PAL.GOLD; ctx.fillRect(54, 186, 5, 224);
-
-  // Live animated mini-platformer preview banner inside Card 1
-  ctx.fillStyle = "#161524"; ctx.fillRect(72, 198, 382, 46);
-  ctx.fillStyle = PAL.STONE; ctx.fillRect(72, 236, 382, 8);
-  for (let s = 0; s < 3; s++) drawSpike(224 + s * 22, 212, "^", 0.72);
-  const runT = (app.uiTick % 90) / 90;
-  const rx = 86 + runT * 340;
-  const jumpArc = (runT > 0.36 && runT < 0.62) ? Math.sin(((runT - 0.36) / 0.26) * Math.PI) * 20 : 0;
-  ctx.fillStyle = PAL.WHITE; ctx.fillRect(Math.round(rx), Math.round(220 - jumpArc), 12, 16);
-  ctx.fillStyle = PAL.GOLD; ctx.fillRect(422, 214, 14, 22);
-
-  drawPixelText(ctx, "01 // TRUST ISSUES", 74, 256, 3, PAL.GOLD, "left");
-  drawPixelText(ctx, "101 RIGGED PLATFORMER ROUNDS", 74, 286, 1, PAL.WHITE, "left");
-  drawPixelText(ctx, `${g1Cleared}/100 CLEARED   |   ${progress.totalDeaths} DEATHS`, 74, 302, 1, PAL.CORAL, "left");
-
-  const dailyId = getDailyRoundId();
-  addButton(74, 322, 378, 42, app.state ? `RESUME ROUND #${playG1Num}` : (g1Cleared > 0 ? `CONTINUE (#${playG1Num})` : "PLAY PLATFORMER [ENTER]"), () => {
-    if (app.state) { app.screen = "play"; } else { startLevel(playG1Idx, true); }
+  ctx.fillStyle = "rgba(15,14,23,0.94)"; ctx.fillRect(46, 108, 424, 152);
+  ctx.strokeStyle = PAL.STONE; ctx.lineWidth = 2; ctx.strokeRect(46, 108, 424, 152);
+  ctx.fillStyle = PAL.GOLD; ctx.fillRect(46, 108, 5, 152);
+  drawPixelText(ctx, "01 // TRUST ISSUES", 64, 122, 2, PAL.GOLD, "left");
+  drawPixelText(ctx, "RIGGED PRECISION PLATFORMER (101 ROUNDS)", 64, 144, 1, PAL.WHITE, "left");
+  drawPixelText(ctx, `CLEARED: ${g1Cleared}/100  |  DEATHS: ${progress.totalDeaths}`, 64, 160, 1, PAL.CORAL, "left");
+  const rT = (app.uiTick % 80) / 80;
+  ctx.fillStyle = "#171625"; ctx.fillRect(344, 118, 112, 46);
+  for (let s = 0; s < 2; s++) drawSpike(384 + s * 18, 134, "^", 0.7);
+  ctx.fillStyle = PAL.WHITE; ctx.fillRect(352 + Math.round(rT * 84), Math.round(140 - Math.sin(rT * Math.PI) * 18), 10, 14);
+  addButton(64, 180, 260, 34, app.state ? `RESUME #${playG1Num}` : "PLAY PLATFORMER", () => {
+    if (app.state) app.screen = "play"; else startLevel(playG1Idx, true);
   }, PAL.GOLD, PAL.BG, PAL.WHITE);
-  addButton(74, 370, 184, 30, "WORLDS [L]", () => { app.screen = "select"; }, PAL.STONE, PAL.WHITE, PAL.STONE);
-  addButton(268, 370, 184, 30, `DAILY (#${dailyId})`, () => startLevel(Math.min(LEVELS.length - 1, dailyId - 1), true), PAL.STONE, PAL.GOLD, PAL.GOLD);
+  addButton(332, 180, 124, 34, "WORLDS [L]", () => { app.screen = "select"; }, PAL.STONE, PAL.WHITE, PAL.STONE);
+  addButton(64, 220, 392, 28, `DAILY CHALLENGE (#${getDailyRoundId()})`, () => startLevel(Math.min(LEVELS.length - 1, getDailyRoundId() - 1), true), PAL.STONE, PAL.GOLD, PAL.STONE);
 
-  // ---------------- GAME 02 SHOWCASE CARD (DO NOT OBEY) ----------------
+  // ---- CARD 2: DO NOT OBEY (Top-Right) ----
   const g2Cleared = Object.keys(progress.g2Cleared || {}).length;
   const firstG2 = MIND_LEVELS.findIndex(m => !(progress.g2Cleared && progress.g2Cleared[m.id]));
   const playG2Idx = app.g2 ? app.g2CurrentIdx : (firstG2 >= 0 ? firstG2 : 0);
-
-  ctx.fillStyle = "rgba(15,14,23,0.94)"; ctx.fillRect(490, 186, 416, 224);
-  ctx.strokeStyle = PAL.STONE; ctx.lineWidth = 2; ctx.strokeRect(490, 186, 416, 224);
-  ctx.fillStyle = PAL.CORAL; ctx.fillRect(490, 186, 5, 224);
-
-  // Live animated mini-mind-game preview inside Card 2
-  ctx.fillStyle = "#161524"; ctx.fillRect(508, 198, 382, 46);
-  const bx = 560 + Math.round(Math.sin(app.uiTick * 0.06) * 44);
-  ctx.fillStyle = PAL.CORAL; ctx.fillRect(bx, 210, 74, 22);
-  drawPixelText(ctx, "BAIT", bx + 37, 216, 1, PAL.WHITE, "center");
-  const cx = 755 - Math.round(Math.cos(app.uiTick * 0.06) * 36);
-  ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(cx, 221, 9, 0, Math.PI * 2); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx - 14, 221); ctx.lineTo(cx + 14, 221); ctx.moveTo(cx, 207); ctx.lineTo(cx, 235); ctx.stroke();
-
-  drawPixelText(ctx, "02 // DO NOT OBEY", 510, 256, 3, PAL.CORAL, "left");
-  drawPixelText(ctx, "16 PSYCHOLOGICAL BRAIN TRAPS", 510, 286, 1, PAL.WHITE, "left");
-  drawPixelText(ctx, `${g2Cleared}/16 CLEARED   |   ${progress.g2TotalFails || 0} FAILS`, 510, 302, 1, PAL.GOLD, "left");
-
-  addButton(510, 322, 378, 42, app.g2 ? `RESUME STAGE M${playG2Idx + 1}` : (g2Cleared > 0 ? `CONTINUE M${playG2Idx + 1}` : "PLAY MIND GAMES"), () => {
-    if (app.g2) { app.screen = "g2play"; } else { startMindLevel(playG2Idx); }
+  ctx.fillStyle = "rgba(15,14,23,0.94)"; ctx.fillRect(490, 108, 424, 152);
+  ctx.strokeStyle = PAL.STONE; ctx.lineWidth = 2; ctx.strokeRect(490, 108, 424, 152);
+  ctx.fillStyle = PAL.CORAL; ctx.fillRect(490, 108, 5, 152);
+  drawPixelText(ctx, "02 // DO NOT OBEY", 508, 122, 2, PAL.CORAL, "left");
+  drawPixelText(ctx, "PSYCHOLOGICAL UI TORTURE (16 STAGES)", 508, 144, 1, PAL.WHITE, "left");
+  drawPixelText(ctx, `CLEARED: ${g2Cleared}/16  |  FAILS: ${progress.g2TotalFails || 0}`, 508, 160, 1, PAL.GOLD, "left");
+  ctx.fillStyle = "#171625"; ctx.fillRect(788, 118, 112, 46);
+  const bx2 = 804 + Math.round(Math.sin(app.uiTick * 0.08) * 20);
+  ctx.fillStyle = PAL.CORAL; ctx.fillRect(bx2, 132, 44, 16);
+  drawPixelText(ctx, "BAIT", bx2 + 22, 136, 1, PAL.WHITE, "center");
+  addButton(508, 180, 260, 34, app.g2 ? `RESUME M${playG2Idx + 1}` : "PLAY MIND GAMES", () => {
+    if (app.g2) app.screen = "g2play"; else startMindLevel(playG2Idx);
   }, PAL.CORAL, PAL.WHITE, PAL.WHITE);
-  addButton(510, 370, 378, 30, "STAGE SELECT (M01..M16)", () => { app.screen = "g2select"; }, PAL.STONE, PAL.WHITE, PAL.STONE);
+  addButton(776, 180, 124, 34, "STAGES", () => { app.screen = "g2select"; }, PAL.STONE, PAL.WHITE, PAL.STONE);
+  addButton(508, 220, 392, 28, "MIND-TRAP STAGE SELECT (M01..M16)", () => { app.screen = "g2select"; }, PAL.STONE, PAL.WHITE, PAL.STONE);
 
-  // ---------------- CLEAN UTILITY DOCK & FOOTER ----------------
-  addButton(138, 430, 216, 38, "HALL OF SHAME [H]", () => { app.screen = "shame"; }, PAL.STONE, PAL.CORAL, PAL.CORAL);
-  addButton(372, 430, 216, 38, "SETTINGS & KEYS [ESC]", () => { app.screen = "pause"; }, PAL.STONE, PAL.WHITE, PAL.WHITE);
-  addButton(606, 430, 216, 38, progress.muted ? "SOUND: MUTED" : "SOUND: ON", () => {
+  // ---- CARD 3: PARKING SPOT PANIC (Bottom-Left) ----
+  ctx.fillStyle = "rgba(15,14,23,0.94)"; ctx.fillRect(46, 272, 424, 146);
+  ctx.strokeStyle = PAL.STONE; ctx.lineWidth = 2; ctx.strokeRect(46, 272, 424, 146);
+  ctx.fillStyle = PAL.WHITE; ctx.fillRect(46, 272, 5, 146);
+  drawPixelText(ctx, "03 // PARKING SPOT PANIC", 64, 286, 2, PAL.GOLD, "left");
+  drawPixelText(ctx, "ABSURD VEHICLES & DENT COMEDY (40 SPOTS)", 64, 308, 1, PAL.WHITE, "left");
+  drawPixelText(ctx, `STARS: ${pStat.stars}/120  |  FAILS: ${pStat.fails}`, 64, 324, 1, PAL.GOLD, "left");
+  ctx.fillStyle = "#171625"; ctx.fillRect(344, 282, 112, 46);
+  ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 1.5; ctx.strokeRect(410, 294, 36, 22);
+  ctx.fillStyle = PAL.WHITE; ctx.fillRect(352 + Math.round(((app.uiTick % 70) / 70) * 62), 298, 26, 14);
+  addButton(64, 346, 392, 54, "DRIVE: PARKING SPOT PANIC >", () => { window.location.href = "parking.html"; }, PAL.GOLD, PAL.BG, PAL.WHITE, "10 VEHICLES • F9 SOLVER • SLOW-MO REPLAY");
+
+  // ---- CARD 4: DON'T DROP THE CAKE (Bottom-Right) ----
+  ctx.fillStyle = "rgba(15,14,23,0.94)"; ctx.fillRect(490, 272, 424, 146);
+  ctx.strokeStyle = PAL.STONE; ctx.lineWidth = 2; ctx.strokeRect(490, 272, 424, 146);
+  ctx.fillStyle = PAL.CORAL; ctx.fillRect(490, 272, 5, 146);
+  drawPixelText(ctx, "04 // DON'T DROP THE CAKE", 508, 286, 2, PAL.CORAL, "left");
+  drawPixelText(ctx, "TOWERING CAKE BALANCE CHAOS (30 VENUES)", 508, 308, 1, PAL.WHITE, "left");
+  drawPixelText(ctx, `STARS: ${cStat.stars}/90  |  DROPS: ${cStat.fails}`, 508, 324, 1, PAL.CORAL, "left");
+  ctx.fillStyle = "#171625"; ctx.fillRect(788, 282, 112, 46);
+  const sw = Math.round(Math.sin(app.uiTick * 0.1) * 4);
+  ctx.fillStyle = PAL.GOLD; ctx.fillRect(824, 318, 40, 3);
+  ctx.fillStyle = PAL.WHITE; ctx.fillRect(830 + Math.round(sw * 0.4), 309, 28, 8);
+  ctx.fillStyle = PAL.CORAL; ctx.fillRect(833 + sw, 300, 22, 8);
+  ctx.fillStyle = PAL.GOLD; ctx.fillRect(836 + Math.round(sw * 1.4), 291, 16, 8);
+  addButton(508, 346, 392, 54, "CARRY: DON'T DROP THE CAKE >", () => { window.location.href = "cake.html"; }, PAL.CORAL, PAL.WHITE, PAL.WHITE, "8-TIER SPRING PHYSICS • SLOW-MO DROPS");
+
+  // ---- BOTTOM DOCK & NARRATOR BAR ----
+  addButton(138, 434, 216, 36, "HALL OF SHAME [H]", () => { app.screen = "shame"; }, PAL.STONE, PAL.CORAL, PAL.CORAL);
+  addButton(372, 434, 216, 36, "SETTINGS & KEYS [ESC]", () => { app.screen = "pause"; }, PAL.STONE, PAL.WHITE, PAL.WHITE);
+  addButton(606, 434, 216, 36, progress.muted ? "SOUND: MUTED" : "SOUND: ON", () => {
     progress.muted = !progress.muted; sfx.muted = progress.muted; saveProgress(progress);
   }, PAL.STONE, progress.muted ? PAL.CORAL : PAL.GOLD, progress.muted ? PAL.CORAL : PAL.GOLD);
 

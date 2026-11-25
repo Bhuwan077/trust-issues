@@ -1,0 +1,1929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="screen-orientation" content="landscape">
+<title>PARKING SPOT PANIC — 40 Ridiculous Spots</title>
+<!--
+================================================================================
+  PARKING SPOT PANIC — README, CONSTANTS, LIE INDEX & FAIRNESS SELF-REVIEW
+================================================================================
+  CONTROLS:
+    Drive        : W / Up Arrow (Accelerate), S / Down Arrow (Brake / Reverse)
+    Steer        : A / D or Left / Right Arrow + Touch Steering Wheel & Pedals
+    Handbrake    : Space (cuts rear lateral grip for tight pivots)
+    Horn         : H (each of the 10 vehicles has its own horn synth & reaction)
+    Retry        : R (< 200 ms instant reset with identical layout)
+    Ghost Ideal  : G (auto-available after 5 failed attempts on a spot)
+    OBS Overlay  : O (toggles clean top-right fail counter overlay)
+    StreamerSafe : V (disables screen shake and red crash flashes)
+    Share Spot   : C (copies #code=PSP-XX URL hash)
+    Debug Solver : F9 (runs deterministic replay verification on ALL 40 spots!)
+    Watch Bot    : Shift+F9 (watch verified solution live on the current spot)
+
+  HOW TO RUN THE SOLVER:
+    1. Open parking.html in any browser (or pass to Node headless verifier).
+    2. Press F9 anywhere to execute `runAllSolvers()` across all 40 spots and
+       check Lie Index uniqueness. Press Shift+F9 to watch a live solve.
+
+  HOW TO ADD A SPOT:
+    1. Call `addSpot({ id, tier, name, vehicleId, lieKey, twist, tell,
+       intendedSolution, start, spot, walls, parkedCars, cones, ... })`.
+    2. Add a deterministic input array to `LEVEL_SOLUTIONS[id]`.
+    3. Press F9 to verify PASS cleanly.
+
+  SELF-REVIEW FAIRNESS CHECKLIST:
+    [x] Zero randomness in layouts, traffic timing, pedestrians, or physics.
+    [x] 100% deterministic 60 Hz fixed-timestep simulation (`FIXED_DT = 1/60`).
+    [x] 40/40 spots verified via F9 replay solver with PASS status.
+    [x] SAT OBB hitboxes match exact drawn vehicle/wall/cone rectangles.
+    [x] Ghost ideal car toggle unlocks cleanly after 5 failed attempts.
+    [x] Unique twist per spot tracked in `LIE_INDEX` (`assertUniqueLies()`).
+    [x] Everything runs strictly inside canvas; safe localStorage try/catch;
+        playful non-hateful NPC reactions; no external requests or redirects.
+================================================================================
+-->
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+  html, body { width: 100%; height: 100%; background: #0F0E17; color: #FFFFFE; font-family: ui-monospace, Menlo, Consolas, monospace; overflow: hidden; touch-action: none; }
+  #wrap { position: fixed; inset: 0; overflow: hidden; background: radial-gradient(circle at 50% 45%, #1d1b2d 0%, #0F0E17 78%); }
+  #stage { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; }
+  #stage.landscape-forced { transform: translate(-50%, -50%) rotate(90deg); transform-origin: center center; }
+  canvas { display: block; border-radius: 6px; box-shadow: 0 0 0 2px #2E2D40, 0 22px 60px rgba(0,0,0,0.75); background: #141320; cursor: pointer; touch-action: none; }
+  #touch-controls { position: absolute; inset: 0; pointer-events: none; display: none; z-index: 20; }
+  #touch-controls.active { display: block; }
+  .t-left { position: absolute; left: 14px; bottom: 12px; display: flex; align-items: center; gap: 8px; pointer-events: auto; }
+  .t-right { position: absolute; right: 14px; bottom: 12px; display: flex; gap: 8px; pointer-events: auto; align-items: flex-end; }
+  .t-top { position: absolute; top: 44px; right: 12px; display: flex; gap: 6px; pointer-events: auto; }
+  .tbtn {
+    width: var(--tbtn, 54px); height: var(--tbtn, 54px); border-radius: 14px; border: 2px solid #FFFFFE;
+    background: rgba(15,14,23,0.76); color: #FFFFFE; font-weight: 800; font-size: 14px;
+    display: flex; align-items: center; justify-content: center; touch-action: none;
+  }
+  .tbtn.gas { height: calc(var(--tbtn, 54px) * 1.25); border-color: #FFB800; color: #FFB800; }
+  .tbtn.hb { width: calc(var(--tbtn, 54px) * 0.92); height: calc(var(--tbtn, 54px) * 0.85); border-color: #FF3366; color: #FF3366; font-size: 11px; }
+  .tbtn.small { width: auto; height: 28px; padding: 0 9px; border-radius: 8px; font-size: 11px; }
+  .tbtn.pressed { background: #FFFFFE; color: #0F0E17; }
+  #toast {
+    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); background: #2E2D40; border: 2px solid #FFB800;
+    color: #FFFFFE; padding: 7px 14px; font-size: 12px; font-weight: 700; opacity: 0; pointer-events: none; transition: opacity 0.15s ease; z-index: 30; white-space: nowrap;
+  }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <canvas id="game" width="960" height="540"></canvas>
+    <div id="touch-controls">
+      <div class="t-top">
+        <button class="tbtn small" id="btn-touch-fs" style="display:none">FULL</button>
+        <button class="tbtn small" id="btn-touch-horn">HONK</button>
+        <button class="tbtn small" id="btn-touch-retry">RETRY</button>
+      </div>
+      <div class="t-left">
+        <button class="tbtn" id="btn-sleft">&lt;L</button>
+        <button class="tbtn" id="btn-sright">R&gt;</button>
+      </div>
+      <div class="t-right">
+        <button class="tbtn hb" id="btn-hb">BRAKE</button>
+        <button class="tbtn" id="btn-rev">REV</button>
+        <button class="tbtn gas" id="btn-gas">GAS</button>
+      </div>
+    </div>
+    <div id="toast"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================================
+ * 1. TUNING CONSTANTS (AND WHY THEY EXIST)
+ * ============================================================================ */
+const LOGICAL_W = 960;               // Crisp 16:9 canvas width matching sister games
+const LOGICAL_H = 540;               // Crisp 16:9 canvas height
+const FIXED_DT = 1 / 60;             // Deterministic 60 Hz physics step
+const PX_PER_METER = 20;             // 20 px = 1 meter -> 1 px = 5 cm for crisp margin readout
+const ROUND_TIME_TICKS = 30 * 60;    // Strict 30-second countdown per round
+const PARK_HOLD_TICKS = 60;          // Vehicle must stay cleanly inside spot & stopped for 1.0s
+const STOP_SPEED_THRESH = 8;         // Max px/s velocity considered "stopped"
+const STEER_RATE = 3.6;              // Steering wheel angular speed (rad/s) for tight crisp turn-in
+const STEER_RETURN_RATE = 4.8;       // Self-centering speed when steer input released
+const SPEED_STEER_DAMP = 0.0028;     // Speed-dependent steering limit preventing spinouts
+const ROLL_DRAG = 140;               // Passive longitudinal deceleration (px/s^2)
+const BRAKE_DECEL = 420;             // Responsive braking authority
+const HANDBRAKE_DECEL = 320;         // Longitudinal slide deceleration under Space handbrake
+const NORMAL_LAT_DAMP = 0.80;        // High lateral tire grip factor (not slippery by default)
+const HANDBRAKE_LAT_DAMP = 0.94;     // Cuts rear lateral grip on handbrake for tight tail swings
+const ICE_LAT_DAMP = 0.975;          // Slippery ice patch grip decay
+const DENT_COOLDOWN_TICKS = 14;      // Prevents repeated single-frame collision multi-counting
+const DENT_PENALTIES = { tap: 35, scrape: 95, crunch: 185, catastrophe: 340 };
+const STORAGE_KEY = "parking_spot_panic_v1";
+
+const PAL = {
+  BG: "#0F0E17",
+  ASPHALT: "#191826",
+  WHITE: "#FFFFFE",
+  STONE: "#2E2D40",
+  CORAL: "#FF3366",
+  GOLD: "#FFB800",
+  MINT: "#2CE8A2"
+};
+
+/* ============================================================================
+ * 2. 85 UNIQUE COMEDY NPC REACTIONS & DENT NAMES (NO IMMEDIATE REPEATS)
+ * ============================================================================ */
+const NPC_LINES = [
+  "Did you get your license from a cereal box?",
+  "That bumper had dreams, you monster!",
+  "Ooh, bold geometry choice!",
+  "Just pretend nobody saw that.",
+  "Mirror kissed the curb goodnight.",
+  "Your insurance agent just fainted.",
+  "Why use brakes when objects exist?",
+  "A gentle tap! Like a meteor.",
+  "Physics called. It wants an apology.",
+  "That cone had a family!",
+  "Paint exchange program: successful.",
+  "Clean! Except for the metal screaming.",
+  "Was that reverse or regret?",
+  "The wall didn't move, buddy.",
+  "Smooth like a shopping cart in gravel.",
+  "Congratulations on inventing origami steel.",
+  "My grandma parks faster with a tractor.",
+  "At least the blinker fluid survived.",
+  "Did the steering wheel offend you?",
+  "You parked near the spot, spiritually.",
+  "Structural integrity: optional.",
+  "Hey, that sound was expensive!",
+  "I'm not saying you missed, wait yes I am.",
+  "Could you hit it quieter? I'm on a call.",
+  "Look! Free speed holes in your fender!",
+  "Was that a parallel park or a karate chop?",
+  "Even the pigeon looks disappointed.",
+  "Try opening your eyes next attempt.",
+  "Zero point eight centimeters! Brutal.",
+  "The paint shop is buying a yacht today.",
+  "Yes, honking definitely shrinks the gap.",
+  "You brought a 10-ton vehicle to a teacup fight.",
+  "That sound came directly from my wallet.",
+  "A tactical crunch! Genius!",
+  "Wait, which pedal did you press?!",
+  "If cars had feelings, yours would cry.",
+  "Nailed the pillar. Spot? Not so much.",
+  "Noted: turning left means hitting right.",
+  "You're redefining 'compact parking'.",
+  "Should we call a tow truck or a wizard?",
+  "Every scrape tells a tragic story.",
+  "You left half the car in another zip code.",
+  "I flinched before you even hit it.",
+  "Whoa! Keep the roof attached please!",
+  "Was that on purpose for the stream clip?",
+  "Chat is typing 'F' for that headlight.",
+  "Somebody lock this steering wheel up.",
+  "Just tell the owner it arrived pre-dented.",
+  "Gravity works great! Turning, less so.",
+  "It fits! Wait, no, it snapped.",
+  "That wasn't even close to legal.",
+  "Respect the cone! The cone did nothing!",
+  "Ah yes, Braille parking.",
+  "One scratch closer to art.",
+  "Do not panic. Actually, panic slightly.",
+  "Your turning radius is three city blocks.",
+  "Keep pushing, concrete definitely flexes!",
+  "I think a bumper fell into tomorrow.",
+  "You turned a sedan into a hatchback.",
+  "Did you calculate that or pray?",
+  "Handbrake means drift, not wreck!",
+  "That curb jumped straight at you, huh?",
+  "Tell the mayor it's modern sculpture.",
+  "Why steer around things when crunch works?",
+  "Hold R. Save your dignity.",
+  "Almost! If you ignore the rear axle.",
+  "One millimeter off from genius.",
+  "The fruit stand weeps for your steering.",
+  "Even the seagull refuses to land near this.",
+  "Check your mirrors! All zero of them!",
+  "Smooth operator... until the screech.",
+  "That dent has its own zip code.",
+  "Is there a reverse button on your keyboard?",
+  "You turned a simple bay into a crime scene.",
+  "Slow down! The spot isn't running away! (Usually.)",
+  "Your hazard lights should be permanently on.",
+  "Please step away from the limousine.",
+  "Well, at least you stopped eventually.",
+  "A crisp 0/10 on subtlety.",
+  "Nice try! Terrible geometry, nice try.",
+  "Look at that fender crease. Majestic.",
+  "You scraped the paint off the white lines!",
+  "Half in, half in a lawsuit.",
+  "That cone owes you zero apologies.",
+  "Stop hitting things just to hear the noise!"
+];
+
+const DENT_NAMES = {
+  tap: ["Mirror Kiss", "Fender Boop", "Cone Tickle", "Paint Brush-By", "Curb Whisper"],
+  scrape: ["Mailbox Incident", "Sidewalk Haircut", "Side-Swipe Symphony", "Bumper Graffiti", "Door Ding Deluxe"],
+  crunch: ["The Bench Tapped Back", "Axle Argument", "Hood Accordion", "Pillar Hug", "Fruit Stand Tax"],
+  catastrophe: ["Structural Regret", "Total Bumper Divorce", "Insurance Meltdown", "Mayor's Nightmare", "Architectural Demolition"]
+};
+
+/* ============================================================================
+ * 3. WEB AUDIO SYNTHESIZER (VEHICLE HORN, ENGINE, DENT TIERS, GASP)
+ * ============================================================================ */
+class SoundEngine {
+  constructor() {
+    this.ctx = null;
+    this.muted = false;
+    this.engOsc = null;
+    this.engGain = null;
+  }
+  unlock() {
+    if (this.muted) return;
+    if (!this.ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) this.ctx = new AC();
+    }
+    if (this.ctx && this.ctx.state === "suspended") this.ctx.resume().catch(() => {});
+  }
+  ensureEngine() {
+    if (this.muted || !this.ctx || this.ctx.state !== "running" || this.engOsc) return;
+    this.engOsc = this.ctx.createOscillator();
+    this.engGain = this.ctx.createGain();
+    this.engOsc.type = "sawtooth";
+    this.engOsc.frequency.value = 52;
+    this.engGain.gain.value = 0.0;
+    this.engOsc.connect(this.engGain);
+    this.engGain.connect(this.ctx.destination);
+    this.engOsc.start();
+  }
+  updateEngine(speedRatio, active) {
+    if (!this.ctx || this.ctx.state !== "running") return;
+    if (!this.engOsc && active && !this.muted) this.ensureEngine();
+    if (!this.engOsc) return;
+    const t = this.ctx.currentTime;
+    if (this.muted || !active) {
+      this.engGain.gain.setTargetAtTime(0, t, 0.04);
+    } else {
+      this.engOsc.frequency.setTargetAtTime(48 + Math.min(1.4, speedRatio) * 86, t, 0.05);
+      this.engGain.gain.setTargetAtTime(0.018 + Math.min(1, speedRatio) * 0.022, t, 0.06);
+    }
+  }
+  tone(freq, dur, type = "square", vol = 0.07, slideTo = null, delay = 0) {
+    if (this.muted || !this.ctx || this.ctx.state !== "running") return;
+    const t = this.ctx.currentTime + delay;
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(Math.max(25, freq), t);
+    if (slideTo !== null) osc.frequency.exponentialRampToValueAtTime(Math.max(25, slideTo), t + dur);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    osc.connect(g); g.connect(this.ctx.destination);
+    osc.start(t); osc.stop(t + dur + 0.01);
+  }
+  play(name, param = 1) {
+    if (this.muted || !this.ctx || this.ctx.state !== "running") return;
+    switch (name) {
+      case "tap": this.tone(310, 0.07, "triangle", 0.08, 170); break;
+      case "scrape":
+        this.tone(420, 0.14, "sawtooth", 0.07, 240);
+        this.tone(590, 0.11, "square", 0.04, 310, 0.03);
+        break;
+      case "crunch":
+        this.tone(160, 0.16, "sawtooth", 0.12, 55);
+        this.tone(110, 0.18, "square", 0.09, 42, 0.02);
+        break;
+      case "catastrophe":
+        this.tone(115, 0.28, "sawtooth", 0.14, 32);
+        this.tone(85, 0.30, "triangle", 0.12, 28, 0.04);
+        // Crowd gasp tail
+        this.tone(620, 0.24, "sine", 0.05, 880, 0.10);
+        break;
+      case "squeak": this.tone(1180, 0.05, "triangle", 0.025, 920); break;
+      case "horn":
+        this.tone(param, 0.16, "sawtooth", 0.08, param * 0.98);
+        this.tone(param * 1.25, 0.16, "square", 0.05, param * 1.24, 0.01);
+        break;
+      case "wiper": this.tone(240, 0.06, "sine", 0.02, 390); break;
+      case "win":
+        this.tone(523.25, 0.08, "square", 0.07, null, 0.00);
+        this.tone(659.25, 0.08, "square", 0.07, null, 0.08);
+        this.tone(783.99, 0.08, "square", 0.07, null, 0.16);
+        this.tone(1046.5, 0.24, "square", 0.08, null, 0.24);
+        break;
+      case "nearmiss":
+        this.tone(330, 0.12, "sawtooth", 0.07, 290, 0.00);
+        this.tone(290, 0.16, "sawtooth", 0.07, 190, 0.13);
+        break;
+    }
+  }
+}
+const sfx = new SoundEngine();
+
+/* ============================================================================
+ * 4. 10 UNLOCKABLE VEHICLES
+ * ============================================================================ */
+const VEHICLES = [
+  { id: "compact",  name: "PEBBLE MICRO",      w: 44, h: 24, wb: 28, maxSteer: 0.72, accel: 340, maxF: 185, maxR: 120, horn: 520, starsNeed: 0,  color: "#FFFFFE", accent: "#FFB800" },
+  { id: "sedan",    name: "BORING SEDAN",      w: 62, h: 26, wb: 42, maxSteer: 0.64, accel: 310, maxF: 180, maxR: 115, horn: 410, starsNeed: 4,  color: "#D8D7E8", accent: "#FF3366" },
+  { id: "pizza",    name: "PIZZA TRUCK",       w: 72, h: 32, wb: 46, maxSteer: 0.60, accel: 295, maxF: 175, maxR: 110, horn: 470, starsNeed: 9,  color: "#FFB800", accent: "#FF3366", badge: "ZZA" },
+  { id: "limo",     name: "STRETCH LIMO",      w: 102, h: 26, wb: 74, maxSteer: 0.56, accel: 270, maxF: 170, maxR: 105, horn: 330, starsNeed: 16, color: "#FFFFFE", accent: "#2E2D40" },
+  { id: "bus",      name: "SCHOOL BUS",        w: 108, h: 32, wb: 78, maxSteer: 0.52, accel: 250, maxF: 160, maxR: 98,  horn: 210, starsNeed: 25, color: "#FFB800", accent: "#0F0E17" },
+  { id: "decker",   name: "DOUBLE-DECKER",     w: 104, h: 34, wb: 74, maxSteer: 0.49, accel: 235, maxF: 155, maxR: 95,  horn: 185, starsNeed: 36, color: "#FF3366", accent: "#FFFFFE", decker: true },
+  { id: "bendy",    name: "BENDY BUS",         w: 66, h: 32, wb: 46, maxSteer: 0.58, accel: 250, maxF: 160, maxR: 95,  horn: 195, starsNeed: 48, color: "#FFB800", accent: "#FF3366", trailerW: 58, trailerH: 30, hitchDist: 20 },
+  { id: "firetruck",name: "LADDER FIRETRUCK",  w: 96, h: 32, wb: 68, maxSteer: 0.54, accel: 265, maxF: 170, maxR: 100, horn: 260, starsNeed: 62, color: "#FF3366", accent: "#FFB800", ladderLen: 72 },
+  { id: "trailer",  name: "TINY + GIANT TRAILER", w: 44, h: 22, wb: 28, maxSteer: 0.72, accel: 280, maxF: 168, maxR: 100, horn: 560, starsNeed: 78, color: "#FFFFFE", accent: "#2CE8A2", trailerW: 86, trailerH: 30, hitchDist: 20 },
+  { id: "megalimo", name: "IMPOSSIBLE CEO LIMO",w: 126, h: 28, wb: 94, maxSteer: 0.52, accel: 255, maxF: 172, maxR: 105, horn: 290, starsNeed: 94, color: "#FFFFFE", accent: "#FFB800" }
+];
+
+function getVehicleDef(id) { return VEHICLES.find(v => v.id === id) || VEHICLES[0]; }
+
+/* ============================================================================
+ * 5. 40 SPOTS & LIE INDEX REGISTRY (ZERO RANDOMNESS, UNIQUE TWIST EACH)
+ * ============================================================================ */
+const LEVELS = [];
+const LIE_INDEX = [];
+
+function box(x, y, w, h, kind = "wall", angle = 0, label = null) {
+  return { x, y, w, h, angle, kind, label };
+}
+function parkCar(x, y, angle = 0, w = 64, h = 28, color = "#545275") {
+  return { x, y, w, h, angle, kind: "car", color };
+}
+function cone(x, y) { return { x, y, w: 14, h: 14, angle: 0, kind: "cone" }; }
+
+function addSpot(cfg) {
+  LEVELS.push(cfg);
+  LIE_INDEX.push({
+    id: cfg.id,
+    tier: cfg.tier,
+    name: cfg.name,
+    lieKey: cfg.lieKey,
+    twist: cfg.twist,
+    tell: cfg.tell,
+    intendedSolution: cfg.intendedSolution
+  });
+}
+
+function assertUniqueLies() {
+  const seen = new Set(), errors = [];
+  for (const e of LIE_INDEX) {
+    if (!e.lieKey) errors.push(`Missing lieKey on spot ${e.id}`);
+    else if (seen.has(e.lieKey)) errors.push(`Duplicate lieKey: ${e.lieKey} on spot ${e.id}`);
+    seen.add(e.lieKey);
+  }
+  return { ok: errors.length === 0 && LIE_INDEX.length === 40, count: LIE_INDEX.length, errors };
+}
+
+// Helper perimeter walls (keep playfield cleanly bounded below HUD y=44)
+function borderWalls() {
+  return [
+    box(480, 26, 960, 36, "wall"),
+    box(480, 526, 960, 28, "wall"),
+    box(14, 270, 28, 540, "wall"),
+    box(946, 270, 28, 540, "wall")
+  ];
+}
+
+// ---------------- TIER 1: WARM-UP (1..8) ----------------
+addSpot({
+  id: 1, tier: 1, name: "SUNDAY BAY", vehicleId: "compact",
+  lieKey: "t1_wide_warmup",
+  twist: "Looks wide enough for a plane, except two polite cones mark the approach lane.",
+  tell: "Bright orange cones flank the entrance lane.",
+  intendedSolution: "Drive straight forward into the generous wide spot and stop cleanly.",
+  start: { x: 220, y: 280, angle: 0 },
+  spot: { x: 640, y: 280, w: 96, h: 52, angle: 0 },
+  walls: [...borderWalls()],
+  obstacles: [cone(520, 225), cone(520, 335)]
+});
+
+addSpot({
+  id: 2, tier: 1, name: "COZY FIT", vehicleId: "compact",
+  lieKey: "t1_tight_bay",
+  twist: "Spot narrows with concrete pillars hugging both doors.",
+  tell: "Gray bumper walls sit closely along top and bottom spot lines.",
+  intendedSolution: "Align cleanly at center height y=280 before gliding straight into the bay.",
+  start: { x: 210, y: 220, angle: 0 },
+  spot: { x: 650, y: 290, w: 72, h: 42, angle: 0 },
+  walls: [...borderWalls(), box(650, 245, 96, 24), box(650, 335, 96, 24)],
+  obstacles: [cone(460, 230)]
+});
+
+addSpot({
+  id: 3, tier: 1, name: "BACK IT IN", vehicleId: "compact",
+  lieKey: "t1_reverse_in",
+  twist: "Nose-in wall stops forward parking; you must reverse cleanly down a narrow chute.",
+  tell: "An arrow and brick back-wall seal off forward entry from the right.",
+  intendedSolution: "Drive forward slightly or reverse directly around the corner into the bay.",
+  start: { x: 280, y: 310, angle: 0 },
+  spot: { x: 660, y: 200, w: 68, h: 44, angle: Math.PI },
+  walls: [...borderWalls(), box(730, 200, 30, 120), box(540, 260, 120, 26)],
+  obstacles: [cone(660, 152)]
+});
+
+addSpot({
+  id: 4, tier: 1, name: "CURB CHECK", vehicleId: "sedan",
+  lieKey: "t1_sedan_length",
+  twist: "First sedan spot adds overhanging length past the rear axle.",
+  tell: "Longer wheelbase lines require a wider swing arc around the corner.",
+  intendedSolution: "Swing wide around the center island into the diagonal lower-right bay.",
+  start: { x: 180, y: 180, angle: 0 },
+  spot: { x: 690, y: 360, w: 86, h: 44, angle: 0 },
+  walls: [...borderWalls(), box(440, 230, 140, 130)],
+  obstacles: [cone(570, 320), cone(570, 405)]
+});
+
+addSpot({
+  id: 5, tier: 1, name: "ANGLED MALL", vehicleId: "sedan",
+  lieKey: "t1_angled_slots",
+  twist: "Slanted 35-degree mall bay between two SUVs punishes straight-line turns.",
+  tell: "Yellow painted diagonal stalls flank your empty angled slot.",
+  intendedSolution: "Turn smoothly into the 35-degree approach and glide cleanly between the cars.",
+  start: { x: 190, y: 390, angle: 0 },
+  spot: { x: 620, y: 210, w: 88, h: 46, angle: -0.55 },
+  walls: [...borderWalls()],
+  obstacles: [parkCar(550, 172, -0.55, 68, 30), parkCar(690, 250, -0.55, 68, 30)]
+});
+
+addSpot({
+  id: 6, tier: 1, name: "CONE GAUNTLET", vehicleId: "compact",
+  lieKey: "t1_slalom_cones",
+  twist: "Zig-zag construction cones force precision S-turns before parking.",
+  tell: "Fixed rows of cones funnel a winding chicane to the bay.",
+  intendedSolution: "Thread cleanly between alternating cones without tapping a single cone.",
+  start: { x: 160, y: 280, angle: 0 },
+  spot: { x: 760, y: 280, w: 72, h: 44, angle: 0 },
+  walls: [...borderWalls()],
+  obstacles: [cone(330, 220), cone(330, 310), cone(470, 255), cone(470, 345), cone(610, 220), cone(610, 310)]
+});
+
+addSpot({
+  id: 7, tier: 1, name: "HANDY HANDBRAKE", vehicleId: "compact",
+  lieKey: "t1_hairpin_u_turn",
+  twist: "Dead-end hairpin requires a sharp 180 pivot (or Space handbrake swing) into the pocket.",
+  tell: "Painted divider wall forces a U-turn inside the tight box.",
+  intendedSolution: "Approach top lane, swing down around the median tip, and park facing left.",
+  start: { x: 200, y: 170, angle: 0 },
+  spot: { x: 250, y: 375, w: 72, h: 46, angle: Math.PI },
+  walls: [...borderWalls(), box(290, 272, 420, 28)],
+  obstacles: [cone(620, 210), cone(620, 335)]
+});
+
+addSpot({
+  id: 8, tier: 1, name: "PIZZA DELIVERY", vehicleId: "pizza",
+  lieKey: "t1_pizza_curb",
+  twist: "Wider pizza box van has wider hips than the sedan while threading a courtyard curb.",
+  tell: "Wide van roof icon & tight courtyard doorway edges.",
+  intendedSolution: "Take a wide entry arc through the courtyard gate and park cleanly.",
+  start: { x: 180, y: 370, angle: 0 },
+  spot: { x: 700, y: 180, w: 94, h: 50, angle: 0 },
+  walls: [...borderWalls(), box(440, 145, 32, 160), box(440, 425, 32, 120)],
+  obstacles: [cone(580, 140), cone(580, 225)]
+});
+
+// ---------------- TIER 2: CITY STREETS (9..16) ----------------
+addSpot({
+  id: 9, tier: 2, name: "PARALLEL SQUEEZE", vehicleId: "compact",
+  lieKey: "t2_parallel_basic",
+  twist: "Classic curbside parallel park wedged between two parked sedans.",
+  tell: "Two parked cars frame a curb gap only 1.6x your car length.",
+  intendedSolution: "Pull beside the front car, reverse-steer smoothly into the curb slot, and straighten.",
+  start: { x: 350, y: 310, angle: 0 },
+  spot: { x: 540, y: 155, w: 72, h: 42, angle: 0 },
+  walls: [...borderWalls(), box(540, 108, 420, 22)],
+  obstacles: [parkCar(430, 155, 0, 66, 28), parkCar(652, 155, 0, 66, 28)]
+});
+
+addSpot({
+  id: 10, tier: 2, name: "THE ALLEYWAY", vehicleId: "sedan",
+  lieKey: "t2_tight_alley",
+  twist: "90-degree turn from an ultra-narrow brick alley directly into a flush bay.",
+  tell: "Brick alley walls enforce a single tight right-hand swing.",
+  intendedSolution: "Hug the outer wall before turning sharply into the side alley bay.",
+  start: { x: 180, y: 400, angle: 0 },
+  spot: { x: 590, y: 165, w: 50, h: 88, angle: -Math.PI / 2 },
+  walls: [...borderWalls(), box(350, 230, 290, 70), box(765, 220, 120, 180)],
+  obstacles: [cone(520, 170), cone(660, 170)]
+});
+
+addSpot({
+  id: 11, tier: 2, name: "FRUIT STAND PERIL", vehicleId: "pizza",
+  lieKey: "t2_fragile_fruit",
+  twist: "Spot sits inches beside a fragile wooden fruit stand — even a gentle tap costs huge points!",
+  tell: "Bright gold & coral crates marked FRUIT sit along the curb edge.",
+  intendedSolution: "Approach slowly at under 60 px/s and keep clearance around the fragile stall.",
+  start: { x: 190, y: 290, angle: 0 },
+  spot: { x: 670, y: 260, w: 94, h: 48, angle: 0 },
+  walls: [...borderWalls()],
+  obstacles: [
+    box(670, 200, 90, 28, "fragile", 0, "FRUIT"),
+    box(670, 322, 90, 28, "fragile", 0, "FLOWERS"),
+    cone(510, 215)
+  ]
+});
+
+addSpot({
+  id: 12, tier: 2, name: "DOUBLE PARALLEL", vehicleId: "sedan",
+  lieKey: "t2_tight_sedan_parallel",
+  twist: "Parallel park the longer sedan between an SUV and a delivery truck with narrow street clearance.",
+  tell: "Concrete street median limits how wide you can swing your front nose.",
+  intendedSolution: "Reverse cleanly into the curbside gap before straightening flush to the curb.",
+  start: { x: 290, y: 290, angle: 0 },
+  spot: { x: 560, y: 165, w: 94, h: 44, angle: 0 },
+  walls: [...borderWalls(), box(560, 415, 620, 28)],
+  obstacles: [parkCar(415, 165, 0, 74, 30), parkCar(710, 165, 0, 78, 32)]
+});
+
+addSpot({
+  id: 13, tier: 2, name: "MAILBOX MENACE", vehicleId: "limo",
+  lieKey: "t2_limo_mailbox",
+  twist: "Driving the long stretch limo past a suspiciously placed steel mailbox near the turn apex.",
+  tell: "Red-flagged mailbox box juts right inside your rear-axle sweep path.",
+  intendedSolution: "Clear the wall corner cleanly before cutting around the mailbox into the bay.",
+  start: { x: 170, y: 360, angle: 0 },
+  spot: { x: 760, y: 175, w: 126, h: 48, angle: 0 },
+  walls: [...borderWalls(), box(350, 260, 40, 120)],
+  obstacles: [box(510, 225, 22, 22, "fragile", 0, "MAIL"), parkCar(760, 110, 0, 80, 28)]
+});
+
+addSpot({
+  id: 14, tier: 2, name: "GARAGE PILLARS", vehicleId: "limo",
+  lieKey: "t2_limo_slalom",
+  twist: "Underground garage support columns test rear-axle cut-in of the Stretch Limo.",
+  tell: "Wide square columns stagger along both edges of the driving lane.",
+  intendedSolution: "Hug the outer edges on each turn so your long middle wheelbase clears the pillars.",
+  start: { x: 170, y: 280, angle: 0 },
+  spot: { x: 790, y: 280, w: 126, h: 48, angle: 0 },
+  walls: [...borderWalls(), box(320, 180, 38, 38), box(320, 380, 38, 38), box(495, 280, 38, 38)],
+  obstacles: [cone(705, 228), cone(705, 332)]
+});
+
+addSpot({
+  id: 15, tier: 2, name: "VALET TRAP", vehicleId: "sedan",
+  lieKey: "t2_fake_wide_spot_pillars",
+  twist: "Outer aisle looks open, but tiny steel bollards tighten the corner exit.",
+  tell: "Small bright coral bollards sit beside the curb drop.",
+  intendedSolution: "Thread carefully through the lower lane and curve cleanly into the bay.",
+  start: { x: 180, y: 160, angle: 0 },
+  spot: { x: 710, y: 390, w: 86, h: 44, angle: 0 },
+  walls: [...borderWalls(), box(480, 275, 260, 28)],
+  obstacles: [cone(620, 330), cone(360, 330), parkCar(710, 320, 0, 70, 28)]
+});
+
+addSpot({
+  id: 16, tier: 2, name: "BACKSTAGE BUS", vehicleId: "bus",
+  lieKey: "t2_bus_first_turn",
+  twist: "First run in the School Bus — massive overhang sweeps wide when turning.",
+  tell: "Long yellow frame extends well past both axles.",
+  intendedSolution: "Pull far right before sweeping cleanly into the loading dock.",
+  start: { x: 175, y: 385, angle: 0 },
+  spot: { x: 775, y: 185, w: 136, h: 52, angle: 0 },
+  walls: [...borderWalls(), box(330, 155, 32, 145)],
+  obstacles: [cone(665, 134), cone(665, 236)]
+});
+
+// ---------------- TIER 3: CHAOS (17..26) ----------------
+addSpot({
+  id: 17, tier: 3, name: "CROSSWALK RUSH", vehicleId: "compact",
+  lieKey: "t3_pedestrians_fixed",
+  twist: "Pedestrians march across the lane on an exact deterministic crosswalk timer.",
+  tell: "Zebra stripes cross the lane at x=470; pedestrians pace evenly.",
+  intendedSolution: "Time your throttle past the crosswalk between pedestrian crossings.",
+  start: { x: 180, y: 280, angle: 0 },
+  spot: { x: 730, y: 280, w: 72, h: 44, angle: 0 },
+  walls: [...borderWalls()],
+  obstacles: [cone(620, 225), cone(620, 335)],
+  peds: [
+    { x: 470, y: 150, vy: 115, minY: 130, maxY: 420 },
+    { x: 530, y: 400, vy: -115, minY: 130, maxY: 420 }
+  ]
+});
+
+addSpot({
+  id: 18, tier: 3, name: "SPOT STEALER", vehicleId: "sedan",
+  lieKey: "t3_reversing_truck",
+  twist: "A delivery truck is ALREADY sitting inside your spot and reverses out at t=2.0 seconds!",
+  tell: "The white truck flashes amber reverse lights before pulling out to x=520.",
+  intendedSolution: "Wait clear of its reverse arc until t=4s, then glide right into the vacated bay.",
+  start: { x: 200, y: 290, angle: 0 },
+  spot: { x: 710, y: 210, w: 92, h: 48, angle: 0 },
+  walls: [...borderWalls(), box(400, 195, 30, 140)],
+  obstacles: [cone(610, 160)],
+  mover: { x: 710, y: 210, w: 74, h: 34, angle: 0, path: [
+    { t: 0, x: 710, y: 210 }, { t: 90, x: 710, y: 210 }, { t: 210, x: 540, y: 390 }, { t: 1800, x: 540, y: 390 }
+  ]}
+});
+
+addSpot({
+  id: 19, tier: 3, name: "BLACK ICE BAY", vehicleId: "compact",
+  lieKey: "t3_ice_patch",
+  twist: "Glistening ice patch outside the spot sends fast turns sliding sideways into parked cars.",
+  tell: "Pale blue-white icy rectangle gleams from x=360 to x=620.",
+  intendedSolution: "Line up straight BEFORE hitting the ice patch, then coast gently into the slot.",
+  start: { x: 180, y: 280, angle: 0 },
+  spot: { x: 740, y: 280, w: 74, h: 44, angle: 0 },
+  walls: [...borderWalls()],
+  iceZones: [{ x: 490, y: 280, w: 240, h: 220 }],
+  obstacles: [parkCar(740, 215, 0, 66, 28), parkCar(740, 345, 0, 66, 28)]
+});
+
+addSpot({
+  id: 20, tier: 3, name: "MONSOON WIPERS", vehicleId: "pizza",
+  lieKey: "t3_rain_wiper_slip",
+  twist: "Heavy rain streaks the screen with rhythmic wiper thumps and slightly looser wet grip.",
+  tell: "Diagonal rain drops streak across the asphalt with damp braking distances.",
+  intendedSolution: "Brake earlier than dry pavement before entering the right-hand slot.",
+  start: { x: 180, y: 220, angle: 0 },
+  spot: { x: 710, y: 350, w: 94, h: 48, angle: 0 },
+  rain: true,
+  walls: [...borderWalls(), box(460, 260, 140, 30)],
+  obstacles: [cone(600, 310), cone(600, 395)]
+});
+
+addSpot({
+  id: 21, tier: 3, name: "STEEP HILL", vehicleId: "sedan",
+  lieKey: "t3_gravity_slope",
+  twist: "Downhill slope pulls your car backward/left — releasing gas makes you roll out of the bay!",
+  tell: "Chevron slope markings along the driveway warn of constant downhill pull.",
+  intendedSolution: "Hold light gas or brake inside the spot for the full 1-second hold without rolling back.",
+  start: { x: 200, y: 280, angle: 0 },
+  spot: { x: 730, y: 280, w: 86, h: 46, angle: 0 },
+  slope: { fx: -95, fy: 0 },
+  walls: [...borderWalls()],
+  obstacles: [cone(560, 220), cone(560, 340)]
+});
+
+addSpot({
+  id: 22, tier: 3, name: "JAYWALKER PARADE", vehicleId: "limo",
+  lieKey: "t3_crowd_limo",
+  twist: "Three pedestrians patrol staggered crosswalks along the Stretch Limo's turning arc.",
+  tell: "Three vertical crosswalk paths pace cleanly at fixed intervals.",
+  intendedSolution: "Pause cleanly between crossing waves while guiding the limo nose into the bay.",
+  start: { x: 180, y: 280, angle: 0 },
+  spot: { x: 750, y: 280, w: 124, h: 46, angle: 0 },
+  walls: [...borderWalls()],
+  obstacles: [cone(620, 215), cone(620, 345)],
+  peds: [
+    { x: 380, y: 150, vy: 110, minY: 130, maxY: 430 },
+    { x: 490, y: 410, vy: -120, minY: 130, maxY: 430 },
+    { x: 590, y: 200, vy: 110, minY: 130, maxY: 430 }
+  ]
+});
+
+addSpot({
+  id: 23, tier: 3, name: "TRUCK SWAP", vehicleId: "compact",
+  lieKey: "t3_double_mover",
+  twist: "Traffic truck sweeps across the center lane on a timed loop while you reverse-park.",
+  tell: "Center service road shows warning dashes for the sweeping truck.",
+  intendedSolution: "Slip behind the truck as it passes north and settle straight into the lower bay.",
+  start: { x: 200, y: 190, angle: 0 },
+  spot: { x: 700, y: 375, w: 72, h: 44, angle: 0 },
+  walls: [...borderWalls(), box(460, 140, 30, 150)],
+  obstacles: [cone(600, 330)],
+  mover: { x: 540, y: 180, w: 36, h: 72, angle: 0, path: [
+    { t: 0, x: 540, y: 160 }, { t: 140, x: 540, y: 400 }, { t: 280, x: 540, y: 160 }, { t: 420, x: 540, y: 400 }, { t: 1800, x: 540, y: 160 }
+  ]}
+});
+
+addSpot({
+  id: 24, tier: 3, name: "ICY SLIDE REVERSE", vehicleId: "sedan",
+  lieKey: "t3_ice_reverse_spot",
+  twist: "Ice coats the center approach right before a reverse-facing pocket.",
+  tell: "Frozen sheen sits right outside the left-facing bay.",
+  intendedSolution: "Turn before reaching the ice strip and glide straight across into the bay.",
+  start: { x: 220, y: 180, angle: 0 },
+  spot: { x: 690, y: 360, w: 86, h: 44, angle: 0 },
+  iceZones: [{ x: 480, y: 310, w: 220, h: 170 }],
+  walls: [...borderWalls(), box(450, 260, 180, 26)],
+  obstacles: [cone(590, 415)]
+});
+
+addSpot({
+  id: 25, tier: 3, name: "SIDEWALK CAFE", vehicleId: "pizza",
+  lieKey: "t3_cafe_tables_rain",
+  twist: "Patio tables flank an ultra-narrow street alley in pouring rain.",
+  tell: "Orange cafe umbrellas frame the exact bumper width margin.",
+  intendedSolution: "Thread cleanly between cafe tables on steady gentle throttle.",
+  start: { x: 180, y: 280, angle: 0 },
+  spot: { x: 730, y: 280, w: 94, h: 48, angle: 0 },
+  rain: true,
+  walls: [...borderWalls()],
+  obstacles: [
+    box(440, 215, 44, 34, "fragile", 0, "CAFE"),
+    box(440, 345, 44, 34, "fragile", 0, "CAFE"),
+    box(600, 215, 44, 34, "fragile", 0, "CAFE"),
+    box(600, 345, 44, 34, "fragile", 0, "CAFE")
+  ]
+});
+
+addSpot({
+  id: 26, tier: 3, name: "DOWNHILL PARALLEL", vehicleId: "compact",
+  lieKey: "t3_hill_parallel",
+  twist: "Parallel parking while gravity pulls you down toward the trailing parked car!",
+  tell: "Slope arrows push down toward x=430.",
+  intendedSolution: "Feather forward throttle gently once nested between both bumpers.",
+  start: { x: 340, y: 295, angle: 0 },
+  spot: { x: 560, y: 175, w: 70, h: 42, angle: 0 },
+  slope: { fx: -75, fy: 0 },
+  walls: [...borderWalls()],
+  obstacles: [parkCar(440, 175, 0, 68, 28), parkCar(675, 175, 0, 68, 28)]
+});
+
+// ---------------- TIER 4: ABSURD (27..35) ----------------
+addSpot({
+  id: 27, tier: 4, name: "COMPACT ONLY?", vehicleId: "bus",
+  lieKey: "t4_bus_compact_sign",
+  twist: "Park a full-length 108px School Bus into a spot painted with 'COMPACT ONLY'!",
+  tell: "Yellow bay lines fit the bus by literally 6 pixels on all sides.",
+  intendedSolution: "Pull cleanly straight forward between the flanking sedans without scraping either mirror.",
+  start: { x: 200, y: 280, angle: 0 },
+  spot: { x: 700, y: 280, w: 120, h: 44, angle: 0, label: "COMPACT ONLY" },
+  walls: [...borderWalls()],
+  obstacles: [parkCar(700, 210, 0, 74, 28), parkCar(700, 350, 0, 74, 28)]
+});
+
+addSpot({
+  id: 28, tier: 4, name: "FLOATING BARGE", vehicleId: "sedan",
+  lieKey: "t4_moving_barge",
+  twist: "The spot sits on a swaying harbor barge — you must track and stop with the moving deck!",
+  tell: "Steel barge deck shifts vertically on a smooth 4-second ocean wave cycle.",
+  intendedSolution: "Match the barge's current vertical y height when entering and hold gentle trim.",
+  start: { x: 200, y: 280, angle: 0 },
+  spot: { x: 690, y: 280, w: 92, h: 50, angle: 0 },
+  barge: { ampY: 54, periodTicks: 240 },
+  walls: [...borderWalls(), box(440, 160, 28, 120), box(440, 410, 28, 120)],
+  obstacles: [cone(560, 210), cone(560, 350)]
+});
+
+addSpot({
+  id: 29, tier: 4, name: "TWO ANGRY LIMOS", vehicleId: "limo",
+  lieKey: "t4_limo_owners_watching",
+  twist: "Squeeze your Stretch Limo squarely between two billionaire-owned limos with tight margin.",
+  tell: "Twin VIP owners pace by the curb glaring at your bumpers.",
+  intendedSolution: "Enter horizontally centered at y=280 so neither mirror taps the VIP paint.",
+  start: { x: 200, y: 350, angle: 0 },
+  spot: { x: 720, y: 280, w: 120, h: 44, angle: 0 },
+  walls: [...borderWalls()],
+  obstacles: [parkCar(720, 220, 0, 108, 28), parkCar(720, 340, 0, 108, 28)],
+  peds: [{ x: 555, y: 170, vy: 80, minY: 130, maxY: 220 }]
+});
+
+addSpot({
+  id: 30, tier: 4, name: "DOUBLE-DECKER SQUEEZE", vehicleId: "decker",
+  lieKey: "t4_decker_garage",
+  twist: "Navigate the clunky Double-Decker Bus around low-clearance side barriers.",
+  tell: "Heavy top-tier markings warn against sharp high-speed turns.",
+  intendedSolution: "Keep low steady speed through the S-bend into the terminal dock.",
+  start: { x: 175, y: 385, angle: 0 },
+  spot: { x: 775, y: 190, w: 134, h: 52, angle: 0 },
+  walls: [...borderWalls(), box(340, 170, 30, 145), box(540, 425, 30, 110)],
+  obstacles: [cone(675, 138)]
+});
+
+addSpot({
+  id: 31, tier: 4, name: "BENDY BUS CURVE", vehicleId: "bendy",
+  lieKey: "t4_articulated_bendy",
+  twist: "Articulated rear trailer swings on a separate pivot! Turning early drags the tail into cones.",
+  tell: "Visible accordion joint connects the front cab and swinging rear passenger hull.",
+  intendedSolution: "Take every corner wide so the articulated trailer follows cleanly into the slot.",
+  start: { x: 220, y: 280, angle: 0 },
+  spot: { x: 720, y: 280, w: 158, h: 48, angle: 0 },
+  walls: [...borderWalls()],
+  obstacles: [cone(460, 220), cone(460, 340), cone(590, 235), cone(590, 325)]
+});
+
+addSpot({
+  id: 32, tier: 4, name: "SWINGING LADDER", vehicleId: "firetruck",
+  lieKey: "t4_firetruck_ladder",
+  twist: "The Fire Truck's roof ladder swings laterally when steering quickly and CAN smash fragile objects!",
+  tell: "Yellow steel ladder rotates above the truck body with physical overhang.",
+  intendedSolution: "Turn smoothly and stabilize briefly before sliding between the hydrants.",
+  start: { x: 200, y: 280, angle: 0 },
+  spot: { x: 710, y: 280, w: 122, h: 48, angle: 0 },
+  walls: [...borderWalls()],
+  obstacles: [
+    box(530, 210, 24, 24, "fragile", 0, "HYD"),
+    box(530, 350, 24, 24, "fragile", 0, "HYD")
+  ]
+});
+
+addSpot({
+  id: 33, tier: 4, name: "TINY CAR, HUGE TRAILER", vehicleId: "trailer",
+  lieKey: "t4_tiny_huge_trailer",
+  twist: "A tiny car towing an absurdly oversized cargo trailer straight through narrow gates.",
+  tell: "Trailer sits 1.4x wider than the tow car itself.",
+  intendedSolution: "Align your tow car straight early so the oversized trailer glides through center.",
+  start: { x: 240, y: 280, angle: 0 },
+  spot: { x: 700, y: 280, w: 170, h: 52, angle: 0 },
+  walls: [...borderWalls(), box(500, 175, 28, 120), box(500, 395, 28, 120)],
+  obstacles: [cone(620, 232), cone(620, 328)]
+});
+
+addSpot({
+  id: 34, tier: 4, name: "GARAGE RAMP LOW CEIL", vehicleId: "bus",
+  lieKey: "t4_ramp_overhead",
+  twist: "Steep garage ramp slope pulls downhill toward overhanging structural beams.",
+  tell: "Chevron slope markings combine with tight wall chicanes.",
+  intendedSolution: "Keep throttle steady climbing the ramp and center inside the top bay.",
+  start: { x: 200, y: 280, angle: 0 },
+  spot: { x: 720, y: 280, w: 132, h: 46, angle: 0 },
+  slope: { fx: -80, fy: 0 },
+  walls: [...borderWalls(), box(470, 165, 36, 130), box(470, 405, 36, 130)],
+  obstacles: [cone(610, 232), cone(610, 328)]
+});
+
+addSpot({
+  id: 35, tier: 4, name: "EGO CHECK LIMO", vehicleId: "megalimo",
+  lieKey: "t4_impossible_ceo_limo",
+  twist: "First drive in the 126px Impossible CEO Stretch Limo around dual corner islands.",
+  tell: "Massive front + rear overhangs demand sweeping wide lines.",
+  intendedSolution: "Line up early along y=280 and thread gently between the curbs.",
+  start: { x: 220, y: 280, angle: 0 },
+  spot: { x: 740, y: 280, w: 150, h: 46, angle: 0 },
+  walls: [...borderWalls()],
+  obstacles: [parkCar(560, 210, 0, 74, 28), parkCar(560, 350, 0, 74, 28)]
+});
+
+// ---------------- TIER 5: BOSS EXAMS (36..40) ----------------
+addSpot({
+  id: 36, tier: 5, name: "INSPECTION 1: ICY LIMO", vehicleId: "limo",
+  lieKey: "t5_icy_limo_alley",
+  twist: "Stretch Limo + black ice runway + watchful pedestrian crossing.",
+  tell: "Ice covers the central stretch right between crosswalk lines.",
+  intendedSolution: "Point straight at y=280 before the ice and slip past after the walker.",
+  start: { x: 190, y: 280, angle: 0 },
+  spot: { x: 740, y: 280, w: 124, h: 44, angle: 0 },
+  iceZones: [{ x: 470, y: 280, w: 180, h: 180 }],
+  walls: [...borderWalls()],
+  peds: [{ x: 600, y: 160, vy: 115, minY: 130, maxY: 430 }],
+  obstacles: [parkCar(740, 215, 0, 86, 28), parkCar(740, 345, 0, 86, 28)]
+});
+
+addSpot({
+  id: 37, tier: 5, name: "INSPECTION 2: RAINY BARGE", vehicleId: "pizza",
+  lieKey: "t5_rain_barge_fruit",
+  twist: "Harbor barge spot in slick monsoon rain guarded by fragile harbor crates.",
+  tell: "Barge oscillates smoothly vertically between fragile cargo stacks.",
+  intendedSolution: "Time barge alignment on approach and stop flush inside the moving bay.",
+  start: { x: 190, y: 280, angle: 0 },
+  spot: { x: 710, y: 280, w: 98, h: 52, angle: 0 },
+  rain: true,
+  barge: { ampY: 42, periodTicks: 220 },
+  walls: [...borderWalls()],
+  obstacles: [box(520, 215, 42, 32, "fragile", 0, "CRATE"), box(520, 345, 42, 32, "fragile", 0, "CRATE")]
+});
+
+addSpot({
+  id: 38, tier: 5, name: "INSPECTION 3: BENDY PARALLEL", vehicleId: "bendy",
+  lieKey: "t5_bendy_squeeze",
+  twist: "Pilot the articulated Bendy Bus past staggered trucks into a snug terminal slot.",
+  tell: "Trailer joint trails wide whenever steering late.",
+  intendedSolution: "Glide cleanly between the parked trucks with gentle early corrections.",
+  start: { x: 220, y: 280, angle: 0 },
+  spot: { x: 730, y: 280, w: 162, h: 46, angle: 0 },
+  walls: [...borderWalls()],
+  obstacles: [parkCar(510, 215, 0, 74, 30), parkCar(510, 345, 0, 74, 30)]
+});
+
+addSpot({
+  id: 39, tier: 5, name: "INSPECTION 4: FIRE ON ICE", vehicleId: "firetruck",
+  lieKey: "t5_firetruck_ice_hill",
+  twist: "Swinging roof ladder + black ice + uphill climb to the emergency bay!",
+  tell: "Frozen tarmac precedes an uphill approach flanked by fire hydrants.",
+  intendedSolution: "Keep smooth straight line across the ice so ladder stays steady, then hold gas uphill.",
+  start: { x: 210, y: 280, angle: 0 },
+  spot: { x: 730, y: 280, w: 122, h: 46, angle: 0 },
+  iceZones: [{ x: 440, y: 280, w: 160, h: 160 }],
+  slope: { fx: -65, fy: 0 },
+  walls: [...borderWalls()],
+  obstacles: [box(610, 215, 24, 24, "fragile", 0, "HYD"), box(610, 345, 24, 24, "fragile", 0, "HYD")]
+});
+
+addSpot({
+  id: 40, tier: 5, name: "THE MAYOR'S INSPECTION", vehicleId: "megalimo",
+  lieKey: "t5_mayor_boss",
+  twist: "The CEO Mega-Limo must clear a moving truck, crosswalk crowd, ice strip, and squeeze into the tiny VIP bay!",
+  tell: "Every previous mechanic appears cleanly on predictable fixed schedules.",
+  intendedSolution: "Wait briefly if needed, align cleanly at y=280 over the ice, slip past the crowd, and stop dead center.",
+  start: { x: 185, y: 280, angle: 0 },
+  spot: { x: 760, y: 280, w: 152, h: 44, angle: 0, label: "VIP ONLY" },
+  iceZones: [{ x: 460, y: 280, w: 150, h: 170 }],
+  peds: [{ x: 645, y: 155, vy: 110, minY: 130, maxY: 430 }],
+  walls: [...borderWalls()],
+  obstacles: [parkCar(760, 214, 0, 96, 28), parkCar(760, 346, 0, 96, 28), cone(370, 220), cone(370, 340)]
+});
+
+/* ============================================================================
+ * 6. DETERMINISTIC REPLAY SOLUTIONS FOR ALL 40 SPOTS (VERIFIED VIA F9)
+ * ============================================================================ */
+const LEVEL_SOLUTIONS = {
+  1: [{"ticks":110,"gas":true},{"ticks":10},{"ticks":15,"rev":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":10,"gas":true},{"ticks":15,"rev":true},{"ticks":58,"hb":true}],
+  2: [{"ticks":70,"gas":true},{"ticks":10},{"ticks":10,"rev":true,"left":true},{"ticks":10,"gas":true},{"ticks":10,"gas":true,"right":true},{"ticks":30,"gas":true},{"ticks":10,"rev":true,"left":true},{"ticks":5,"rev":true},{"ticks":5},{"ticks":5,"gas":true},{"ticks":5,"rev":true,"right":true},{"ticks":15,"gas":true},{"ticks":5,"gas":true,"right":true},{"ticks":5,"rev":true,"right":true},{"ticks":5},{"ticks":5,"rev":true,"right":true},{"ticks":5,"gas":true,"right":true},{"ticks":5,"gas":true,"left":true},{"ticks":5},{"ticks":5,"gas":true,"left":true},{"ticks":5,"hb":true},{"ticks":20,"rev":true,"left":true},{"ticks":10,"gas":true,"left":true},{"ticks":10,"rev":true},{"ticks":10,"rev":true,"right":true},{"ticks":10,"hb":true},{"ticks":10,"gas":true},{"ticks":10},{"ticks":10,"rev":true},{"ticks":10,"rev":true,"right":true},{"ticks":10,"rev":true,"left":true},{"ticks":10},{"ticks":5,"rev":true,"left":true},{"ticks":5,"gas":true},{"ticks":5,"hb":true},{"ticks":10,"rev":true},{"ticks":5,"gas":true,"left":true},{"ticks":10,"rev":true},{"ticks":5,"gas":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"rev":true},{"ticks":5,"gas":true},{"ticks":5},{"ticks":10,"rev":true},{"ticks":5},{"ticks":5,"gas":true},{"ticks":5,"hb":true},{"ticks":15,"gas":true},{"ticks":5,"gas":true,"right":true},{"ticks":5,"rev":true,"left":true},{"ticks":5,"rev":true,"right":true},{"ticks":5,"rev":true},{"ticks":60,"hb":true}],
+  3: [{"ticks":10,"gas":true},{"ticks":50,"gas":true,"left":true},{"ticks":20,"rev":true,"left":true},{"ticks":10,"rev":true},{"ticks":10,"rev":true,"left":true},{"ticks":10,"rev":true},{"ticks":10,"rev":true,"right":true},{"ticks":10,"rev":true},{"ticks":10,"rev":true,"left":true},{"ticks":10,"rev":true},{"ticks":10,"gas":true,"right":true},{"ticks":90,"rev":true},{"ticks":5,"gas":true,"left":true},{"ticks":20,"gas":true},{"ticks":5,"hb":true},{"ticks":10,"rev":true},{"ticks":5,"rev":true,"left":true},{"ticks":5,"hb":true},{"ticks":5},{"ticks":5,"rev":true,"right":true},{"ticks":5,"hb":true},{"ticks":5,"rev":true,"left":true},{"ticks":5,"hb":true},{"ticks":5,"rev":true,"right":true},{"ticks":5},{"ticks":10,"rev":true},{"ticks":5},{"ticks":10,"rev":true,"left":true},{"ticks":5,"gas":true,"left":true},{"ticks":5,"rev":true},{"ticks":10},{"ticks":5,"rev":true},{"ticks":10,"gas":true},{"ticks":60,"hb":true}],
+  4: [{"ticks":50,"gas":true},{"ticks":20,"rev":true,"left":true},{"ticks":10,"gas":true},{"ticks":10,"gas":true,"left":true},{"ticks":10,"gas":true},{"ticks":20,"gas":true,"right":true},{"ticks":60,"gas":true},{"ticks":20},{"ticks":10,"rev":true,"right":true},{"ticks":30,"gas":true},{"ticks":10,"rev":true,"left":true},{"ticks":50,"rev":true},{"ticks":10,"gas":true,"right":true},{"ticks":20,"rev":true},{"ticks":20},{"ticks":10,"rev":true},{"ticks":10,"rev":true,"left":true},{"ticks":10,"gas":true},{"ticks":10,"hb":true},{"ticks":20,"gas":true},{"ticks":10,"gas":true,"right":true},{"ticks":20,"gas":true},{"ticks":10,"gas":true,"left":true},{"ticks":10},{"ticks":40,"rev":true},{"ticks":10},{"ticks":10,"rev":true,"right":true},{"ticks":20,"rev":true},{"ticks":10,"rev":true,"right":true},{"ticks":20},{"ticks":10,"rev":true},{"ticks":10,"gas":true},{"ticks":10},{"ticks":20,"rev":true},{"ticks":20},{"ticks":10,"rev":true,"left":true},{"ticks":10,"hb":true},{"ticks":10},{"ticks":20,"gas":true},{"ticks":20,"gas":true,"right":true},{"ticks":10,"rev":true,"right":true},{"ticks":10,"gas":true},{"ticks":10,"rev":true,"right":true},{"ticks":10,"gas":true},{"ticks":5,"gas":true,"left":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true,"left":true},{"ticks":5,"rev":true},{"ticks":5,"gas":true},{"ticks":5},{"ticks":10,"gas":true,"left":true},{"ticks":20,"rev":true,"left":true},{"ticks":20,"rev":true},{"ticks":10,"rev":true,"right":true},{"ticks":10},{"ticks":10,"rev":true},{"ticks":10,"gas":true,"left":true},{"ticks":5,"rev":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":10,"rev":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"gas":true},{"ticks":5},{"ticks":10,"rev":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":10,"gas":true},{"ticks":58,"hb":true}],
+  5: [{"ticks":10,"gas":true},{"ticks":20,"gas":true,"left":true},{"ticks":110,"gas":true},{"ticks":10,"rev":true,"right":true},{"ticks":10,"rev":true},{"ticks":10,"gas":true},{"ticks":10,"rev":true},{"ticks":5,"gas":true},{"ticks":10},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":10,"gas":true},{"ticks":5,"gas":true,"left":true},{"ticks":5,"rev":true,"left":true},{"ticks":20,"rev":true},{"ticks":5,"gas":true},{"ticks":58,"hb":true}],
+  6: [{"ticks":170,"gas":true},{"ticks":10},{"ticks":15,"rev":true},{"ticks":5,"hb":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":5},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":5},{"ticks":10,"gas":true},{"ticks":10,"rev":true},{"ticks":59,"hb":true}],
+  7: [{"ticks":20,"rev":true},{"ticks":10},{"ticks":40,"rev":true},{"ticks":20,"rev":true,"right":true},{"ticks":20,"gas":true,"right":true},{"ticks":10,"gas":true},{"ticks":10,"hb":true},{"ticks":10,"rev":true},{"ticks":30,"rev":true,"right":true},{"ticks":10,"gas":true},{"ticks":10,"rev":true,"left":true},{"ticks":20,"rev":true},{"ticks":40,"rev":true,"right":true},{"ticks":10},{"ticks":10,"rev":true},{"ticks":10,"gas":true,"left":true},{"ticks":10,"rev":true},{"ticks":5},{"ticks":5,"gas":true,"left":true},{"ticks":5,"rev":true,"left":true},{"ticks":5,"gas":true},{"ticks":5},{"ticks":10,"rev":true},{"ticks":20,"gas":true},{"ticks":5,"hb":true},{"ticks":10,"gas":true,"left":true},{"ticks":5,"gas":true},{"ticks":5,"gas":true,"left":true},{"ticks":5,"rev":true,"left":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":10,"rev":true,"right":true},{"ticks":10,"rev":true},{"ticks":20,"rev":true,"left":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true,"right":true},{"ticks":10,"rev":true},{"ticks":5,"gas":true,"left":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true,"right":true},{"ticks":5,"rev":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true,"left":true},{"ticks":5},{"ticks":5,"rev":true,"right":true},{"ticks":5,"rev":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true,"left":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true,"right":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true,"left":true},{"ticks":15,"gas":true},{"ticks":10,"gas":true,"left":true},{"ticks":5},{"ticks":10,"gas":true},{"ticks":5,"rev":true,"right":true},{"ticks":5,"rev":true},{"ticks":5,"gas":true,"right":true},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"gas":true,"left":true},{"ticks":5,"hb":true},{"ticks":10,"gas":true},{"ticks":30,"rev":true},{"ticks":5,"rev":true,"left":true},{"ticks":5,"gas":true,"left":true},{"ticks":15,"rev":true},{"ticks":5,"hb":true},{"ticks":10,"rev":true},{"ticks":15,"gas":true},{"ticks":5,"hb":true},{"ticks":15,"gas":true},{"ticks":5,"gas":true,"left":true},{"ticks":5,"rev":true,"left":true},{"ticks":10,"rev":true},{"ticks":60,"hb":true}],
+  8: [{"ticks":70,"gas":true},{"ticks":20,"gas":true,"left":true},{"ticks":10,"gas":true},{"ticks":20,"gas":true,"right":true},{"ticks":50,"gas":true},{"ticks":10,"gas":true,"left":true},{"ticks":10},{"ticks":10,"rev":true,"left":true},{"ticks":10,"gas":true,"left":true},{"ticks":10},{"ticks":10,"rev":true},{"ticks":10,"gas":true,"left":true},{"ticks":10},{"ticks":10,"gas":true},{"ticks":10,"gas":true,"right":true},{"ticks":10,"rev":true},{"ticks":10,"rev":true,"right":true},{"ticks":20,"gas":true,"right":true},{"ticks":10,"rev":true,"right":true},{"ticks":30,"rev":true},{"ticks":20,"rev":true,"left":true},{"ticks":10},{"ticks":5,"rev":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"gas":true},{"ticks":10,"rev":true},{"ticks":5,"hb":true},{"ticks":5},{"ticks":15,"rev":true},{"ticks":5,"gas":true},{"ticks":5,"hb":true},{"ticks":5,"rev":true},{"ticks":5,"gas":true,"right":true},{"ticks":30,"gas":true},{"ticks":5,"gas":true,"left":true},{"ticks":40,"rev":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"rev":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":10,"rev":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"rev":true},{"ticks":10,"gas":true},{"ticks":5,"hb":true},{"ticks":25,"gas":true},{"ticks":10,"gas":true,"left":true},{"ticks":45,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"rev":true},{"ticks":5},{"ticks":5,"gas":true},{"ticks":62,"hb":true}],
+  9: [{"ticks":70,"gas":true},{"ticks":10,"rev":true,"left":true},{"ticks":10,"gas":true,"left":true},{"ticks":10,"rev":true},{"ticks":10,"gas":true,"left":true},{"ticks":10,"hb":true},{"ticks":15,"gas":true,"right":true},{"ticks":20,"rev":true,"right":true},{"ticks":20,"rev":true},{"ticks":10,"rev":true,"left":true},{"ticks":15},{"ticks":5,"rev":true,"right":true},{"ticks":5,"rev":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true,"left":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true,"right":true},{"ticks":10,"rev":true},{"ticks":5,"gas":true,"left":true},{"ticks":5,"rev":true},{"ticks":10,"rev":true,"right":true},{"ticks":15,"gas":true},{"ticks":5,"hb":true},{"ticks":15,"gas":true},{"ticks":10,"rev":true},{"ticks":61,"hb":true}],
+  10: [{"ticks":10,"gas":true},{"ticks":10,"gas":true,"left":true},{"ticks":100,"gas":true},{"ticks":10,"gas":true,"left":true},{"ticks":30,"gas":true},{"ticks":10,"rev":true,"right":true},{"ticks":10,"gas":true,"right":true},{"ticks":10,"rev":true,"right":true},{"ticks":10,"hb":true},{"ticks":10,"rev":true},{"ticks":45,"rev":true,"left":true},{"ticks":10,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"rev":true,"right":true},{"ticks":5,"gas":true},{"ticks":10,"rev":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"rev":true,"right":true},{"ticks":5},{"ticks":5,"rev":true,"left":true},{"ticks":5,"gas":true},{"ticks":10,"rev":true},{"ticks":35,"gas":true},{"ticks":10,"gas":true,"left":true},{"ticks":5,"rev":true,"left":true},{"ticks":5,"gas":true},{"ticks":5,"gas":true,"left":true},{"ticks":10,"rev":true,"left":true},{"ticks":35,"rev":true},{"ticks":5,"hb":true},{"ticks":10,"rev":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":15,"gas":true},{"ticks":5,"gas":true,"left":true},{"ticks":5,"rev":true,"left":true},{"ticks":5,"rev":true},{"ticks":58,"hb":true}],
+  11: [{"ticks":150,"gas":true},{"ticks":10,"rev":true,"left":true},{"ticks":5},{"ticks":5,"gas":true},{"ticks":5,"gas":true,"right":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"gas":true},{"ticks":10,"rev":true},{"ticks":5,"rev":true,"right":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"gas":true,"left":true},{"ticks":5},{"ticks":5,"gas":true,"right":true},{"ticks":5,"gas":true},{"ticks":5,"gas":true,"left":true},{"ticks":10},{"ticks":10,"rev":true,"right":true},{"ticks":10,"hb":true},{"ticks":10,"rev":true,"left":true},{"ticks":20,"rev":true},{"ticks":10},{"ticks":5,"gas":true},{"ticks":5,"hb":true},{"ticks":15,"rev":true},{"ticks":5,"gas":true},{"ticks":5},{"ticks":10,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"rev":true},{"ticks":5},{"ticks":10,"rev":true},{"ticks":15,"gas":true},{"ticks":57,"hb":true}],
+  12: [{"ticks":100,"gas":true},{"ticks":10,"hb":true},{"ticks":10,"gas":true,"left":true},{"ticks":10,"rev":true,"left":true},{"ticks":10,"gas":true},{"ticks":10,"gas":true,"left":true},{"ticks":20,"rev":true,"left":true},{"ticks":10},{"ticks":10,"rev":true},{"ticks":30,"rev":true,"right":true},{"ticks":30,"gas":true},{"ticks":30,"gas":true,"left":true},{"ticks":10,"rev":true,"left":true},{"ticks":5,"rev":true},{"ticks":5},{"ticks":5,"gas":true},{"ticks":5,"hb":true},{"ticks":15,"gas":true},{"ticks":10,"gas":true,"left":true},{"ticks":10,"rev":true},{"ticks":5,"rev":true,"left":true},{"ticks":20,"rev":true},{"ticks":5,"rev":true,"left":true},{"ticks":5,"hb":true},{"ticks":10,"rev":true},{"ticks":5},{"ticks":5,"rev":true,"right":true},{"ticks":5,"rev":true},{"ticks":5},{"ticks":5,"rev":true,"left":true},{"ticks":5,"gas":true},{"ticks":5},{"ticks":5,"rev":true,"right":true},{"ticks":5,"rev":true},{"ticks":5,"rev":true,"left":true},{"ticks":5,"gas":true,"left":true},{"ticks":35,"gas":true},{"ticks":5},{"ticks":5,"gas":true},{"ticks":5,"gas":true,"left":true},{"ticks":5,"rev":true,"left":true},{"ticks":35,"rev":true},{"ticks":5},{"ticks":5,"rev":true,"right":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":10,"gas":true},{"ticks":57,"hb":true}],
+  13: [{"ticks":135,"gas":true},{"ticks":18,"left":true},{"ticks":9,"gas":true,"left":true},{"ticks":18,"left":true},{"ticks":9,"gas":true,"left":true},{"ticks":9,"left":true},{"ticks":9,"gas":true,"left":true},{"ticks":18,"left":true},{"ticks":9,"rev":true,"left":true},{"ticks":37,"rev":true},{"ticks":9,"right":true},{"ticks":9,"left":true},{"ticks":27,"gas":true},{"ticks":9,"left":true},{"ticks":23,"gas":true,"left":true},{"ticks":42,"left":true},{"ticks":27,"rev":true},{"ticks":9,"rev":true,"right":true},{"ticks":9,"rev":true},{"ticks":9,"gas":true,"left":true},{"ticks":14,"gas":true},{"ticks":27,"gas":true,"left":true},{"ticks":9,"left":true},{"ticks":9,"rev":true,"left":true},{"ticks":36,"rev":true},{"ticks":9,"left":true},{"ticks":9,"rev":true},{"ticks":9,"right":true},{"ticks":9,"hb":true},{"ticks":27,"gas":true},{"ticks":9,"left":true},{"ticks":9,"gas":true,"left":true},{"ticks":9,"left":true},{"ticks":9,"rev":true,"left":true},{"ticks":27,"rev":true},{"ticks":9,"right":true},{"ticks":9,"rev":true,"right":true},{"ticks":9,"right":true},{"ticks":27,"gas":true},{"ticks":9,"left":true},{"ticks":9,"gas":true},{"ticks":18,"gas":true,"left":true},{"ticks":9,"rev":true},{"ticks":9,"hb":true},{"ticks":18,"rev":true},{"ticks":9,"hb":true},{"ticks":9,"rev":true},{"ticks":18,"rev":true,"left":true},{"ticks":18,"left":true},{"ticks":18,"rev":true,"left":true},{"ticks":9,"right":true},{"ticks":9,"rev":true},{"ticks":18,"left":true},{"ticks":18,"rev":true},{"ticks":5,"gas":true},{"ticks":5,"left":true},{"ticks":20,"rev":true},{"ticks":5,"gas":true},{"ticks":15,"rev":true},{"ticks":5,"gas":true},{"ticks":15,"rev":true},{"ticks":5,"gas":true},{"ticks":10,"rev":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":10,"left":true},{"ticks":10,"rev":true},{"ticks":5,"gas":true},{"ticks":5,"right":true},{"ticks":9,"rev":true,"right":true},{"ticks":27,"gas":true},{"ticks":9,"left":true},{"ticks":9,"gas":true,"left":true},{"ticks":5,"gas":true},{"ticks":10,"rev":true},{"ticks":5,"left":true},{"ticks":10,"gas":true},{"ticks":10,"left":true},{"ticks":5,"gas":true,"left":true},{"ticks":5,"left":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"left":true},{"ticks":5,"gas":true},{"ticks":10,"rev":true},{"ticks":59,"left":true}],
+  14: [{"ticks":81,"gas":true},{"ticks":18,"left":true},{"ticks":9,"gas":true,"left":true},{"ticks":18,"gas":true},{"ticks":9,"gas":true,"right":true},{"ticks":9,"gas":true},{"ticks":9,"right":true},{"ticks":9,"gas":true,"right":true},{"ticks":18,"gas":true},{"ticks":9,"hb":true},{"ticks":9,"rev":true},{"ticks":9,"rev":true,"left":true},{"ticks":36,"rev":true},{"ticks":9,"left":true},{"ticks":9,"hb":true},{"ticks":9,"gas":true},{"ticks":9,"gas":true,"right":true},{"ticks":18,"gas":true},{"ticks":9,"hb":true},{"ticks":9,"right":true},{"ticks":36,"gas":true},{"ticks":9,"left":true},{"ticks":10,"rev":true},{"ticks":5,"left":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"left":true},{"ticks":25,"gas":true},{"ticks":5,"left":true},{"ticks":5,"gas":true,"left":true},{"ticks":5,"rev":true,"left":true},{"ticks":10,"rev":true},{"ticks":5,"left":true},{"ticks":40,"rev":true},{"ticks":5,"gas":true},{"ticks":10,"rev":true},{"ticks":5,"left":true},{"ticks":5,"gas":true},{"ticks":15,"rev":true},{"ticks":5,"left":true},{"ticks":5,"rev":true,"left":true},{"ticks":5,"left":true},{"ticks":5,"rev":true},{"ticks":5,"gas":true},{"ticks":10,"rev":true},{"ticks":5,"left":true},{"ticks":5,"gas":true},{"ticks":10,"rev":true},{"ticks":9,"gas":true},{"ticks":9,"left":true},{"ticks":9,"rev":true,"left":true},{"ticks":18,"gas":true},{"ticks":9,"gas":true,"right":true},{"ticks":9,"left":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":10,"gas":true},{"ticks":10,"rev":true},{"ticks":5,"left":true},{"ticks":15,"gas":true},{"ticks":5,"left":true},{"ticks":5,"rev":true,"left":true},{"ticks":5,"gas":true},{"ticks":10,"rev":true},{"ticks":58,"left":true}],
+  15: [{"ticks":180,"gas":true},{"ticks":10,"rev":true,"right":true},{"ticks":10,"gas":true},{"ticks":10},{"ticks":10,"rev":true},{"ticks":10,"gas":true,"left":true},{"ticks":40,"rev":true},{"ticks":10,"rev":true,"right":true},{"ticks":10},{"ticks":20,"rev":true},{"ticks":20},{"ticks":10,"rev":true,"left":true},{"ticks":30,"gas":true},{"ticks":10},{"ticks":10,"hb":true},{"ticks":10,"gas":true},{"ticks":10,"gas":true,"right":true},{"ticks":20,"gas":true},{"ticks":10},{"ticks":10,"rev":true,"left":true},{"ticks":30,"rev":true},{"ticks":10,"rev":true,"right":true},{"ticks":10},{"ticks":10,"rev":true,"right":true},{"ticks":20},{"ticks":10,"rev":true},{"ticks":10,"hb":true},{"ticks":10,"rev":true,"left":true},{"ticks":10},{"ticks":20,"gas":true},{"ticks":10,"hb":true},{"ticks":10,"gas":true},{"ticks":20,"gas":true,"right":true},{"ticks":10,"rev":true,"right":true},{"ticks":10,"rev":true},{"ticks":10,"hb":true},{"ticks":10,"gas":true,"right":true},{"ticks":20,"gas":true},{"ticks":10},{"ticks":10,"gas":true},{"ticks":10,"gas":true,"left":true},{"ticks":10,"rev":true,"left":true},{"ticks":30,"rev":true},{"ticks":20,"rev":true,"right":true},{"ticks":10,"rev":true},{"ticks":10,"rev":true,"left":true},{"ticks":25,"rev":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":5},{"ticks":5,"hb":true},{"ticks":15,"rev":true},{"ticks":5,"rev":true,"right":true},{"ticks":20,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"rev":true},{"ticks":5},{"ticks":10,"rev":true},{"ticks":10,"gas":true},{"ticks":15,"rev":true},{"ticks":5,"gas":true},{"ticks":5,"hb":true},{"ticks":20,"rev":true},{"ticks":5},{"ticks":10,"rev":true,"left":true},{"ticks":10,"gas":true},{"ticks":10,"hb":true},{"ticks":10,"gas":true},{"ticks":10,"gas":true,"right":true},{"ticks":10,"hb":true},{"ticks":10,"gas":true,"left":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":5,"gas":true,"right":true},{"ticks":5,"rev":true},{"ticks":5},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":10,"gas":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":62,"hb":true}],
+  16: [{"ticks":71,"gas":true,"left":true},{"ticks":25,"gas":true},{"ticks":45,"gas":true,"right":true},{"ticks":110,"gas":true},{"ticks":88,"hb":true}],
+  17: [{"ticks":150,"gas":true},{"ticks":10},{"ticks":10,"hb":true},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":10},{"ticks":5,"rev":true},{"ticks":15,"gas":true},{"ticks":15,"rev":true},{"ticks":5,"hb":true},{"ticks":10,"gas":true},{"ticks":15,"rev":true},{"ticks":15,"gas":true},{"ticks":5,"rev":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":10,"gas":true},{"ticks":10,"rev":true},{"ticks":10,"gas":true},{"ticks":5},{"ticks":5,"gas":true},{"ticks":10,"rev":true},{"ticks":57,"hb":true}],
+  18: [{"ticks":10,"gas":true},{"ticks":10,"gas":true,"left":true},{"ticks":30,"gas":true},{"ticks":10,"gas":true,"right":true},{"ticks":20,"gas":true},{"ticks":10,"gas":true,"left":true},{"ticks":60,"gas":true},{"ticks":10},{"ticks":35,"rev":true},{"ticks":15,"gas":true},{"ticks":5,"rev":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"gas":true},{"ticks":5},{"ticks":5,"gas":true},{"ticks":5,"hb":true},{"ticks":15,"gas":true},{"ticks":5,"hb":true},{"ticks":5,"gas":true},{"ticks":5,"gas":true,"right":true},{"ticks":5,"rev":true,"right":true},{"ticks":5,"rev":true},{"ticks":5,"gas":true},{"ticks":10,"rev":true},{"ticks":5,"gas":true},{"ticks":5,"gas":true,"right":true},{"ticks":5,"rev":true,"right":true},{"ticks":15,"rev":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":5,"gas":true},{"ticks":5,"hb":true},{"ticks":15,"rev":true},{"ticks":5,"gas":true},{"ticks":10,"rev":true},{"ticks":5,"gas":true},{"ticks":5},{"ticks":10,"rev":true},{"ticks":5,"rev":true,"right":true},{"ticks":5,"gas":true,"right":true},{"ticks":5,"gas":true},{"ticks":60,"hb":true}],
+  19: [{"ticks":160,"gas":true},{"ticks":10,"rev":true},{"ticks":5,"hb":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":5},{"ticks":15,"gas":true},{"ticks":10,"rev":true},{"ticks":5},{"ticks":15,"gas":true},{"ticks":15,"rev":true},{"ticks":61,"hb":true}],
+  20: [{"ticks":170,"gas":true},{"ticks":10},{"ticks":10,"rev":true,"right":true},{"ticks":10,"gas":true,"right":true},{"ticks":10},{"ticks":10,"gas":true,"right":true},{"ticks":10,"gas":true},{"ticks":15},{"ticks":10,"gas":true,"left":true},{"ticks":20,"rev":true,"left":true},{"ticks":30,"rev":true},{"ticks":20,"rev":true,"right":true},{"ticks":10,"rev":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"gas":true,"left":true},{"ticks":5,"hb":true},{"ticks":10,"rev":true},{"ticks":5,"rev":true,"left":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"rev":true,"right":true},{"ticks":10,"gas":true},{"ticks":20,"rev":true},{"ticks":5},{"ticks":5,"gas":true},{"ticks":5,"rev":true,"left":true},{"ticks":5,"rev":true},{"ticks":10,"rev":true,"left":true},{"ticks":5},{"ticks":35,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"gas":true,"right":true},{"ticks":15,"gas":true},{"ticks":15,"rev":true},{"ticks":5,"gas":true},{"ticks":5,"gas":true,"left":true},{"ticks":5,"rev":true},{"ticks":5,"gas":true,"right":true},{"ticks":5,"gas":true},{"ticks":10,"rev":true},{"ticks":60,"hb":true}],
+  21: [{"ticks":170,"gas":true},{"ticks":15,"rev":true},{"ticks":5},{"ticks":15,"gas":true},{"ticks":5,"hb":true},{"ticks":5,"gas":true},{"ticks":5},{"ticks":10,"gas":true},{"ticks":5,"hb":true},{"ticks":10,"gas":true},{"ticks":10,"rev":true},{"ticks":58,"gas":true}],
+  22: [{"ticks":50,"gas":true},{"ticks":10},{"ticks":20,"rev":true},{"ticks":140,"gas":true},{"ticks":10,"gas":true,"left":true},{"ticks":20,"gas":true},{"ticks":10},{"ticks":5,"rev":true},{"ticks":5,"gas":true,"right":true},{"ticks":20,"rev":true},{"ticks":10,"hb":true},{"ticks":10,"gas":true},{"ticks":20,"rev":true},{"ticks":10,"rev":true,"right":true},{"ticks":20,"rev":true},{"ticks":20,"gas":true},{"ticks":5,"rev":true},{"ticks":5},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":10,"gas":true},{"ticks":5},{"ticks":5,"gas":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":10,"gas":true},{"ticks":5,"hb":true},{"ticks":10,"gas":true},{"ticks":20,"rev":true},{"ticks":10,"gas":true},{"ticks":5},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"gas":true},{"ticks":10,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"gas":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":10,"gas":true},{"ticks":5},{"ticks":10,"rev":true},{"ticks":5,"hb":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":60,"hb":true}],
+  23: [{"ticks":10,"gas":true},{"ticks":10},{"ticks":60,"gas":true},{"ticks":10,"rev":true,"right":true},{"ticks":10,"gas":true,"right":true},{"ticks":10,"rev":true},{"ticks":20,"gas":true,"left":true},{"ticks":10,"rev":true},{"ticks":20,"gas":true},{"ticks":10,"rev":true,"right":true},{"ticks":10,"hb":true},{"ticks":10,"gas":true,"left":true},{"ticks":30,"gas":true},{"ticks":10,"rev":true,"right":true},{"ticks":10,"gas":true,"right":true},{"ticks":10,"gas":true},{"ticks":10,"rev":true,"right":true},{"ticks":10,"gas":true},{"ticks":5,"gas":true,"left":true},{"ticks":15,"rev":true,"left":true},{"ticks":10,"hb":true},{"ticks":10,"rev":true},{"ticks":20,"rev":true,"right":true},{"ticks":5,"gas":true},{"ticks":5,"gas":true,"left":true},{"ticks":5,"gas":true},{"ticks":5,"hb":true},{"ticks":5,"rev":true,"right":true},{"ticks":5},{"ticks":5,"rev":true,"left":true},{"ticks":5},{"ticks":5,"rev":true,"right":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":5},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"rev":true,"left":true},{"ticks":10,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"gas":true},{"ticks":5,"hb":true},{"ticks":10,"rev":true},{"ticks":10},{"ticks":5,"rev":true,"right":true},{"ticks":10,"gas":true},{"ticks":10,"rev":true},{"ticks":5},{"ticks":5,"rev":true,"left":true},{"ticks":5,"gas":true},{"ticks":59,"hb":true}],
+  24: [{"ticks":150,"gas":true},{"ticks":10},{"ticks":10,"rev":true,"right":true},{"ticks":20,"gas":true},{"ticks":20},{"ticks":10,"rev":true,"left":true},{"ticks":20,"rev":true},{"ticks":10,"rev":true,"right":true},{"ticks":10,"rev":true},{"ticks":10,"gas":true,"right":true},{"ticks":10,"rev":true,"right":true},{"ticks":10},{"ticks":10,"hb":true},{"ticks":10,"rev":true},{"ticks":10,"rev":true,"right":true},{"ticks":20},{"ticks":10,"rev":true},{"ticks":10,"rev":true,"right":true},{"ticks":10,"rev":true},{"ticks":20},{"ticks":10,"rev":true,"left":true},{"ticks":10,"hb":true},{"ticks":20,"rev":true,"left":true},{"ticks":10,"gas":true,"left":true},{"ticks":50,"gas":true},{"ticks":20,"gas":true,"right":true},{"ticks":10,"gas":true},{"ticks":10,"rev":true,"left":true},{"ticks":5,"rev":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"gas":true},{"ticks":5,"hb":true},{"ticks":10,"gas":true},{"ticks":5,"hb":true},{"ticks":5,"gas":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":10,"gas":true,"left":true},{"ticks":45,"rev":true},{"ticks":5,"gas":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":5,"gas":true},{"ticks":5,"hb":true},{"ticks":5,"rev":true},{"ticks":5,"gas":true},{"ticks":60,"hb":true}],
+  25: [{"ticks":170,"gas":true},{"ticks":10,"rev":true},{"ticks":10,"hb":true},{"ticks":5,"rev":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":15,"gas":true},{"ticks":25,"rev":true},{"ticks":60,"hb":true}],
+  26: [{"ticks":70,"gas":true},{"ticks":10,"rev":true,"left":true},{"ticks":10,"gas":true},{"ticks":10,"hb":true},{"ticks":10,"gas":true,"left":true},{"ticks":10,"gas":true},{"ticks":5,"gas":true,"right":true},{"ticks":5},{"ticks":10,"rev":true},{"ticks":10,"gas":true,"right":true},{"ticks":5},{"ticks":10,"rev":true,"right":true},{"ticks":10,"gas":true},{"ticks":20,"rev":true},{"ticks":10,"rev":true,"left":true},{"ticks":10,"rev":true},{"ticks":10,"gas":true},{"ticks":5},{"ticks":5,"rev":true,"right":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true,"left":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true,"right":true},{"ticks":5,"gas":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"rev":true,"left":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true,"right":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true,"left":true},{"ticks":5,"gas":true},{"ticks":5},{"ticks":5,"rev":true,"right":true},{"ticks":5,"gas":true,"right":true},{"ticks":61,"gas":true}],
+  27: [{"ticks":170,"gas":true},{"ticks":15,"rev":true},{"ticks":5,"gas":true},{"ticks":5,"hb":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":5},{"ticks":65,"hb":true}],
+  28: [{"ticks":140,"gas":true},{"ticks":10,"rev":true},{"ticks":15,"hb":true},{"ticks":20,"rev":true},{"ticks":10},{"ticks":10,"gas":true},{"ticks":10,"rev":true},{"ticks":20,"gas":true},{"ticks":5},{"ticks":10,"rev":true},{"ticks":5,"gas":true},{"ticks":5},{"ticks":10,"gas":true},{"ticks":10,"rev":true},{"ticks":10,"gas":true},{"ticks":5,"hb":true},{"ticks":10,"rev":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":10,"gas":true},{"ticks":10,"rev":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":15,"gas":true},{"ticks":5},{"ticks":5,"hb":true},{"ticks":5},{"ticks":15,"gas":true},{"ticks":15,"rev":true},{"ticks":57,"hb":true}],
+  29: [{"ticks":56,"gas":true},{"ticks":8,"rev":true},{"ticks":8,"gas":true},{"ticks":8,"gas":true,"left":true},{"ticks":24,"gas":true},{"ticks":8,"rev":true},{"ticks":8},{"ticks":8,"rev":true},{"ticks":8},{"ticks":8,"gas":true,"right":true},{"ticks":8},{"ticks":8,"gas":true},{"ticks":8,"gas":true,"right":true},{"ticks":40,"rev":true},{"ticks":8,"rev":true,"left":true},{"ticks":8,"rev":true},{"ticks":8,"rev":true,"left":true},{"ticks":8,"hb":true},{"ticks":8,"rev":true},{"ticks":8},{"ticks":8,"rev":true},{"ticks":8,"rev":true,"right":true},{"ticks":32,"gas":true},{"ticks":8,"gas":true,"left":true},{"ticks":8,"rev":true},{"ticks":16,"gas":true,"left":true},{"ticks":8,"rev":true,"left":true},{"ticks":24,"gas":true},{"ticks":8,"gas":true,"right":true},{"ticks":8,"rev":true,"right":true},{"ticks":8},{"ticks":8,"gas":true},{"ticks":8,"gas":true,"left":true},{"ticks":8,"hb":true},{"ticks":8},{"ticks":5,"rev":true},{"ticks":5,"gas":true},{"ticks":10,"rev":true},{"ticks":5},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":25,"gas":true},{"ticks":5},{"ticks":5,"gas":true,"right":true},{"ticks":15,"rev":true},{"ticks":10,"gas":true},{"ticks":35,"rev":true},{"ticks":5},{"ticks":5,"rev":true,"left":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"gas":true},{"ticks":10,"rev":true},{"ticks":5,"rev":true,"left":true},{"ticks":5,"gas":true},{"ticks":61,"hb":true}],
+  30: [{"ticks":79,"gas":true,"left":true},{"ticks":15,"gas":true},{"ticks":53,"gas":true,"right":true},{"ticks":110,"gas":true},{"ticks":87,"hb":true}],
+  31: [{"ticks":170,"gas":true},{"ticks":15,"rev":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":10,"gas":true},{"ticks":10,"rev":true},{"ticks":5},{"ticks":15,"gas":true},{"ticks":5},{"ticks":5,"hb":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":5},{"ticks":20,"gas":true},{"ticks":15,"rev":true},{"ticks":58,"hb":true}],
+  32: [{"ticks":160,"gas":true},{"ticks":15,"hb":true},{"ticks":5},{"ticks":5,"gas":true},{"ticks":10,"rev":true},{"ticks":5},{"ticks":20,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"gas":true},{"ticks":10,"rev":true},{"ticks":58,"hb":true}],
+  33: [{"ticks":150,"gas":true},{"ticks":15,"rev":true},{"ticks":10,"gas":true},{"ticks":5,"hb":true},{"ticks":10,"rev":true},{"ticks":20,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"gas":true},{"ticks":5},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":5},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":58,"hb":true}],
+  34: [{"ticks":190,"gas":true},{"ticks":10,"rev":true},{"ticks":5},{"ticks":20,"gas":true},{"ticks":5,"rev":true},{"ticks":10},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":57,"gas":true}],
+  35: [{"ticks":160,"gas":true},{"ticks":15,"hb":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"gas":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":5},{"ticks":10,"gas":true},{"ticks":5,"hb":true},{"ticks":5,"gas":true},{"ticks":10,"rev":true},{"ticks":57,"hb":true}],
+  36: [{"ticks":170,"gas":true},{"ticks":10},{"ticks":15,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":10,"gas":true},{"ticks":10},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":10,"gas":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":5,"gas":true},{"ticks":10,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"gas":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":10,"gas":true},{"ticks":5},{"ticks":10,"rev":true},{"ticks":5,"hb":true},{"ticks":10,"gas":true},{"ticks":10},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"gas":true},{"ticks":10,"rev":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":10,"gas":true},{"ticks":5},{"ticks":10,"rev":true},{"ticks":15,"gas":true},{"ticks":10,"rev":true},{"ticks":10,"gas":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":57,"hb":true}],
+  37: [{"ticks":150,"gas":true},{"ticks":10,"hb":true},{"ticks":30,"rev":true},{"ticks":10,"hb":true},{"ticks":10,"rev":true},{"ticks":25,"gas":true},{"ticks":15,"rev":true},{"ticks":10,"gas":true},{"ticks":5},{"ticks":15,"rev":true},{"ticks":5,"hb":true},{"ticks":10,"gas":true},{"ticks":5,"hb":true},{"ticks":5,"rev":true},{"ticks":15,"gas":true},{"ticks":15,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":15,"gas":true},{"ticks":5,"rev":true},{"ticks":5},{"ticks":10,"gas":true},{"ticks":20,"rev":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":10,"gas":true},{"ticks":5},{"ticks":10,"gas":true},{"ticks":5,"hb":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"gas":true},{"ticks":5},{"ticks":10,"gas":true},{"ticks":15,"rev":true},{"ticks":56,"hb":true}],
+  38: [{"ticks":170,"gas":true},{"ticks":10,"rev":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"gas":true},{"ticks":5},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":10,"gas":true},{"ticks":5,"rev":true},{"ticks":15,"gas":true},{"ticks":10,"rev":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":59,"hb":true}],
+  39: [{"ticks":170,"gas":true},{"ticks":10},{"ticks":10,"rev":true},{"ticks":5},{"ticks":10,"gas":true},{"ticks":10},{"ticks":10,"gas":true},{"ticks":10},{"ticks":10,"gas":true},{"ticks":5},{"ticks":5,"gas":true},{"ticks":10,"rev":true},{"ticks":57,"gas":true}],
+  40: [{"ticks":180,"gas":true},{"ticks":15,"hb":true},{"ticks":25,"rev":true},{"ticks":20,"gas":true},{"ticks":5,"gas":true,"left":true},{"ticks":5,"rev":true,"left":true},{"ticks":5,"gas":true},{"ticks":5,"gas":true,"right":true},{"ticks":5,"gas":true},{"ticks":5},{"ticks":5,"gas":true},{"ticks":10},{"ticks":10,"gas":true},{"ticks":5,"rev":true,"left":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":5,"gas":true,"left":true},{"ticks":10,"gas":true,"right":true},{"ticks":5,"gas":true,"left":true},{"ticks":5,"rev":true,"right":true},{"ticks":15,"rev":true},{"ticks":5,"gas":true},{"ticks":5,"rev":true},{"ticks":5,"rev":true,"left":true},{"ticks":35,"gas":true},{"ticks":5,"rev":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":15,"gas":true},{"ticks":10,"rev":true},{"ticks":5,"hb":true},{"ticks":5,"rev":true},{"ticks":10,"gas":true},{"ticks":5},{"ticks":10,"gas":true},{"ticks":5},{"ticks":5,"rev":true},{"ticks":61,"hb":true}]
+};
+
+function expandSolution(seq) {
+  const out = [];
+  for (const s of (seq || [])) {
+    for (let i = 0; i < s.ticks; i++) {
+      out.push({ gas: !!s.gas, rev: !!s.rev, left: !!s.left, right: !!s.right, hb: !!s.hb, horn: !!s.horn });
+    }
+  }
+  return out;
+}
+
+/* ============================================================================
+ * 7. ORIENTED BOUNDING BOX COLLISION & DETERMINISTIC BICYCLE PHYSICS
+ * ============================================================================ */
+function getRectCorners(cx, cy, w, h, angle) {
+  const hw = w / 2, hh = h / 2;
+  const c = Math.cos(angle), s = Math.sin(angle);
+  return [
+    { x: cx + hw * c - hh * s, y: cy + hw * s + hh * c },
+    { x: cx - hw * c - hh * s, y: cy - hw * s + hh * c },
+    { x: cx - hw * c + hh * s, y: cy - hw * s - hh * c },
+    { x: cx + hw * c + hh * s, y: cy + hw * s - hh * c }
+  ];
+}
+
+function projectCorners(corners, ax, ay) {
+  let min = corners[0].x * ax + corners[0].y * ay, max = min;
+  for (let i = 1; i < corners.length; i++) {
+    const p = corners[i].x * ax + corners[i].y * ay;
+    if (p < min) min = p;
+    if (p > max) max = p;
+  }
+  return { min, max };
+}
+
+function testOBB(a, b) {
+  const ca = getRectCorners(a.x, a.y, a.w, a.h, a.angle);
+  const cb = getRectCorners(b.x, b.y, b.w, b.h, b.angle);
+  const axes = [
+    { x: Math.cos(a.angle), y: Math.sin(a.angle) },
+    { x: -Math.sin(a.angle), y: Math.cos(a.angle) },
+    { x: Math.cos(b.angle), y: Math.sin(b.angle) },
+    { x: -Math.sin(b.angle), y: Math.cos(b.angle) }
+  ];
+  let minOverlap = Infinity, bestAxis = null;
+  for (const ax of axes) {
+    const pa = projectCorners(ca, ax.x, ax.y);
+    const pb = projectCorners(cb, ax.x, ax.y);
+    const overlap = Math.min(pa.max, pb.max) - Math.max(pa.min, pb.min);
+    if (overlap <= 0) return null;
+    if (overlap < minOverlap) { minOverlap = overlap; bestAxis = ax; }
+  }
+  const dx = a.x - b.x, dy = a.y - b.y;
+  let nx = bestAxis.x, ny = bestAxis.y;
+  if (dx * nx + dy * ny < 0) { nx = -nx; ny = -ny; }
+  // Approximate contact point as clamped corner closest to opponent center
+  let contact = ca[0], bestD = Infinity;
+  for (const pt of ca) {
+    const d = Math.hypot(pt.x - b.x, pt.y - b.y);
+    if (d < bestD) { bestD = d; contact = pt; }
+  }
+  return { mtvX: nx * minOverlap, mtvY: ny * minOverlap, nx, ny, contactX: contact.x, contactY: contact.y };
+}
+
+function createSpotState(def) {
+  const veh = getVehicleDef(def.vehicleId);
+  const st = {
+    def,
+    veh,
+    tick: 0,
+    timeLeft: ROUND_TIME_TICKS,
+    car: {
+      x: def.start.x, y: def.start.y, angle: def.start.angle,
+      v: 0, latV: 0, steer: 0,
+      trailerX: def.start.x - Math.cos(def.start.angle) * (veh.w / 2 + (veh.hitchDist || 0) + (veh.trailerW || 0) / 2),
+      trailerY: def.start.y - Math.sin(def.start.angle) * (veh.w / 2 + (veh.hitchDist || 0) + (veh.trailerW || 0) / 2),
+      trailerAngle: def.start.angle,
+      ladderAngle: 0, ladderVel: 0,
+      dents: []
+    },
+    spot: { x: def.spot.x, y: def.spot.y, w: def.spot.w, h: def.spot.h, angle: def.spot.angle, label: def.spot.label || null },
+    peds: (def.peds || []).map(p => ({ ...p, curY: p.y })),
+    mover: def.mover ? { ...def.mover } : null,
+    dentLogs: [],
+    dentPenaltyTotal: 0,
+    dentCooldown: 0,
+    parkHoldTicks: 0,
+    insideSpot: false,
+    centerOffsetCm: 999,
+    angleOffsetDeg: 180,
+    bestCloseCm: 999,
+    worstHitSpeed: 0,
+    worstHitTick: -1,
+    history: [],
+    soundEvents: [],
+    bubbles: [],
+    floatTexts: [],
+    lastNpcIdx: -1,
+    hornCooldown: 0,
+    won: false,
+    timedOut: false,
+    scoreBreakdown: null
+  };
+  return st;
+}
+
+function getMoverPos(path, tick) {
+  for (let i = 0; i < path.length - 1; i++) {
+    const a = path[i], b = path[i + 1];
+    if (tick >= a.t && tick <= b.t) {
+      const r = (tick - a.t) / Math.max(1, b.t - a.t);
+      return { x: a.x + (b.x - a.x) * r, y: a.y + (b.y - a.y) * r };
+    }
+  }
+  const last = path[path.length - 1];
+  return { x: last.x, y: last.y };
+}
+
+function stepParking(state, input) {
+  state.soundEvents.length = 0;
+  if (state.won || state.timedOut) return;
+  state.tick++;
+  state.timeLeft = Math.max(0, ROUND_TIME_TICKS - state.tick);
+
+  const car = state.car;
+  const veh = state.veh;
+  if (state.dentCooldown > 0) state.dentCooldown--;
+  if (state.hornCooldown > 0) state.hornCooldown--;
+  if (input.horn && state.hornCooldown === 0) {
+    state.soundEvents.push({ name: "horn", param: veh.horn });
+    state.hornCooldown = 20;
+    state.bubbles.push({ x: car.x, y: car.y - 26, text: "HOOOONK!", life: 60 });
+  }
+
+  // Dynamic barge motion (car rides the barge deck once driven onto it!)
+  if (state.def.barge) {
+    const prevSpotY = state.spot.y;
+    const ph = (state.tick % state.def.barge.periodTicks) / state.def.barge.periodTicks;
+    state.spot.y = state.def.spot.y + Math.sin(ph * Math.PI * 2) * state.def.barge.ampY;
+    const dy = state.spot.y - prevSpotY;
+    if (Math.abs(car.x - state.spot.x) <= 95 && Math.abs(car.y - prevSpotY) <= 58) {
+      car.y += dy;
+    }
+  }
+
+  // Update deterministic pedestrians
+  for (const p of state.peds) {
+    p.curY += p.vy * FIXED_DT;
+    if (p.curY < p.minY) { p.curY = p.minY; p.vy = Math.abs(p.vy); }
+    else if (p.curY > p.maxY) { p.curY = p.maxY; p.vy = -Math.abs(p.vy); }
+  }
+
+  // Update deterministic moving truck
+  if (state.mover) {
+    const mp = getMoverPos(state.mover.path, state.tick);
+    state.mover.x = mp.x; state.mover.y = mp.y;
+  }
+
+  // Terrain checks (ice & slope)
+  let onIce = false;
+  for (const z of (state.def.iceZones || [])) {
+    if (Math.abs(car.x - z.x) <= z.w / 2 && Math.abs(car.y - z.y) <= z.h / 2) onIce = true;
+  }
+
+  // Steering input + speed-dependent lock
+  const steerDir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+  const maxAllowedSteer = veh.maxSteer / (1 + Math.abs(car.v) * SPEED_STEER_DAMP);
+  const targetSteer = steerDir * maxAllowedSteer;
+  if (steerDir !== 0) {
+    if (car.steer < targetSteer) car.steer = Math.min(targetSteer, car.steer + STEER_RATE * FIXED_DT);
+    else if (car.steer > targetSteer) car.steer = Math.max(targetSteer, car.steer - STEER_RATE * FIXED_DT);
+  } else {
+    if (car.steer > 0) car.steer = Math.max(0, car.steer - STEER_RETURN_RATE * FIXED_DT);
+    else if (car.steer < 0) car.steer = Math.min(0, car.steer + STEER_RETURN_RATE * FIXED_DT);
+  }
+
+  // Acceleration, Reverse, Braking & Handbrake
+  const gripMult = onIce ? 0.45 : (state.def.rain ? 0.84 : 1.0);
+  if (input.hb) {
+    if (car.v > 0) car.v = Math.max(0, car.v - HANDBRAKE_DECEL * gripMult * FIXED_DT);
+    else if (car.v < 0) car.v = Math.min(0, car.v + HANDBRAKE_DECEL * gripMult * FIXED_DT);
+  } else if (input.gas) {
+    if (car.v < 0) car.v = Math.min(0, car.v + BRAKE_DECEL * gripMult * FIXED_DT);
+    else car.v = Math.min(veh.maxF, car.v + veh.accel * gripMult * FIXED_DT);
+  } else if (input.rev) {
+    if (car.v > 0) car.v = Math.max(0, car.v - BRAKE_DECEL * gripMult * FIXED_DT);
+    else car.v = Math.max(-veh.maxR, car.v - veh.accel * 0.78 * gripMult * FIXED_DT);
+  } else {
+    const drag = ROLL_DRAG * (onIce ? 0.25 : 1.0) * FIXED_DT;
+    if (car.v > 0) car.v = Math.max(0, car.v - drag);
+    else if (car.v < 0) car.v = Math.min(0, car.v + drag);
+  }
+
+  // Slope gravity projection onto heading
+  if (state.def.slope) {
+    const sAlong = state.def.slope.fx * Math.cos(car.angle) + state.def.slope.fy * Math.sin(car.angle);
+    const sLat = -state.def.slope.fx * Math.sin(car.angle) + state.def.slope.fy * Math.cos(car.angle);
+    car.v += sAlong * FIXED_DT;
+    car.latV += sLat * FIXED_DT * 0.5;
+  }
+
+  // Bicycle kinematics
+  const angVel = (car.v / veh.wb) * Math.tan(car.steer);
+  car.angle += angVel * FIXED_DT;
+
+  if (input.hb && Math.abs(car.v) > 40) {
+    car.latV += angVel * car.v * 0.08 * FIXED_DT;
+    if (state.tick % 6 === 0) state.soundEvents.push({ name: "squeak", param: 1 });
+  }
+  const latDamp = onIce ? ICE_LAT_DAMP : (input.hb ? HANDBRAKE_LAT_DAMP : NORMAL_LAT_DAMP);
+  car.latV *= latDamp;
+
+  const cosA = Math.cos(car.angle), sinA = Math.sin(car.angle);
+  const worldVx = cosA * car.v - sinA * car.latV;
+  const worldVy = sinA * car.v + cosA * car.latV;
+  car.x += worldVx * FIXED_DT;
+  car.y += worldVy * FIXED_DT;
+
+  // Articulated trailer hitch physics (#7 Bendy bus, #9 Tiny+Trailer)
+  if (veh.trailerW) {
+    const hitchX = car.x - cosA * (veh.w / 2);
+    const hitchY = car.y - sinA * (veh.w / 2);
+    const desiredDist = veh.hitchDist + veh.trailerW / 2;
+    const dx = car.trailerX - hitchX, dy = car.trailerY - hitchY;
+    let targetAngle = Math.atan2(-dy, -dx);
+    let diff = Math.atan2(Math.sin(targetAngle - car.angle), Math.cos(targetAngle - car.angle));
+    diff = Math.max(-1.25, Math.min(1.25, diff));
+    car.trailerAngle = car.angle + diff;
+    car.trailerX = hitchX - Math.cos(car.trailerAngle) * desiredDist;
+    car.trailerY = hitchY - Math.sin(car.trailerAngle) * desiredDist;
+  }
+
+  // Swinging roof ladder inertia (#8 Firetruck)
+  if (veh.ladderLen) {
+    const torque = -angVel * 3.8 - car.ladderAngle * 14 - car.ladderVel * 4.5;
+    car.ladderVel += torque * FIXED_DT;
+    car.ladderAngle = Math.max(-1.1, Math.min(1.1, car.ladderAngle + car.ladderVel * FIXED_DT));
+  }
+
+  // Gather solid OBB list
+  const solids = [
+    ...state.def.walls,
+    ...state.def.obstacles,
+    ...state.peds.map(p => ({ x: p.x, y: p.curY, w: 16, h: 16, angle: 0, kind: "ped" }))
+  ];
+  if (state.mover) solids.push({ x: state.mover.x, y: state.mover.y, w: state.mover.w, h: state.mover.h, angle: state.mover.angle || 0, kind: "car" });
+
+  // Collide main body + articulated trailer + swinging ladder
+  const colliders = [{ x: car.x, y: car.y, w: veh.w, h: veh.h, angle: car.angle, part: "car" }];
+  if (veh.trailerW) colliders.push({ x: car.trailerX, y: car.trailerY, w: veh.trailerW, h: veh.trailerH, angle: car.trailerAngle, part: "trailer" });
+  if (veh.ladderLen) {
+    const lAng = car.angle + car.ladderAngle;
+    colliders.push({
+      x: car.x + Math.cos(lAng) * (veh.w * 0.25),
+      y: car.y + Math.sin(lAng) * (veh.w * 0.25),
+      w: veh.ladderLen, h: 10, angle: lAng, part: "ladder"
+    });
+  }
+
+  for (const col of colliders) {
+    for (const s of solids) {
+      const hit = testOBB(col, s);
+      if (!hit) continue;
+      if (col.part === "car") {
+        car.x += hit.mtvX; car.y += hit.mtvY;
+      } else if (col.part === "trailer") {
+        car.trailerX += hit.mtvX * 0.6; car.trailerY += hit.mtvY * 0.6;
+        car.x += hit.mtvX * 0.4; car.y += hit.mtvY * 0.4;
+      }
+      const closing = Math.abs(worldVx * hit.nx + worldVy * hit.ny);
+      car.v *= -0.22;
+      car.latV *= 0.2;
+      if (state.dentCooldown === 0 && closing > 8) {
+        registerDent(state, closing, hit.contactX, hit.contactY, s.kind);
+      }
+      break;
+    }
+  }
+
+  // Evaluate Spot Containment & Cm Margins
+  const sp = state.spot;
+  const checkBodies = [{ x: car.x, y: car.y, w: veh.w, h: veh.h, angle: car.angle }];
+  if (veh.trailerW) checkBodies.push({ x: car.trailerX, y: car.trailerY, w: veh.trailerW, h: veh.trailerH, angle: car.trailerAngle });
+  const sc = Math.cos(-sp.angle), ss = Math.sin(-sp.angle);
+  let allInside = true;
+  for (const b of checkBodies) {
+    for (const pt of getRectCorners(b.x, b.y, b.w, b.h, b.angle)) {
+      const rx = pt.x - sp.x, ry = pt.y - sp.y;
+      const lx = rx * sc - ry * ss, ly = rx * ss + ry * sc;
+      if (Math.abs(lx) > sp.w / 2 || Math.abs(ly) > sp.h / 2) { allInside = false; break; }
+    }
+  }
+
+  const centerDistCm = (Math.hypot(car.x - sp.x, car.y - sp.y) / PX_PER_METER) * 100;
+  let angDiff = Math.abs(Math.atan2(Math.sin(car.angle - sp.angle), Math.cos(car.angle - sp.angle)));
+  angDiff = Math.min(angDiff, Math.abs(angDiff - Math.PI));
+  state.centerOffsetCm = centerDistCm;
+  state.angleOffsetDeg = (angDiff * 180) / Math.PI;
+  state.insideSpot = allInside;
+  if (centerDistCm < state.bestCloseCm) state.bestCloseCm = centerDistCm;
+
+  if (allInside && Math.abs(car.v) < STOP_SPEED_THRESH && Math.abs(car.latV) < STOP_SPEED_THRESH) {
+    state.parkHoldTicks++;
+    if (state.parkHoldTicks >= PARK_HOLD_TICKS) {
+      finalizeWin(state);
+    }
+  } else {
+    state.parkHoldTicks = 0;
+  }
+
+  // Save compact snapshot into 180-frame replay ring buffer
+  state.history.push({
+    x: car.x, y: car.y, angle: car.angle, steer: car.steer,
+    trailerX: car.trailerX, trailerY: car.trailerY, trailerAngle: car.trailerAngle,
+    ladderAngle: car.ladderAngle, spotY: state.spot.y,
+    moverX: state.mover ? state.mover.x : 0, moverY: state.mover ? state.mover.y : 0,
+    pedsY: state.peds.map(p => p.curY)
+  });
+  if (state.history.length > 210) state.history.shift();
+
+  if (state.timeLeft <= 0 && !state.won) {
+    state.timedOut = true;
+    state.soundEvents.push({ name: "nearmiss", param: 1 });
+  }
+}
+
+function registerDent(state, speed, wx, wy, targetKind) {
+  state.dentCooldown = DENT_COOLDOWN_TICKS;
+  let tier = "tap";
+  if (targetKind === "fragile" && speed > 28) tier = "crunch";
+  else if (speed > 145) tier = "catastrophe";
+  else if (speed > 85) tier = "crunch";
+  else if (speed > 42) tier = "scrape";
+
+  const pen = DENT_PENALTIES[tier];
+  state.dentPenaltyTotal += pen;
+  const names = DENT_NAMES[tier];
+  const label = names[state.dentLogs.length % names.length];
+  state.dentLogs.push({ tier, label, penalty: pen, tick: state.tick, speed: Math.round(speed) });
+
+  // Save local dent coordinate on vehicle
+  const dx = wx - state.car.x, dy = wy - state.car.y;
+  const c = Math.cos(-state.car.angle), s = Math.sin(-state.car.angle);
+  state.car.dents.push({
+    lx: Math.max(-state.veh.w / 2, Math.min(state.veh.w / 2, dx * c - dy * s)),
+    ly: Math.max(-state.veh.h / 2, Math.min(state.veh.h / 2, dx * s + dy * c)),
+    r: tier === "catastrophe" ? 7 : (tier === "crunch" ? 5 : 3)
+  });
+
+  if (speed > state.worstHitSpeed) {
+    state.worstHitSpeed = speed;
+    state.worstHitTick = state.history.length;
+  }
+
+  let lineIdx;
+  do { lineIdx = (state.tick + state.dentLogs.length * 7) % NPC_LINES.length; }
+  while (lineIdx === state.lastNpcIdx && NPC_LINES.length > 1);
+  state.lastNpcIdx = lineIdx;
+
+  state.bubbles.push({ x: wx, y: Math.max(66, wy - 20), text: NPC_LINES[lineIdx], life: 130 });
+  state.floatTexts.push({ x: wx, y: wy - 10, text: `-${pen} (${tier.toUpperCase()})`, life: 55 });
+  state.soundEvents.push({ name: tier, param: 1 });
+}
+
+function finalizeWin(state) {
+  state.won = true;
+  const elapsedSec = state.tick / 60;
+  const timePenalty = Math.round(elapsedSec * 9);
+  const straightBonus = Math.max(0, Math.round(120 - state.angleOffsetDeg * 8));
+  const centerBonus = Math.max(0, Math.round(160 - state.centerOffsetCm * 4));
+  const raw = Math.max(50, 1000 - state.dentPenaltyTotal - timePenalty + straightBonus + centerBonus);
+  const stars = (raw >= 920 && state.dentLogs.length === 0) ? 3 : (raw >= 660 ? 2 : 1);
+  state.scoreBreakdown = {
+    base: 1000, dentPen: state.dentPenaltyTotal, timePen: timePenalty,
+    straightBonus, centerBonus, total: raw, stars,
+    cmStr: `${state.centerOffsetCm.toFixed(1)} cm off-centre`,
+    angStr: `${state.angleOffsetDeg.toFixed(1)} deg tilt`,
+    elapsed: elapsedSec.toFixed(2)
+  };
+  state.soundEvents.push({ name: "win", param: 1 });
+}
+
+/* ============================================================================
+ * 8. F9 HEADLESS DETERMINISTIC REPLAY SOLVER
+ * ============================================================================ */
+function runHeadlessSolverForSpot(spotId) {
+  const def = LEVELS.find(l => l.id === spotId);
+  const seq = LEVEL_SOLUTIONS[spotId];
+  if (!def || !seq) return { id: spotId, name: def ? def.name : "?", pass: false, reason: "Missing solution" };
+  const frames = expandSolution(seq);
+  const st = createSpotState(def);
+  for (let i = 0; i < frames.length; i++) {
+    stepParking(st, frames[i]);
+    if (st.won) return { id: spotId, name: def.name, pass: true, ticks: st.tick, seconds: (st.tick / 60).toFixed(2) };
+    if (st.timedOut) return { id: spotId, name: def.name, pass: false, ticks: st.tick, reason: "Timed out" };
+  }
+  return { id: spotId, name: def.name, pass: false, ticks: st.tick, reason: `Did not win (${st.centerOffsetCm.toFixed(1)}cm away)` };
+}
+
+function runAllSolvers() {
+  const lieCheck = assertUniqueLies();
+  const results = LEVELS.map(l => runHeadlessSolverForSpot(l.id));
+  const passed = results.filter(r => r.pass).length;
+  console.log(`PARKING SPOT PANIC F9 SOLVER: ${passed}/${results.length} PASS | LIE CHECK: ${lieCheck.ok ? "UNIQUE OK" : "FAIL"}`);
+  return { results, lieCheck, passed, total: results.length };
+}
+
+/* ============================================================================
+ * 9. PERSISTENCE, DAILY SPOT, INPUT, MOBILE LANDSCAPE & RENDERING
+ * ============================================================================ */
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const stageEl = document.getElementById("stage");
+const touchEl = document.getElementById("touch-controls");
+const touchFsBtn = document.getElementById("btn-touch-fs");
+const toastEl = document.getElementById("toast");
+
+function showToast(msg) {
+  toastEl.textContent = msg; toastEl.classList.add("show");
+  clearTimeout(showToast._t); showToast._t = setTimeout(() => toastEl.classList.remove("show"), 2000);
+}
+
+const defaultProgress = () => ({
+  stars: {},
+  bestScores: {},
+  fails: {},
+  totalFails: 0,
+  selectedVehicle: null,
+  streamerSafe: false,
+  bigObsOverlay: false,
+  muted: false
+});
+function loadProgress() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? { ...defaultProgress(), ...JSON.parse(raw) } : defaultProgress();
+  } catch (e) { return defaultProgress(); }
+}
+function saveProgress(p) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); } catch (e) {} }
+const progress = loadProgress();
+sfx.muted = !!progress.muted;
+
+function totalStars() { return Object.values(progress.stars).reduce((a, b) => a + b, 0); }
+function getDailySpotId() {
+  const d = new Date();
+  const key = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  return ((key * 2654435761) >>> 0) % LEVELS.length + 1;
+}
+
+const app = {
+  screen: "title", // title | play | select | summary | pause
+  currentIdx: 0,
+  state: null,
+  showGhost: false,
+  botWatch: null,
+  solverOverlay: null,
+  replayFrames: null,
+  replayIdx: 0,
+  uiTick: 0,
+  shakeTicks: 0,
+  cssRotated90: false,
+  hasTouch: false,
+  mouse: { x: 480, y: 270 },
+  keys: { gas: false, rev: false, left: false, right: false, hb: false, horn: false },
+  touch: { gas: false, rev: false, left: false, right: false, hb: false, horn: false }
+};
+
+function startSpot(idx) {
+  app.currentIdx = Math.max(0, Math.min(LEVELS.length - 1, idx));
+  const def = { ...LEVELS[app.currentIdx] };
+  if (progress.selectedVehicle && totalStars() >= getVehicleDef(progress.selectedVehicle).starsNeed) {
+    def.vehicleId = progress.selectedVehicle;
+  }
+  app.state = createSpotState(def);
+  app.showGhost = false;
+  app.botWatch = null;
+  app.replayFrames = null;
+  app.screen = "play";
+}
+
+function isTouchCapable() {
+  return !!(app.hasTouch || (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) || (navigator.maxTouchPoints > 0 && Math.min(window.innerWidth, window.innerHeight) <= 900));
+}
+async function tryLockLandscape(withFullscreen = false) {
+  try {
+    if (withFullscreen && document.documentElement.requestFullscreen && !document.fullscreenElement) await document.documentElement.requestFullscreen();
+    if (screen.orientation && screen.orientation.lock) await screen.orientation.lock("landscape");
+  } catch (e) {}
+  resizeCanvas();
+}
+function getCanvasCoords(e) {
+  const rect = canvas.getBoundingClientRect();
+  if (app.cssRotated90) {
+    return { x: (e.clientY - rect.top) * (LOGICAL_W / Math.max(1, rect.height)), y: (rect.right - e.clientX) * (LOGICAL_H / Math.max(1, rect.width)) };
+  }
+  return { x: (e.clientX - rect.left) * (LOGICAL_W / Math.max(1, rect.width)), y: (e.clientY - rect.top) * (LOGICAL_H / Math.max(1, rect.height)) };
+}
+function resizeCanvas() {
+  const rawW = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+  const rawH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const mobile = isTouchCapable();
+  const forceRotate = mobile && rawH > rawW;
+  app.cssRotated90 = forceRotate;
+  stageEl.classList.toggle("landscape-forced", forceRotate);
+  const landW = forceRotate ? rawH : rawW, landH = forceRotate ? rawW : rawH;
+  stageEl.style.width = `${Math.floor(landW)}px`; stageEl.style.height = `${Math.floor(landH)}px`;
+  const pad = mobile ? 4 : 16;
+  const s = Math.min(Math.max(240, landW - pad) / LOGICAL_W, Math.max(160, landH - pad) / LOGICAL_H);
+  canvas.style.width = `${Math.floor(LOGICAL_W * s)}px`; canvas.style.height = `${Math.floor(LOGICAL_H * s)}px`;
+  stageEl.style.setProperty("--tbtn", `${Math.round(Math.max(42, Math.min(64, landH * 0.16)))}px`);
+  if (touchFsBtn && mobile && document.documentElement.requestFullscreen) touchFsBtn.style.display = document.fullscreenElement ? "none" : "flex";
+}
+window.addEventListener("resize", resizeCanvas);
+window.addEventListener("orientationchange", () => setTimeout(resizeCanvas, 60));
+document.addEventListener("fullscreenchange", () => setTimeout(resizeCanvas, 40));
+if (window.visualViewport) window.visualViewport.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+
+window.addEventListener("touchstart", () => { sfx.unlock(); app.hasTouch = true; resizeCanvas(); tryLockLandscape(false); }, { passive: true, once: true });
+function bindTouch(id, field) {
+  const btn = document.getElementById(id);
+  const set = v => { sfx.unlock(); app.touch[field] = v; btn.classList.toggle("pressed", v); };
+  btn.addEventListener("touchstart", e => { e.preventDefault(); set(true); });
+  btn.addEventListener("touchend", e => { e.preventDefault(); set(false); });
+  btn.addEventListener("touchcancel", e => { e.preventDefault(); set(false); });
+}
+bindTouch("btn-sleft", "left"); bindTouch("btn-sright", "right"); bindTouch("btn-gas", "gas");
+bindTouch("btn-rev", "rev"); bindTouch("btn-hb", "hb"); bindTouch("btn-touch-horn", "horn");
+document.getElementById("btn-touch-retry").addEventListener("touchstart", e => { e.preventDefault(); if (app.screen === "play" || app.screen === "summary") startSpot(app.currentIdx); });
+if (touchFsBtn) touchFsBtn.addEventListener("touchstart", e => { e.preventDefault(); tryLockLandscape(true); });
+
+const uiButtons = [];
+canvas.addEventListener("pointermove", e => { app.mouse = getCanvasCoords(e); });
+canvas.addEventListener("pointerdown", e => {
+  sfx.unlock();
+  if (e.pointerType === "touch") { app.hasTouch = true; resizeCanvas(); }
+  const pt = getCanvasCoords(e); app.mouse = pt;
+  for (let i = uiButtons.length - 1; i >= 0; i--) {
+    const b = uiButtons[i];
+    if (pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h) { b.onClick(); return; }
+  }
+});
+
+window.addEventListener("keydown", e => {
+  sfx.unlock();
+  const c = e.code;
+  if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space","F9"].includes(c)) e.preventDefault();
+  if (c === "F9") {
+    if (e.shiftKey && app.state) {
+      startSpot(app.currentIdx);
+      app.botWatch = { frames: expandSolution(LEVEL_SOLUTIONS[app.state.def.id] || []), idx: 0 };
+      showToast(`WATCHING VERIFIED SOLVE #${app.state.def.id}`);
+    } else {
+      app.solverOverlay = app.solverOverlay ? null : runAllSolvers();
+    }
+    return;
+  }
+  if (c === "Escape") {
+    if (app.solverOverlay) { app.solverOverlay = null; return; }
+    app.screen = app.screen === "play" ? "title" : (app.state ? "play" : "title");
+    return;
+  }
+  if (c === "KeyO") { progress.bigObsOverlay = !progress.bigObsOverlay; saveProgress(progress); return; }
+  if (c === "KeyV") { progress.streamerSafe = !progress.streamerSafe; saveProgress(progress); showToast(`SAFE MODE: ${progress.streamerSafe ? "ON" : "OFF"}`); return; }
+  if (c === "KeyG" && app.state && (progress.fails[app.state.def.id] || 0) >= 5) { app.showGhost = !app.showGhost; return; }
+  if (c === "KeyR" && (app.screen === "play" || app.screen === "summary")) { startSpot(app.currentIdx); return; }
+  if (c === "KeyC" && app.state) {
+    const code = `PSP-${String(app.state.def.id).padStart(2, "0")}`;
+    window.history.replaceState(null, "", `#code=${code}`);
+    showToast(`URL SHARED: #code=${code}`);
+    return;
+  }
+  if (c === "KeyW" || c === "ArrowUp") app.keys.gas = true;
+  if (c === "KeyS" || c === "ArrowDown") app.keys.rev = true;
+  if (c === "KeyA" || c === "ArrowLeft") app.keys.left = true;
+  if (c === "KeyD" || c === "ArrowRight") app.keys.right = true;
+  if (c === "Space") app.keys.hb = true;
+  if (c === "KeyH") app.keys.horn = true;
+  if (app.screen === "title" && c === "Enter") startSpot(0);
+});
+window.addEventListener("keyup", e => {
+  const c = e.code;
+  if (c === "KeyW" || c === "ArrowUp") app.keys.gas = false;
+  if (c === "KeyS" || c === "ArrowDown") app.keys.rev = false;
+  if (c === "KeyA" || c === "ArrowLeft") app.keys.left = false;
+  if (c === "KeyD" || c === "ArrowRight") app.keys.right = false;
+  if (c === "Space") app.keys.hb = false;
+  if (c === "KeyH") app.keys.horn = false;
+});
+
+function addBtn(x, y, w, h, label, onClick, bg = PAL.STONE, fg = PAL.WHITE, border = PAL.GOLD) {
+  const hover = app.mouse.x >= x && app.mouse.x <= x + w && app.mouse.y >= y && app.mouse.y <= y + h;
+  ctx.fillStyle = hover && bg === PAL.STONE ? "#3D3B56" : bg;
+  ctx.fillRect(x, y - (hover ? 1 : 0), w, h);
+  ctx.strokeStyle = hover ? PAL.GOLD : border; ctx.lineWidth = 2;
+  ctx.strokeRect(x, y - (hover ? 1 : 0), w, h);
+  ctx.fillStyle = fg; ctx.font = "bold 13px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(label, x + w / 2, y + h / 2 - (hover ? 1 : 0));
+  uiButtons.push({ x, y, w, h, onClick });
+}
+
+function drawVehicleShape(x, y, angle, veh, dents = [], ghost = false, extra = null) {
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(angle);
+  if (ghost) ctx.globalAlpha = 0.28;
+  // Shadow
+  if (!ghost) { ctx.fillStyle = "rgba(0,0,0,0.4)"; ctx.fillRect(-veh.w/2 + 3, -veh.h/2 + 4, veh.w, veh.h); }
+  // Tires
+  ctx.fillStyle = "#0F0E17";
+  ctx.fillRect(-veh.w/2 + 4, -veh.h/2 - 2, 10, 4);
+  ctx.fillRect(-veh.w/2 + 4, veh.h/2 - 2, 10, 4);
+  ctx.fillRect(veh.w/2 - 14, -veh.h/2 - 2, 10, 4);
+  ctx.fillRect(veh.w/2 - 14, veh.h/2 - 2, 10, 4);
+  // Main chassis
+  ctx.fillStyle = veh.color; ctx.fillRect(-veh.w/2, -veh.h/2, veh.w, veh.h);
+  ctx.strokeStyle = "#0F0E17"; ctx.lineWidth = 2; ctx.strokeRect(-veh.w/2, -veh.h/2, veh.w, veh.h);
+  // Windshield + Accent
+  ctx.fillStyle = PAL.STONE; ctx.fillRect(veh.w/2 - 15, -veh.h/2 + 3, 10, veh.h - 6);
+  ctx.fillStyle = veh.accent; ctx.fillRect(-veh.w/2 + 4, -4, veh.w - 22, 8);
+  if (veh.decker) {
+    ctx.strokeStyle = PAL.WHITE; ctx.strokeRect(-veh.w/2 + 6, -veh.h/2 + 4, veh.w - 24, veh.h - 8);
+  }
+  // Visual dent marks attached to vehicle
+  ctx.fillStyle = PAL.CORAL;
+  for (const d of dents) {
+    ctx.beginPath(); ctx.arc(d.lx, d.ly, d.r, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+
+  if (extra && veh.ladderLen) {
+    ctx.save();
+    ctx.translate(x, y); ctx.rotate(angle + extra.ladderAngle);
+    ctx.fillStyle = PAL.GOLD; ctx.fillRect(-10, -4, veh.ladderLen, 8);
+    ctx.strokeStyle = PAL.BG; ctx.lineWidth = 1.5; ctx.strokeRect(-10, -4, veh.ladderLen, 8);
+    ctx.restore();
+  }
+}
+
+function renderWorld(st) {
+  ctx.fillStyle = PAL.ASPHALT; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  // Subtle parking lot lane dashes
+  ctx.strokeStyle = "rgba(255,255,254,0.08)"; ctx.setLineDash([14, 14]); ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(40, 280); ctx.lineTo(920, 280); ctx.stroke(); ctx.setLineDash([]);
+
+  // Ice & Slope zones
+  for (const z of (st.def.iceZones || [])) {
+    ctx.fillStyle = "rgba(180,235,255,0.16)"; ctx.fillRect(z.x - z.w/2, z.y - z.h/2, z.w, z.h);
+    ctx.strokeStyle = "rgba(255,255,254,0.3)"; ctx.strokeRect(z.x - z.w/2, z.y - z.h/2, z.w, z.h);
+    ctx.fillStyle = PAL.WHITE; ctx.font = "bold 11px monospace"; ctx.textAlign = "center"; ctx.fillText("BLACK ICE", z.x, z.y - z.h/2 + 16);
+  }
+  if (st.def.slope) {
+    ctx.fillStyle = "rgba(255,184,0,0.14)";
+    for (let x = 300; x <= 680; x += 60) {
+      ctx.fillText("<<< SLOPE", x, 240); ctx.fillText("<<< SLOPE", x, 330);
+    }
+  }
+
+  // Barge deck under spot
+  if (st.def.barge) {
+    ctx.fillStyle = "#112438"; ctx.fillRect(st.spot.x - 105, 50, 210, 460);
+    ctx.fillStyle = "#3A3952"; ctx.fillRect(st.spot.x - 90, st.spot.y - 54, 180, 108);
+    ctx.strokeStyle = PAL.WHITE; ctx.strokeRect(st.spot.x - 90, st.spot.y - 54, 180, 108);
+  }
+
+  // Target Parking Spot Outline
+  const sp = st.spot;
+  ctx.save(); ctx.translate(sp.x, sp.y); ctx.rotate(sp.angle);
+  ctx.fillStyle = st.insideSpot ? "rgba(44,232,162,0.18)" : "rgba(255,184,0,0.08)";
+  ctx.fillRect(-sp.w/2, -sp.h/2, sp.w, sp.h);
+  ctx.strokeStyle = st.insideSpot ? PAL.MINT : PAL.GOLD; ctx.lineWidth = 3;
+  ctx.strokeRect(-sp.w/2, -sp.h/2, sp.w, sp.h);
+  ctx.fillStyle = st.insideSpot ? PAL.MINT : PAL.GOLD;
+  ctx.font = "bold 11px monospace"; ctx.textAlign = "center";
+  ctx.fillText(sp.label || "PARK", 0, 4);
+  if (st.parkHoldTicks > 0) {
+    ctx.fillStyle = PAL.MINT;
+    ctx.fillRect(-sp.w/2, sp.h/2 + 4, sp.w * (st.parkHoldTicks / PARK_HOLD_TICKS), 5);
+  }
+  ctx.restore();
+
+  // Walls, Obstacles, Pedestrians, Mover
+  for (const w of st.def.walls) {
+    ctx.save(); ctx.translate(w.x, w.y); ctx.rotate(w.angle || 0);
+    ctx.fillStyle = PAL.STONE; ctx.fillRect(-w.w/2, -w.h/2, w.w, w.h);
+    ctx.strokeStyle = "#484664"; ctx.strokeRect(-w.w/2, -w.h/2, w.w, w.h);
+    ctx.restore();
+  }
+  for (const o of st.def.obstacles) {
+    if (o.kind === "cone") {
+      ctx.fillStyle = PAL.GOLD; ctx.beginPath(); ctx.arc(o.x, o.y, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = PAL.CORAL; ctx.beginPath(); ctx.arc(o.x, o.y, 3.5, 0, Math.PI * 2); ctx.fill();
+    } else if (o.kind === "fragile") {
+      ctx.fillStyle = PAL.CORAL; ctx.fillRect(o.x - o.w/2, o.y - o.h/2, o.w, o.h);
+      ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 1.5; ctx.strokeRect(o.x - o.w/2, o.y - o.h/2, o.w, o.h);
+      ctx.fillStyle = PAL.WHITE; ctx.font = "bold 10px monospace"; ctx.textAlign = "center"; ctx.fillText(o.label || "!", o.x, o.y + 3);
+    } else {
+      drawVehicleShape(o.x, o.y, o.angle || 0, { w: o.w, h: o.h, color: o.color || "#545275", accent: PAL.STONE }, []);
+    }
+  }
+  if (st.mover) {
+    drawVehicleShape(st.mover.x, st.mover.y, st.mover.angle || 0, { w: st.mover.w, h: st.mover.h, color: PAL.WHITE, accent: PAL.CORAL }, []);
+  }
+  for (const p of st.peds) {
+    ctx.fillStyle = PAL.CORAL; ctx.beginPath(); ctx.arc(p.x, p.curY, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = PAL.WHITE; ctx.beginPath(); ctx.arc(p.x, p.curY - 1, 3, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Ghost replay hint after 5 fails
+  if (app.showGhost && LEVEL_SOLUTIONS[st.def.id]) {
+    if (!st._ghostTrace) {
+      const gs = createSpotState(st.def);
+      const trace = [];
+      for (const f of expandSolution(LEVEL_SOLUTIONS[st.def.id])) { stepParking(gs, f); trace.push({ x: gs.car.x, y: gs.car.y, angle: gs.car.angle }); }
+      st._ghostTrace = trace;
+    }
+    const gPt = st._ghostTrace[Math.min(st.tick, st._ghostTrace.length - 1)];
+    if (gPt) drawVehicleShape(gPt.x, gPt.y, gPt.angle, st.veh, [], true);
+  }
+
+  // Player articulated trailer + main vehicle
+  if (st.veh.trailerW) {
+    drawVehicleShape(st.car.trailerX, st.car.trailerY, st.car.trailerAngle, { w: st.veh.trailerW, h: st.veh.trailerH, color: st.veh.accent, accent: PAL.WHITE }, []);
+  }
+  drawVehicleShape(st.car.x, st.car.y, st.car.angle, st.veh, st.car.dents, false, st.car);
+
+  // Rain visuals
+  if (st.def.rain) {
+    ctx.strokeStyle = "rgba(255,255,254,0.22)"; ctx.lineWidth = 1.5;
+    for (let i = 0; i < 28; i++) {
+      const rx = ((i * 71 + st.tick * 7) % LOGICAL_W), ry = ((i * 43 + st.tick * 9) % LOGICAL_H);
+      ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(rx - 8, ry + 14); ctx.stroke();
+    }
+  }
+
+  // Speech bubbles & float damage text
+  for (const b of st.bubbles) {
+    ctx.fillStyle = PAL.WHITE; ctx.font = "bold 11px monospace";
+    const tw = Math.min(340, ctx.measureText(b.text).width + 16);
+    ctx.fillRect(Math.max(10, Math.min(LOGICAL_W - tw - 10, b.x - tw/2)), b.y - 14, tw, 22);
+    ctx.fillStyle = PAL.BG; ctx.textAlign = "center";
+    ctx.fillText(b.text, Math.max(tw/2 + 10, Math.min(LOGICAL_W - tw/2 - 10, b.x)), b.y + 1);
+  }
+  for (const ft of st.floatTexts) {
+    ctx.fillStyle = PAL.CORAL; ctx.font = "bold 13px monospace"; ctx.textAlign = "center";
+    ctx.fillText(ft.text, ft.x, ft.y);
+  }
+}
+
+function renderHUD(st) {
+  ctx.fillStyle = "rgba(15,14,23,0.92)"; ctx.fillRect(0, 0, LOGICAL_W, 42);
+  ctx.fillStyle = PAL.GOLD; ctx.fillRect(0, 40, LOGICAL_W, 2);
+  ctx.textAlign = "left"; ctx.font = "bold 14px monospace";
+  ctx.fillStyle = PAL.GOLD; ctx.fillText(`SPOT #${String(st.def.id).padStart(2,"0")}: ${st.def.name}`, 14, 21);
+  const sec = (st.timeLeft / 60).toFixed(1);
+  ctx.fillStyle = st.timeLeft < 360 ? PAL.CORAL : PAL.WHITE;
+  ctx.fillText(`TIME: ${sec}S`, 340, 21);
+  ctx.fillStyle = PAL.CORAL; ctx.fillText(`DENTS: ${st.dentLogs.length}`, 470, 21);
+  ctx.fillStyle = PAL.MINT; ctx.fillText(`OFFSET: ${st.centerOffsetCm.toFixed(1)}CM`, 585, 21);
+
+  addBtn(732, 7, 66, 26, "MENU", () => { app.screen = "title"; }, PAL.STONE, PAL.GOLD);
+  addBtn(804, 7, 72, 26, "SPOTS", () => { app.screen = "select"; }, PAL.STONE, PAL.WHITE);
+  addBtn(882, 7, 66, 26, "RETRY", () => startSpot(app.currentIdx), PAL.STONE, PAL.CORAL, PAL.CORAL);
+
+  if ((progress.fails[st.def.id] || 0) >= 5) {
+    addBtn(14, 48, 178, 26, app.showGhost ? "GHOST: ON [G]" : "GHOST HELP [G]", () => { app.showGhost = !app.showGhost; }, app.showGhost ? PAL.GOLD : PAL.STONE, app.showGhost ? PAL.BG : PAL.GOLD);
+  }
+  if (progress.bigObsOverlay) {
+    ctx.fillStyle = "rgba(15,14,23,0.9)"; ctx.fillRect(LOGICAL_W - 180, 50, 166, 68);
+    ctx.strokeStyle = PAL.CORAL; ctx.strokeRect(LOGICAL_W - 180, 50, 166, 68);
+    ctx.fillStyle = PAL.WHITE; ctx.textAlign = "center"; ctx.font = "bold 12px monospace"; ctx.fillText("TOTAL FAILS", LOGICAL_W - 97, 68);
+    ctx.fillStyle = PAL.CORAL; ctx.font = "bold 28px monospace"; ctx.fillText(String(progress.totalFails), LOGICAL_W - 97, 98);
+  }
+}
+
+function renderSummary(st) {
+  ctx.fillStyle = "rgba(15,14,23,0.94)"; ctx.fillRect(120, 48, 720, 444);
+  ctx.strokeStyle = st.won ? PAL.GOLD : PAL.CORAL; ctx.lineWidth = 3; ctx.strokeRect(120, 48, 720, 444);
+  ctx.textAlign = "center"; ctx.font = "bold 28px monospace";
+  if (st.won) {
+    const sb = st.scoreBreakdown;
+    ctx.fillStyle = PAL.GOLD; ctx.fillText(`PARKED! ${"*".repeat(sb.stars)} (${sb.total} PTS)`, 480, 92);
+    ctx.fillStyle = PAL.WHITE; ctx.font = "bold 15px monospace";
+    ctx.fillText(`PRECISION: ${sb.cmStr}  |  ${sb.angStr}  |  TIME: ${sb.elapsed}S`, 480, 130);
+  } else {
+    const nm = st.bestCloseCm < 5.0;
+    ctx.fillStyle = PAL.CORAL; ctx.fillText(nm ? `NEAR MISS!! ${st.bestCloseCm.toFixed(1)} CM OFF!` : "TIME UP! SPOT MISSED", 480, 92);
+    ctx.fillStyle = PAL.WHITE; ctx.font = "bold 15px monospace";
+    ctx.fillText(`CLOSEST MARGIN: ${st.bestCloseCm.toFixed(1)} CM`, 480, 130);
+  }
+  ctx.fillStyle = PAL.GOLD; ctx.font = "bold 16px monospace"; ctx.fillText("COMEDY DAMAGE REPORT", 480, 174);
+  if (st.dentLogs.length === 0) {
+    ctx.fillStyle = PAL.MINT; ctx.font = "14px monospace"; ctx.fillText("PRISTINE PAINTWORK! ZERO DENTS!", 480, 218);
+  } else {
+    for (let i = 0; i < Math.min(6, st.dentLogs.length); i++) {
+      const d = st.dentLogs[i];
+      ctx.fillStyle = PAL.CORAL; ctx.font = "14px monospace";
+      ctx.fillText(`- ${d.label} [${d.tier.toUpperCase()}] (-${d.penalty} PTS)`, 480, 208 + i * 26);
+    }
+  }
+  addBtn(170, 420, 180, 44, "RETRY [R]", () => startSpot(app.currentIdx), PAL.STONE, PAL.WHITE);
+  if (st.history.length > 10) {
+    addBtn(370, 420, 220, 44, "WORST HIT REPLAY", () => {
+      const idx = Math.max(0, (st.worstHitTick > 0 ? st.worstHitTick - 45 : st.history.length - 90));
+      app.replayFrames = st.history.slice(idx, idx + 90); app.replayIdx = 0;
+    }, PAL.STONE, PAL.CORAL, PAL.CORAL);
+  }
+  addBtn(610, 420, 180, 44, st.won && app.currentIdx + 1 < LEVELS.length ? "NEXT SPOT" : "MAIN MENU", () => {
+    if (st.won && app.currentIdx + 1 < LEVELS.length) startSpot(app.currentIdx + 1);
+    else app.screen = "title";
+  }, PAL.GOLD, PAL.BG);
+}
+
+function renderTitleScreen() {
+  ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  ctx.fillStyle = PAL.STONE; ctx.fillRect(0, 480, LOGICAL_W, 60);
+  // Decorative animated limo gliding across bottom
+  const lx = ((app.uiTick * 2.4) % (LOGICAL_W + 240)) - 120;
+  drawVehicleShape(lx, 445, 0, VEHICLES[3], []);
+
+  ctx.textAlign = "center"; ctx.fillStyle = PAL.CORAL; ctx.font = "bold 46px monospace";
+  ctx.fillText("PARKING SPOT PANIC", 482, 92);
+  ctx.fillStyle = PAL.GOLD; ctx.fillText("PARKING SPOT PANIC", 478, 88);
+  ctx.fillStyle = PAL.WHITE; ctx.font = "bold 16px monospace";
+  ctx.fillText(`STARS: ${totalStars()}/120   |   FAILS: ${progress.totalFails}`, 480, 140);
+
+  const daily = getDailySpotId();
+  addBtn(310, 184, 340, 50, "PLAY / CONTINUE", () => {
+    const next = LEVELS.findIndex(l => !progress.stars[l.id]);
+    startSpot(next >= 0 ? next : 0);
+  }, PAL.GOLD, PAL.BG);
+  addBtn(310, 246, 340, 42, `DAILY SPOT (#${daily})`, () => startSpot(daily - 1), PAL.STONE, PAL.GOLD);
+  addBtn(310, 298, 340, 42, "40 SPOTS & GARAGE", () => { app.screen = "select"; }, PAL.STONE, PAL.WHITE);
+  addBtn(310, 350, 340, 40, progress.muted ? "SOUND: MUTED" : "SOUND: ON", () => { progress.muted = !progress.muted; sfx.muted = progress.muted; saveProgress(progress); }, PAL.STONE, PAL.WHITE);
+  addBtn(310, 400, 340, 40, "< BACK TO ARCADE HUB", () => { window.location.href = "index.html"; }, PAL.STONE, PAL.CORAL, PAL.CORAL);
+}
+
+function renderSelect() {
+  ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  ctx.fillStyle = PAL.GOLD; ctx.textAlign = "center"; ctx.font = "bold 22px monospace";
+  ctx.fillText("SELECT SPOT (1-40) OR FREE-DRIVE GARAGE", 480, 28);
+  for (let i = 0; i < 40; i++) {
+    const col = i % 10, row = Math.floor(i / 10);
+    const x = 36 + col * 90, y = 52 + row * 68;
+    const st = progress.stars[i + 1] || 0;
+    addBtn(x, y, 82, 58, `#${i+1}\n${"*".repeat(st)||"-"}`, () => startSpot(i), PAL.STONE, st ? PAL.GOLD : PAL.WHITE, st ? PAL.GOLD : PAL.STONE);
+  }
+  ctx.fillStyle = PAL.WHITE; ctx.font = "bold 14px monospace"; ctx.fillText(`UNLOCKED VEHICLES (BY STARS: ${totalStars()}):`, 480, 340);
+  for (let i = 0; i < VEHICLES.length; i++) {
+    const v = VEHICLES[i]; const col = i % 5, row = Math.floor(i / 5);
+    const ok = totalStars() >= v.starsNeed;
+    const sel = progress.selectedVehicle === v.id;
+    addBtn(40 + col * 178, 356 + row * 52, 168, 42, `${v.name.slice(0,11)} (${v.starsNeed}*)`, () => {
+      if (!ok) showToast(`NEED ${v.starsNeed} STARS!`);
+      else { progress.selectedVehicle = sel ? null : v.id; saveProgress(progress); }
+    }, sel ? PAL.GOLD : PAL.STONE, sel ? PAL.BG : (ok ? PAL.WHITE : PAL.CORAL));
+  }
+  addBtn(390, 480, 180, 40, "MAIN MENU", () => { app.screen = "title"; }, PAL.GOLD, PAL.BG);
+}
+
+function renderSolver() {
+  if (!app.solverOverlay) return;
+  const { results, lieCheck, passed, total } = app.solverOverlay;
+  ctx.fillStyle = "rgba(15,14,23,0.96)"; ctx.fillRect(40, 28, 880, 484);
+  ctx.strokeStyle = PAL.GOLD; ctx.strokeRect(40, 28, 880, 484);
+  ctx.fillStyle = PAL.GOLD; ctx.textAlign = "center"; ctx.font = "bold 20px monospace";
+  ctx.fillText(`F9 SOLVER: ${passed}/${total} PASS | LIE INDEX: ${lieCheck.ok ? "UNIQUE" : "DUP"}`, 480, 62);
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i], col = i % 8, row = Math.floor(i / 8);
+    const x = 68 + col * 104, y = 92 + row * 66;
+    ctx.fillStyle = r.pass ? PAL.STONE : PAL.CORAL; ctx.fillRect(x, y, 94, 54);
+    ctx.fillStyle = PAL.WHITE; ctx.font = "bold 12px monospace";
+    ctx.fillText(`#${r.id}: ${r.pass ? "PASS" : "FAIL"}`, x + 47, y + 30);
+  }
+  addBtn(400, 464, 160, 34, "CLOSE [F9]", () => { app.solverOverlay = null; }, PAL.GOLD, PAL.BG);
+}
+
+function render() {
+  uiButtons.length = 0;
+  touchEl.classList.toggle("active", (app.screen === "play" || app.screen === "summary") && isTouchCapable());
+  if (app.screen === "title") renderTitleScreen();
+  else if (app.screen === "select") renderSelect();
+  else if (app.state) {
+    ctx.save();
+    if (!progress.streamerSafe && app.shakeTicks > 0) ctx.translate((Math.random()-0.5)*8, (Math.random()-0.5)*8);
+    if (app.replayFrames) {
+      const f = app.replayFrames[Math.floor(app.replayIdx)];
+      const snap = { ...app.state, car: { ...app.state.car, ...f }, spot: { ...app.state.spot, y: f.spotY } };
+      renderWorld(snap);
+      ctx.fillStyle = PAL.CORAL; ctx.font = "bold 18px monospace"; ctx.textAlign = "center";
+      ctx.fillText("SLOW-MO WORST IMPACT REPLAY", 480, 64);
+    } else {
+      renderWorld(app.state);
+    }
+    ctx.restore();
+    renderHUD(app.state);
+    if (app.screen === "summary" && !app.replayFrames) renderSummary(app.state);
+  }
+  renderSolver();
+}
+
+let lastT = performance.now(), acc = 0;
+function tick() {
+  app.uiTick++;
+  if (app.shakeTicks > 0) app.shakeTicks--;
+  if (app.replayFrames) {
+    app.replayIdx += 0.35; // Smooth slow-motion!
+    if (app.replayIdx >= app.replayFrames.length) app.replayFrames = null;
+    sfx.updateEngine(0, false);
+    return;
+  }
+  if (app.screen === "play" && app.state && !app.solverOverlay) {
+    let inp = {
+      gas: app.keys.gas || app.touch.gas,
+      rev: app.keys.rev || app.touch.rev,
+      left: app.keys.left || app.touch.left,
+      right: app.keys.right || app.touch.right,
+      hb: app.keys.hb || app.touch.hb,
+      horn: app.keys.horn || app.touch.horn
+    };
+    if (app.botWatch) {
+      inp = app.botWatch.frames[app.botWatch.idx++] || {};
+      if (app.botWatch.idx > app.botWatch.frames.length + 10) app.botWatch = null;
+    }
+    const prevDents = app.state.dentLogs.length;
+    stepParking(app.state, inp);
+    for (const s of app.state.soundEvents) sfx.play(s.name, s.param);
+    if (app.state.dentLogs.length > prevDents && !progress.streamerSafe) app.shakeTicks = 6;
+    for (let i = app.state.bubbles.length - 1; i >= 0; i--) { app.state.bubbles[i].life--; if (app.state.bubbles[i].life <= 0) app.state.bubbles.splice(i, 1); }
+    for (let i = app.state.floatTexts.length - 1; i >= 0; i--) { app.state.floatTexts[i].y -= 0.6; app.state.floatTexts[i].life--; if (app.state.floatTexts[i].life <= 0) app.state.floatTexts.splice(i, 1); }
+    sfx.updateEngine(Math.abs(app.state.car.v) / 180, true);
+    if (app.state.won) {
+      const sb = app.state.scoreBreakdown;
+      progress.stars[app.state.def.id] = Math.max(progress.stars[app.state.def.id] || 0, sb.stars);
+      progress.bestScores[app.state.def.id] = Math.max(progress.bestScores[app.state.def.id] || 0, sb.total);
+      saveProgress(progress);
+      app.screen = "summary";
+      sfx.updateEngine(0, false);
+    } else if (app.state.timedOut) {
+      progress.fails[app.state.def.id] = (progress.fails[app.state.def.id] || 0) + 1;
+      progress.totalFails++;
+      saveProgress(progress);
+      app.screen = "summary";
+      sfx.updateEngine(0, false);
+    }
+  } else {
+    sfx.updateEngine(0, false);
+  }
+}
+
+function frame(now) {
+  acc += Math.min(0.1, (now - lastT) / 1000); lastT = now;
+  while (acc >= FIXED_DT) { tick(); acc -= FIXED_DT; }
+  render();
+  requestAnimationFrame(frame);
+}
+
+const hashM = (window.location.hash || "").match(/code=PSP-(\d+)/i);
+if (hashM) { const n = parseInt(hashM[1], 10); if (n >= 1 && n <= LEVELS.length) startSpot(n - 1); }
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
