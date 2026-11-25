@@ -6,8 +6,8 @@
   "author": "Bhuwan Adhikari",
   "license": "ISC",
   "scripts": {
-    "start": "electron .",
-    "build": "electron-builder --win portable"
+    "build": "echo \"static site, nothing to build\"",
+    "build:desktop": "electron-builder --win"
   },
   "build": {
     "appId": "com.bhuwanadhikari.trustissues",
@@ -16,7 +16,7 @@
     "win": { "target": "portable" }
   },
   "devDependencies": {
-  "electron": "^45.5.0",
-  "electron-builder": "^26.18.0"
+    "electron": "^45.5.0",
+    "electron-builder": "^26.18.0"
   }
 }
