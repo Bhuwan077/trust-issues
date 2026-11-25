@@ -65,7 +65,7 @@
     --toast-bg: #2E2D40;
     --toast-text: #FFFFFE;
     --touch-bg: rgba(15, 14, 23, 0.82);
-    --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-sans: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   }
   [data-theme="light"] {
     --bg: #F6F5F0;
@@ -112,6 +112,8 @@
   }
   canvas {
     display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
     border-radius: 4px;
     border: 1px solid var(--border);
     background: var(--bg);
@@ -125,7 +127,7 @@
     z-index: 40;
     width: 40px;
     height: 40px;
-    border-radius: 8px;
+    border-radius: 6px;
     border: 1px solid var(--border);
     background: var(--surface);
     color: var(--text);
@@ -134,6 +136,12 @@
     justify-content: center;
     cursor: pointer;
     transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+  }
+  body.touch-device #theme-toggle {
+    top: 52px;
+    left: 12px;
+    bottom: auto;
+    right: auto;
   }
   #theme-toggle:hover {
     border-color: var(--accent);
@@ -188,7 +196,7 @@
   .tbtn.pressed { background: var(--text); color: var(--bg); }
   .touch-top-right {
     position: absolute;
-    top: 48px;
+    top: 52px;
     right: 12px;
     display: flex;
     gap: 8px;
@@ -231,7 +239,6 @@
     <div id="touch-controls">
       <div class="touch-top-right">
         <button class="tbtn small" id="btn-touch-fs" style="display:none">FULL</button>
-        <button class="tbtn small" id="btn-touch-restart">RETRY</button>
       </div>
       <div class="touch-group touch-left">
         <button class="tbtn" id="btn-left">&lt;</button>
@@ -429,57 +436,53 @@ const FONT_5X7 = {
 };
 
 function getCanvasFontSize(scale) {
-  if (scale <= 1) return 14;
-  if (scale === 2) return 16;
-  if (scale === 3) return 22;
-  if (scale === 4) return 28;
-  if (scale === 5) return 36;
-  return 44;
+  const s = scale <= 1 ? 2 : scale;
+  return 7 * s;
 }
 
 function drawPixelText(ctx, text, x, y, scale, color, align = "left", letterOffsetFn = null, maxWidth = null) {
-  const str = String(text);
-  const px = getCanvasFontSize(scale);
-  ctx.save();
-  ctx.font = `700 ${px}px ${UI_FONT}`;
-  ctx.fillStyle = color;
-  ctx.textBaseline = "top";
-
-  if (letterOffsetFn) {
-    ctx.textAlign = "left";
-    const widths = Array.from(str, ch => ctx.measureText(ch).width);
-    const totalW = widths.reduce((a, b) => a + b, 0);
-    let curX = x;
-    if (align === "center") curX = x - totalW / 2;
-    else if (align === "right") curX = x - totalW;
-    for (let i = 0; i < str.length; i++) {
-      const extra = letterOffsetFn(i, str[i]) || { dx: 0, dy: 0 };
-      ctx.fillText(str[i], Math.round(curX + extra.dx), Math.round(y + extra.dy));
-      curX += widths[i];
-    }
-    ctx.restore();
-    return;
+  const str = String(text).toUpperCase();
+  let s = scale <= 1 ? 2 : scale;
+  let charW = 6 * s;
+  let totalW = str.length * charW - s;
+  if (maxWidth && maxWidth > 0 && totalW > maxWidth && s > 1.2) {
+    s = Math.max(1.2, (maxWidth / Math.max(1, str.length * 6 - 1)));
+    charW = 6 * s;
+    totalW = str.length * charW - s;
   }
+  let startX = x;
+  if (align === "center") startX = Math.round(x - totalW / 2);
+  else if (align === "right") startX = Math.round(x - totalW);
 
-  ctx.textAlign = align;
-  if (maxWidth && maxWidth > 0) ctx.fillText(str, Math.round(x), Math.round(y), maxWidth);
-  else ctx.fillText(str, Math.round(x), Math.round(y));
-  ctx.restore();
+  ctx.fillStyle = color;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    const glyph = FONT_5X7[ch] || FONT_5X7[" "];
+    const extra = letterOffsetFn ? letterOffsetFn(i, ch) : { dx: 0, dy: 0 };
+    const gx = startX + i * charW + extra.dx;
+    const gy = Math.round(y + extra.dy);
+    for (let r = 0; r < 7; r++) {
+      const bits = glyph[r];
+      if (!bits) continue;
+      for (let c = 0; c < 5; c++) {
+        if (bits & (16 >> c)) {
+          ctx.fillRect(Math.round(gx + c * s), Math.round(gy + r * s), Math.ceil(s), Math.ceil(s));
+        }
+      }
+    }
+  }
 }
 
-function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, fontSize, color, align = "left", weight = "700") {
-  const words = String(text).split(/\s+/);
-  ctx.save();
-  ctx.font = `${weight} ${fontSize}px ${UI_FONT}`;
-  ctx.fillStyle = color;
-  ctx.textBaseline = "top";
-  ctx.textAlign = align;
-
+function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, fontSize, color, align = "left") {
+  const s = fontSize >= 21 ? 3 : 2;
+  const charW = 6 * s;
+  const maxChars = Math.max(8, Math.floor(maxWidth / charW));
+  const words = String(text).toUpperCase().split(/\s+/);
   const lines = [];
   let line = "";
   for (const w of words) {
     const test = line ? `${line} ${w}` : w;
-    if (ctx.measureText(test).width > maxWidth && line) {
+    if (test.length > maxChars && line) {
       lines.push(line);
       line = w;
     } else {
@@ -489,9 +492,8 @@ function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, fontSize, color,
   if (line) lines.push(line);
 
   for (let i = 0; i < lines.length; i++) {
-    ctx.fillText(lines[i], Math.round(x), Math.round(y + i * lineHeight));
+    drawPixelText(ctx, lines[i], x, y + i * lineHeight, s, color, align, null, maxWidth);
   }
-  ctx.restore();
   return lines.length;
 }
 
@@ -1059,7 +1061,7 @@ addRound({
   solutionSummary: "Jump onto the sliding volume knob inside the fake Settings box and ride it across.",
   grid: buildRoom(g => { g.pit(8, 23, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  fakePanel: { variant: "settings", x: 240, y: 160, w: 480, h: 200 },
+  fakePanel: { variant: "settings", x: 240, y: 150, w: 480, h: 255 },
   platforms: [{
     id: "slider_knob", col: 9.5, row: 12.2, wTiles: 2.5, hTiles: 0.9,
     moveX: 10.5 * 30, moveY: 0, periodTicks: 150, uiStyle: "slider"
@@ -1075,7 +1077,7 @@ addRound({
   solutionSummary: "Climb across the 3 solid stack-trace lines inside the fake crash panel to the exit.",
   grid: buildRoom(g => { g.pit(7, 24, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  fakePanel: { variant: "stacktrace", x: 210, y: 120, w: 540, h: 260 },
+  fakePanel: { variant: "stacktrace", x: 210, y: 120, w: 540, h: 292 },
   platforms: [
     { id: "st1", col: 8,  row: 12.6, wTiles: 4.5, hTiles: 0.6, uiStyle: "trace", label: "AT TRUST.JS:42" },
     { id: "st2", col: 14, row: 11.0, wTiles: 4.5, hTiles: 0.6, uiStyle: "trace", label: "AT FLOOR.JS:88" },
@@ -1549,37 +1551,45 @@ addRound({
 addRound({
   id: 40, world: 6, name: "PITY FOG", type: "PLATFORM",
   lieKey: "pity_fog_clears",
-  mechanic: "Dense fog hides the room on attempt 1; every death thins the fog significantly.",
-  tell: "After 1-2 deaths the entire pit layout becomes clearly readable.",
-  solutionSummary: "Clear the two pits (cols 12..13 and 22..23) as the fog thins.",
-  grid: buildRoom(g => { g.pit(12, 13, "^"); g.pit(22, 23, "^"); }),
+  mechanic: "Dense fog hides three spike pits, a low ceiling, and a late emerging spike on attempt 1; every death thins the fog.",
+  tell: "After 1-2 deaths all three pits, ceiling dust, and the col 25 seam become clearly readable.",
+  solutionSummary: "Clear pits at 8..9, low-hop 15..16 under H, clear 22..23, and hop the col 25 spike.",
+  grid: buildRoom(g => { g.pit(8, 9, "^"); g.pit(15, 16, "^"); g.plat(14, 10, 4, "H"); g.pit(22, 23, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  pityFog: true, triggers: []
+  spikeSeamTells: [{ col: 25, row: 13 }],
+  pityFog: true,
+  triggers: [{ id: "r40_sp", once: true, condition: { type: "playerX", x: 23*30, op: ">=" }, actions: [{ type: "spawnSpike", col: 25, row: 13, dir: "^", emergeTicks: 5 }, { type: "playSound", sound: "trap" }] }]
 });
 
 // ---------------- WORLD 7: RULES LAWYER (41..50) ----------------
 addRound({
   id: 41, world: 7, name: "TERMS UPDATED", type: "PLATFORM",
   lieKey: "do_not_jump_reverses",
-  mechanic: "Sign forbids jumping in the first half, then flips to require jumping over the late pit.",
+  mechanic: "Sign forbids jumping in the first half, then flips to require low-hopping a pit, crumbling bridge, and second pit.",
   tell: "Crossing x=480 swaps the rule sign from DO NOT JUMP to JUMP NOW.",
-  solutionSummary: "Walk past x=480 without jumping, then jump cleanly over the pit at cols 21..23.",
-  grid: buildRoom(g => { g.pit(21, 23, "^"); }),
+  solutionSummary: "Walk past x=480 without jumping, then clear pit 18..19, crumbling C at 21, and pit 24..25 under H.",
+  grid: buildRoom(g => {
+    g.pit(18, 19, "^");
+    g.row(14, 21, 21, "C"); g.row(15, 21, 21, "."); g.row(16, 21, 21, "^");
+    g.pit(24, 25, "^"); g.plat(20, 10, 6, "H");
+  }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
   signs: [{ id: "s41", col: 7, row: 10, w: 160, h: 26, text: "DO NOT JUMP!" }],
   triggers: [
-    { id: "r41_punish", once: true, condition: { type: "sequence", steps: [{ type: "jumpCount", count: 1, op: ">=" }, { type: "playerX", x: 460, op: "<=" }] }, actions: [{ type: "kill", reason: "brokeRule" }] }
+    { id: "r41_punish", once: true, condition: { type: "sequence", steps: [{ type: "jumpCount", count: 1, op: ">=" }, { type: "playerX", x: 460, op: "<=" }] }, actions: [{ type: "kill", reason: "brokeRule" }] },
+    { id: "r41_fall", once: true, condition: { type: "zoneEnter", rect: { x: 21*30-4, y: 13*30, w: 38, h: 34 } }, actions: [{ type: "fallTile", tiles: [{col:21,row:14}], delayTicks: 2, fallSpeed: 9 }] }
   ]
 });
 
 addRound({
   id: 42, world: 7, name: "FLOOR IS SAFE", type: "PLATFORM",
   lieKey: "floor_is_lava_ceiling",
-  mechanic: "Sign screams FLOOR IS LAVA, while the actual hazard is ceiling spikes punishing high jumps.",
-  tell: "Floor is solid slate stone; ceiling spikes line row 10 overhead.",
-  solutionSummary: "Ignore the FLOOR IS LAVA lie and simply walk right across the safe floor.",
-  grid: buildRoom(g => { g.plat(8, 9, 14, "#"); g.row(10, 8, 21, "v"); }),
+  mechanic: "Sign screams FLOOR IS LAVA while ceiling spikes punish high jumps over two floor pits and a late sweeper.",
+  tell: "Ceiling spikes line row 10 overhead; short-hop the two pits and dodge the sweeper.",
+  solutionSummary: "Low-hop pits 10..11 and 18..19 under ceiling spikes, then clear the sweeper to exit.",
+  grid: buildRoom(g => { g.plat(8, 9, 14, "#"); g.row(10, 8, 21, "v"); g.pit(10, 11, "^"); g.pit(18, 19, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
+  hazards: [{ kind: "sweep", minX: 22*30, maxX: 26*30, y: 13*30+10, w: 20, h: 20, period: 80 }],
   signs: [{ id: "s42", col: 11, row: 6, w: 170, h: 26, text: "THE FLOOR IS LAVA!" }],
   triggers: []
 });
@@ -1587,22 +1597,31 @@ addRound({
 addRound({
   id: 43, world: 7, name: "FORBIDDEN WALL", type: "PLATFORM",
   lieKey: "forbid_left_wall_required",
-  mechanic: "Sign warns DO NOT TOUCH LEFT WALL, which is the exact switch that opens the right laser.",
-  tell: "Laser gate connects directly to the left-wall rule.",
-  solutionSummary: "Walk left into the left wall first (x<=38) to open the laser, then head to exit.",
-  grid: buildRoom(g => { g.col(24, 1, 11, "#"); g.set(24, 12, "L"); g.set(24, 13, "L"); }),
+  mechanic: "Sign warns DO NOT TOUCH LEFT WALL (which opens the laser), then you must cross a pit, crumbling bridge, and emerging spike.",
+  tell: "Laser gate connects to left wall; floor seams mark crumbling C and col 21 spike.",
+  solutionSummary: "Touch left wall (x<=38), jump pit 11..12, cross crumbling bridge 15..17, hop col 21 spike.",
+  grid: buildRoom(g => {
+    g.pit(11, 12, "^");
+    g.row(14, 15, 17, "C"); g.row(15, 15, 17, "."); g.row(16, 15, 17, "^");
+    g.col(24, 1, 11, "#"); g.set(24, 12, "L"); g.set(24, 13, "L");
+  }),
   start: { col: 8, row: 13 }, exit: { col: 28, row: 13 },
   signs: [{ id: "s43", col: 4, row: 10, w: 200, h: 26, text: "DO NOT TOUCH LEFT WALL" }],
-  triggers: [{ id: "r43_open", once: true, condition: { type: "playerX", x: 38, op: "<=" }, actions: [{ type: "toggleTile", tiles: [{col:24,row:12,to:"."},{col:24,row:13,to:"."}] }, { type: "playSound", sound: "riddleWin" }] }]
+  spikeSeamTells: [{ col: 21, row: 13 }],
+  triggers: [
+    { id: "r43_open", once: true, condition: { type: "playerX", x: 38, op: "<=" }, actions: [{ type: "toggleTile", tiles: [{col:24,row:12,to:"."},{col:24,row:13,to:"."}] }, { type: "playSound", sound: "riddleWin" }] },
+    { id: "r43_fall", once: true, condition: { type: "zoneEnter", rect: { x: 15*30-4, y: 13*30, w: 98, h: 34 } }, actions: [{ type: "fallTile", tiles: [{col:15,row:14},{col:16,row:14},{col:17,row:14}], delayTicks: 4, fallSpeed: 9 }] },
+    { id: "r43_sp", once: true, condition: { type: "playerX", x: 18.5*30, op: ">=" }, actions: [{ type: "spawnSpike", col: 21, row: 13, dir: "^", emergeTicks: 5 }] }
+  ]
 });
 
 addRound({
   id: 44, world: 7, name: "SIMON SAYS", type: "RIDDLE",
   lieKey: "simon_says_commands",
-  mechanic: "Jumping during a non-Simon command ('JUMP!') spawns spikes; obeying 'SIMON SAYS: JUMP' opens the door.",
-  tell: "Only the banner prefixed with SIMON SAYS is valid.",
-  solutionSummary: "Jump once during SIMON SAYS: JUMP (t=60..140) and walk to exit.",
-  grid: buildRoom(g => { g.col(23, 1, 11, "#"); g.set(23, 12, "L"); g.set(23, 13, "L"); }),
+  mechanic: "Wait for SIMON SAYS before crossing two spike pits and a low ceiling to the unlocked laser.",
+  tell: "Only the banner prefixed with SIMON SAYS is valid; ceiling dust marks H at row 10.",
+  solutionSummary: "Wait for Simon Says at t=40, then jump pits 10..11 and 18..19 under H to exit.",
+  grid: buildRoom(g => { g.pit(10, 11, "^"); g.plat(14, 10, 3, "H"); g.pit(18, 19, "^"); g.col(23, 1, 11, "#"); g.set(23, 12, "L"); g.set(23, 13, "L"); }),
   start: { col: 3, row: 13 }, exit: { col: 28, row: 13 },
   signs: [{ id: "s44", col: 8, row: 8, w: 260, h: 26, text: "WAIT FOR SIMON SAYS..." }],
   triggers: [
@@ -1614,11 +1633,12 @@ addRound({
 addRound({
   id: 45, world: 7, name: "OPPOSITE DAY", type: "PLATFORM",
   lieKey: "opposite_day_toggle",
-  mechanic: "Every 3 seconds (180t), a floor gate flips between open and laser-locked.",
-  tell: "Gate pulses cleanly on a 180-tick cycle.",
-  solutionSummary: "Walk through the central gate during its open phase.",
-  grid: buildRoom(g => { g.col(16, 1, 11, "#"); }),
+  mechanic: "Every 3 seconds (180t) the gate flips between open and laser-locked, guarded by two pits and a sweeper.",
+  tell: "Gate pulses on a 180-tick cycle; dodge the sweeper before timing the gate.",
+  solutionSummary: "Jump pit 9..10, pass sweeper, cross the gate while open, and jump pit 21..22.",
+  grid: buildRoom(g => { g.pit(9, 10, "^"); g.col(16, 1, 11, "#"); g.pit(21, 22, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
+  hazards: [{ kind: "sweep", minX: 12*30, maxX: 14.5*30, y: 13*30+10, w: 20, h: 20, period: 75 }],
   signs: [{ id: "s45", col: 10, row: 9, w: 180, h: 26, text: "OPPOSITE DAY (3S)" }],
   triggers: [
     { id: "r45_lock", once: false, condition: { type: "cycle", periodTicks: 180, onTick: 90 }, actions: [{ type: "toggleTile", tiles: [{col:16,row:12,to:"L"},{col:16,row:13,to:"L"}] }] },
@@ -1650,58 +1670,70 @@ addRound({
 addRound({
   id: 47, world: 7, name: "LYING COUNTDOWN", type: "PLATFORM",
   lieKey: "countdown_10_is_7",
-  mechanic: "Timer claims 10 seconds to escape, while the real deadline is 7 seconds (420 ticks).",
-  tell: "Urgent beep cadence ticks faster toward 7.0s, locking the gate at 420t.",
-  solutionSummary: "Sprint across the two pits and reach the exit before 7 seconds elapse.",
-  grid: buildRoom(g => { g.pit(10, 11, "^"); g.pit(20, 21, "^"); }),
+  mechanic: "Timer claims 10s while the real deadline is 7s (420t), across two pits, a crumbling bridge, and a late emerging spike.",
+  tell: "Urgent beep cadence ticks faster toward 7.0s; seams mark C bridge and col 24 spike.",
+  solutionSummary: "Sprint across pit 10..11, crumbling C at 14..16, pit 20..21, and col 24 spike before 7s.",
+  grid: buildRoom(g => { g.pit(10, 11, "^"); g.row(14, 14, 16, "C"); g.row(15, 14, 16, "."); g.row(16, 14, 16, "^"); g.pit(20, 21, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
   signs: [{ id: "s47", col: 10, row: 8, w: 190, h: 26, text: "DOOR LOCKS IN 10S!" }],
-  triggers: [{ id: "r47_lock", once: true, condition: { type: "timer", ticks: 420 }, actions: [{ type: "kill", reason: "lyingTimer" }] }]
+  spikeSeamTells: [{ col: 24, row: 13 }],
+  triggers: [
+    { id: "r47_fall", once: true, condition: { type: "zoneEnter", rect: { x: 14*30-4, y: 13*30, w: 98, h: 34 } }, actions: [{ type: "fallTile", tiles: [{col:14,row:14},{col:15,row:14},{col:16,row:14}], delayTicks: 3, fallSpeed: 9 }] },
+    { id: "r47_sp", once: true, condition: { type: "playerX", x: 22*30, op: ">=" }, actions: [{ type: "spawnSpike", col: 24, row: 13, dir: "^", emergeTicks: 5 }] },
+    { id: "r47_lock", once: true, condition: { type: "timer", ticks: 420 }, actions: [{ type: "kill", reason: "lyingTimer" }] }
+  ]
 });
 
 addRound({
   id: 48, world: 7, name: "FINE PRINT", type: "PLATFORM",
   lieKey: "contract_fine_print",
-  mechanic: "Contract text warns of upper spikes while tiny fine-print tiles below lead safely to the exit.",
-  tell: "Fine-print hologram blocks at row 14 hide a lower tunnel under row 10.",
-  solutionSummary: "Drop through the hologram fine print or hop over the spike onto the exit.",
-  grid: buildRoom(g => { g.plat(12, 11, 8, "#"); g.row(10, 14, 17, "^"); }),
+  mechanic: "Contract warns STAY LOW while hiding a pit, a fake N hologram bridge over spikes, and a late pit under ceiling spikes.",
+  tell: "Hologram N tiles at cols 14..15 have scanlines; low-hop both pits without hitting row 10 spikes.",
+  solutionSummary: "Jump pit 9..10, clear fake N bridge 14..15, and low-hop pit 22..23 to exit.",
+  grid: buildRoom(g => { g.pit(9, 10, "^"); g.row(14, 14, 15, "N"); g.row(15, 14, 15, "^"); g.plat(12, 9, 9, "#"); g.row(10, 13, 19, "v"); g.pit(22, 23, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  signs: [{ id: "s48", col: 11, row: 7, w: 200, h: 24, text: "AGREEMENT: STAY LOW" }],
+  signs: [{ id: "s48", col: 11, row: 6, w: 200, h: 24, text: "AGREEMENT: STAY LOW" }],
   triggers: []
 });
 
 addRound({
   id: 49, world: 7, name: "LOOPHOLE", type: "PLATFORM",
   lieKey: "keep_out_walk_through",
-  mechanic: "A threatening KEEP OUT wall blocking the exit is non-solid hologram text you walk right through.",
-  tell: "The KEEP OUT wall blocks have 1px horizontal scanline gaps.",
-  solutionSummary: "Walk straight through the hologram KEEP OUT wall to the exit.",
-  grid: buildRoom(g => { g.col(20, 1, 13, "N"); }),
+  mechanic: "A KEEP OUT hologram wall guards the exit, preceded by a pit, low ceiling, emerging spike, and post-wall pit.",
+  tell: "KEEP OUT blocks have scanline gaps; seams warn of col 17 spike.",
+  solutionSummary: "Jump pit 9..10, low-hop under H past col 17 spike, walk through N wall, jump pit 23..24.",
+  grid: buildRoom(g => { g.pit(9, 10, "^"); g.plat(13, 10, 4, "H"); g.col(20, 1, 13, "N"); g.pit(23, 24, "^"); }),
   start: { col: 3, row: 13 }, exit: { col: 27, row: 13 },
-  signs: [{ id: "s49", col: 17.5, row: 9, w: 140, h: 26, text: "KEEP OUT!" }],
-  secretLetter: { char: "E", col: 20, row: 13 }, triggers: []
+  signs: [{ id: "s49", col: 17.5, row: 8, w: 140, h: 26, text: "KEEP OUT!" }],
+  spikeSeamTells: [{ col: 17, row: 13 }],
+  secretLetter: { char: "E", col: 20, row: 13 },
+  triggers: [{ id: "r49_sp", once: true, condition: { type: "playerX", x: 14.5*30, op: ">=" }, actions: [{ type: "spawnSpike", col: 17, row: 13, dir: "^", emergeTicks: 5 }] }]
 });
 
 addRound({
   id: 50, world: 7, name: "FINAL CLAUSE", type: "BOSS",
   lieKey: "rules_lawyer_boss",
-  mechanic: "Combines KEEP OUT hologram wall, alphabetical A->B key pads, and strict 7s deadline.",
-  tell: "Scanline wall is pass-through; A->B opens laser before 420t.",
-  solutionSummary: "Pass hologram wall, hit A then B, and clear the opened laser before 7s.",
+  mechanic: "Combines pit, KEEP OUT hologram wall, alphabetical A->B key pads, late emerging spike, and strict 7s deadline.",
+  tell: "Scanline wall is pass-through; A->B opens laser before 420t; seam marks col 26 spike.",
+  solutionSummary: "Jump pit 5..6, pass N wall, hit A then B, clear laser and col 26 spike before 7s.",
   grid: buildRoom(g => {
+    g.pit(5, 6, "^");
     g.col(9, 1, 13, "N");
     g.plat(12, 12, 2, "#"); g.plat(17, 12, 2, "#");
     g.col(24, 1, 11, "#"); g.set(24, 12, "L"); g.set(24, 13, "L");
   }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
+  spikeSeamTells: [{ col: 26, row: 13 }],
   riddle: {
     mode: "pads", prompt: "FINAL CLAUSE: HIT A -> B BEFORE 7S.",
     sequence: ["A", "B"],
     pads: [{ id: "B", col: 12.5, row: 12 }, { id: "A", col: 17.5, row: 12 }],
     unlockTiles: [{ col: 24, row: 12, to: "." }, { col: 24, row: 13, to: "." }]
   },
-  triggers: [{ id: "r50_time", once: true, condition: { type: "timer", ticks: 420 }, actions: [{ type: "kill", reason: "clauseExpired" }] }]
+  triggers: [
+    { id: "r50_sp", once: true, condition: { type: "playerX", x: 24*30, op: ">=" }, actions: [{ type: "spawnSpike", col: 26, row: 13, dir: "^", emergeTicks: 5 }] },
+    { id: "r50_time", once: true, condition: { type: "timer", ticks: 420 }, actions: [{ type: "kill", reason: "clauseExpired" }] }
+  ]
 });
 
 // ---------------- WORLD 8: TIME (51..60) ----------------
@@ -1725,23 +1757,25 @@ addRound({
 addRound({
   id: 52, world: 8, name: "SUPER-STILL", type: "PLATFORM",
   lieKey: "time_moves_when_you_move",
-  mechanic: "Moving platforms only advance while you hold a movement or jump key.",
-  tell: "Platforms freeze dead the instant you release all keys.",
-  solutionSummary: "Hold keys to bring the moving platform under your feet, then ride across.",
+  mechanic: "Moving platforms and a mid-chasm sweeper only advance while you hold keys, plus a late emerging spike.",
+  tell: "Platform and sweeper freeze when you stop; seam marks col 25 spike.",
+  solutionSummary: "Hold keys to align platform and dodge sweeper, then hop col 25 spike.",
   grid: buildRoom(g => { g.pit(8, 22, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
   superhotTime: true,
   platforms: [{ id: "p52", col: 8.5, row: 14, wTiles: 3.5, hTiles: 0.7, moveX: 10.5 * 30, moveY: 0, periodTicks: 140 }],
-  triggers: []
+  hazards: [{ kind: "sweep", minX: 13*30, maxX: 18*30, y: 11.5*30, w: 20, h: 20, period: 90 }],
+  spikeSeamTells: [{ col: 25, row: 13 }],
+  triggers: [{ id: "r52_sp", once: true, condition: { type: "playerX", x: 22.5*30, op: ">=" }, actions: [{ type: "spawnSpike", col: 25, row: 13, dir: "^", emergeTicks: 5 }] }]
 });
 
 addRound({
   id: 53, world: 8, name: "HIGH PING", type: "PLATFORM",
   lieKey: "input_delay_half_sec",
-  mechanic: "Every movement and jump input arrives 0.25s (15 ticks) late—lead your jumps early.",
-  tell: "Sign warns 'PING: 250MS — JUMP EARLY'.",
-  solutionSummary: "Press Jump 15 ticks early before reaching the spike pit.",
-  grid: buildRoom(g => { g.pit(13, 15, "^"); }),
+  mechanic: "Every input arrives 0.25s (15 ticks) late across two spike pits and a low ceiling.",
+  tell: "Sign warns 'PING: 250MS — JUMP EARLY'; ceiling dust sits at row 10.",
+  solutionSummary: "Press Jump 15 ticks early before pits 10..11 and 19..20 under H.",
+  grid: buildRoom(g => { g.pit(10, 11, "^"); g.pit(19, 20, "^"); g.plat(18, 10, 4, "H"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
   inputDelay: 15,
   triggers: []
@@ -1750,10 +1784,10 @@ addRound({
 addRound({
   id: 54, world: 8, name: "CLOCKWORK", type: "PLATFORM",
   lieKey: "platforms_follow_clock",
-  mechanic: "Two synchronized elevator platforms oscillate cleanly on a 160-tick clock cycle.",
-  tell: "Platform tracks mark exact vertical/horizontal clock bounds.",
-  solutionSummary: "Hop onto Clock Platform 1, then Clock Platform 2 to reach the exit.",
-  grid: buildRoom(g => { g.pit(8, 23, "^"); }),
+  mechanic: "Two synchronized elevator platforms oscillate between ceiling spikes, followed by a late spike pit.",
+  tell: "Ceiling spikes hang at row 8; jump pit 25..26 after dismounting.",
+  solutionSummary: "Ride Clock Platform 1 to Clock Platform 2 beneath ceiling spikes, then jump pit 25..26.",
+  grid: buildRoom(g => { g.pit(8, 23, "^"); g.plat(13, 7, 4, "#"); g.row(8, 13, 16, "v"); g.pit(25, 26, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
   platforms: [
     { id: "p54a", col: 8.5, row: 14, wTiles: 3, hTiles: 0.6, moveX: 4*30, moveY: -2*30, periodTicks: 140 },
@@ -1765,11 +1799,12 @@ addRound({
 addRound({
   id: 55, world: 8, name: "PAST SELF", type: "PLATFORM",
   lieKey: "past_self_triggers_switch",
-  mechanic: "Your past-self ghost replays your previous run and holds down the left switch so you can cross.",
-  tell: "Gold ghost follows your previous attempt onto the switch tile at col 6.",
-  solutionSummary: "Stand on the col 6 switch in attempt 1, then run right while your ghost holds it in attempt 2.",
-  grid: buildRoom(g => { g.col(22, 1, 11, "#"); g.set(22, 12, "L"); g.set(22, 13, "L"); }),
+  mechanic: "Your past-self ghost holds the left switch while you cross two spike pits and a sweeper to the gate.",
+  tell: "Gold ghost holds the col 6 switch; dodge sweeper at cols 24..26.",
+  solutionSummary: "Stand on col 6 switch in attempt 1, then jump pits 10..11 and 17..18 and clear sweeper in attempt 2.",
+  grid: buildRoom(g => { g.pit(10, 11, "^"); g.pit(17, 18, "^"); g.col(22, 1, 11, "#"); g.set(22, 12, "L"); g.set(22, 13, "L"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
+  hazards: [{ kind: "sweep", minX: 24*30, maxX: 26*30, y: 13*30+10, w: 20, h: 20, period: 75 }],
   pastSelfSwitch: { rect: { x: 5*30, y: 12*30, w: 60, h: 60 }, unlockTiles: [{col:22,row:12,to:"."},{col:22,row:13,to:"."}] },
   triggers: []
 });
@@ -1777,10 +1812,10 @@ addRound({
 addRound({
   id: 56, world: 8, name: "TURBO MODE", type: "PLATFORM",
   lieKey: "double_speed_world",
-  mechanic: "The entire simulation runs at 2x speed—double acceleration and spike cycles.",
-  tell: "Sign warns '2X SPEED'.",
-  solutionSummary: "Time quick double-speed hops over the two spike gaps.",
-  grid: buildRoom(g => { g.pit(10, 12, "^"); g.pit(19, 21, "^"); }),
+  mechanic: "The entire simulation runs at 2x speed across three spike pits and a low ceiling.",
+  tell: "Sign warns '2X SPEED'; low ceiling H sits over the middle pit.",
+  solutionSummary: "Time three quick double-speed hops over pits 8..9, 15..16 (under H), and 22..23.",
+  grid: buildRoom(g => { g.pit(8, 9, "^"); g.pit(15, 16, "^"); g.plat(14, 10, 4, "H"); g.pit(22, 23, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
   speedMult: 2, triggers: []
 });
@@ -1788,37 +1823,43 @@ addRound({
 addRound({
   id: 57, world: 8, name: "8 SECONDS", type: "PLATFORM",
   lieKey: "stopwatch_8s_seal",
-  mechanic: "Finish within 8 seconds (480 ticks) or the exit laser seals shut.",
-  tell: "Stopwatch counts up visibly in the HUD.",
-  solutionSummary: "Sprint directly over the three small gaps and reach the exit before 8.0s.",
-  grid: buildRoom(g => { g.pit(8, 9, "^"); g.pit(15, 16, "^"); g.pit(22, 23, "^"); }),
+  mechanic: "Finish within 8 seconds (480 ticks) across three pits, a crumbling bridge, and a late emerging spike.",
+  tell: "Stopwatch counts up; floor seams mark C bridge and col 25 spike.",
+  solutionSummary: "Sprint over pits 8..9, C bridge 12..13, pits 16..17 & 21..22, and hop col 25 spike before 8s.",
+  grid: buildRoom(g => { g.pit(8, 9, "^"); g.row(14, 12, 13, "C"); g.row(15, 12, 13, "."); g.row(16, 12, 13, "^"); g.pit(16, 17, "^"); g.pit(21, 22, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  triggers: [{ id: "r57_seal", once: true, condition: { type: "timer", ticks: 480 }, actions: [{ type: "toggleTile", tiles: [{col:27,row:12,to:"L"},{col:27,row:13,to:"L"}] }] }]
+  spikeSeamTells: [{ col: 25, row: 13 }],
+  triggers: [
+    { id: "r57_fall", once: true, condition: { type: "zoneEnter", rect: { x: 12*30-4, y: 13*30, w: 68, h: 34 } }, actions: [{ type: "fallTile", tiles: [{col:12,row:14},{col:13,row:14}], delayTicks: 3, fallSpeed: 9 }] },
+    { id: "r57_sp", once: true, condition: { type: "playerX", x: 23*30, op: ">=" }, actions: [{ type: "spawnSpike", col: 25, row: 13, dir: "^", emergeTicks: 5 }] },
+    { id: "r57_seal", once: true, condition: { type: "timer", ticks: 480 }, actions: [{ type: "toggleTile", tiles: [{col:27,row:12,to:"L"},{col:27,row:13,to:"L"}] }] }
+  ]
 });
 
 addRound({
   id: 58, world: 8, name: "METRONOME", type: "PLATFORM",
   lieKey: "hazards_sync_metronome",
-  mechanic: "Spikes extend on every 4th audible metronome beat across the middle bridge.",
-  tell: "Ticks at 1, 2, 3 warn before beat 4 pops spikes for 25 ticks.",
-  solutionSummary: "Run across cols 14..17 during beats 1-3.",
-  grid: buildRoom(),
+  mechanic: "Two metronome spike zones extend on every 4th beat, flanking a fixed pit and low ceiling.",
+  tell: "Ticks at 1, 2, 3 warn before beat 4 pops spikes at cols 10..11 and 19..20.",
+  solutionSummary: "Clear metronome 10..11, jump pit 14..15, and low-hop metronome 19..20 under H.",
+  grid: buildRoom(g => { g.pit(14, 15, "^"); g.plat(18, 10, 4, "H"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
   triggers: [
     { id: "r58_t", once: false, condition: { type: "cycle", periodTicks: 30, onTick: 0 }, actions: [{ type: "playSound", sound: "tick" }] },
-    { id: "r58_on", once: false, condition: { type: "cycle", periodTicks: 120, onTick: 90 }, actions: [{ type: "toggleTile", tiles: [{col:15,row:13,to:"^"},{col:16,row:13,to:"^"}] }] },
-    { id: "r58_off", once: false, condition: { type: "cycle", periodTicks: 120, onTick: 115 }, actions: [{ type: "toggleTile", tiles: [{col:15,row:13,to:"."},{col:16,row:13,to:"."}] }] }
+    { id: "r58_on", once: false, condition: { type: "cycle", periodTicks: 120, onTick: 90 }, actions: [{ type: "toggleTile", tiles: [{col:10,row:13,to:"^"},{col:11,row:13,to:"^"},{col:19,row:13,to:"^"},{col:20,row:13,to:"^"}] }] },
+    { id: "r58_off", once: false, condition: { type: "cycle", periodTicks: 120, onTick: 115 }, actions: [{ type: "toggleTile", tiles: [{col:10,row:13,to:"."},{col:11,row:13,to:"."},{col:19,row:13,to:"."},{col:20,row:13,to:"."}] }] }
   ]
 });
 
 addRound({
   id: 59, world: 8, name: "DEJA VU LOOP", type: "PLATFORM",
   lieKey: "three_wraps_spawns_exit",
-  mechanic: "Laser cage seals the exit until you wrap around the screen edge 3 times.",
-  tell: "Side walls are open; wrapping 3 times disables the exit laser cage.",
-  solutionSummary: "Walk left through the open screen edge 3 times, then enter the center exit.",
+  mechanic: "Laser cage seals the exit until you wrap around the screen edge 3 times while jumping two spike pits.",
+  tell: "Side walls are open; jump pits 8..9 and 21..22 as you wrap 3 times.",
+  solutionSummary: "Jump pit 21..22 and pit 8..9 while wrapping left 3 times, then enter the center exit.",
   grid: buildRoom(g => {
     g.col(0, 1, 13, "."); g.col(31, 1, 13, ".");
+    g.pit(8, 9, "^"); g.pit(21, 22, "^");
     g.plat(13, 11, 5, "#"); g.set(13, 12, "L"); g.set(13, 13, "L"); g.set(17, 12, "L"); g.set(17, 13, "L");
   }),
   start: { col: 4, row: 13 }, exit: { col: 15, row: 13 },
@@ -1829,17 +1870,21 @@ addRound({
 addRound({
   id: 60, world: 8, name: "COLLAPSE BOSS", type: "BOSS",
   lieKey: "collapsing_room_escape",
-  mechanic: "Floor tiles collapse sequentially from left to right behind you in a 12-second escape.",
-  tell: "Each floor chunk shakes and drops every 15 ticks from col 4 rightward.",
-  solutionSummary: "Sprint ahead of the collapsing floor and jump the late spike gap to exit.",
-  grid: buildRoom(g => { g.pit(22, 23, "^"); }),
+  mechanic: "Floor collapses behind you across a crumbling bridge, low ceiling, spike pit, and sweeping hazard.",
+  tell: "Floor drops every 14 ticks from col 4; dodge sweeper at cols 24..26.",
+  solutionSummary: "Sprint ahead of the collapse, low-hop C bridge 15..16 under H, jump pit 21..22, and clear sweeper.",
+  grid: buildRoom(g => { g.row(14, 15, 16, "C"); g.row(15, 15, 16, "."); g.row(16, 15, 16, "^"); g.plat(15, 10, 3, "H"); g.pit(21, 22, "^"); }),
   start: { col: 3, row: 13 }, exit: { col: 29, row: 13 },
+  hazards: [{ kind: "sweep", minX: 24*30, maxX: 26.5*30, y: 13*30+10, w: 20, h: 20, period: 75 }],
   secretLetter: { char: "L", col: 18, row: 11 },
-  triggers: Array.from({length:12}, (_,i) => ({
-    id: `r60_c${i}`, once: true,
-    condition: { type: "timer", ticks: 25 + i * 14 },
-    actions: [{ type: "fallTile", tiles: [{col:4+i,row:14}], delayTicks: 2, fallSpeed: 9 }]
-  }))
+  triggers: [
+    ...Array.from({length:12}, (_,i) => ({
+      id: `r60_c${i}`, once: true,
+      condition: { type: "timer", ticks: 25 + i * 14 },
+      actions: [{ type: "fallTile", tiles: [{col:4+i,row:14}], delayTicks: 2, fallSpeed: 9 }]
+    })),
+    { id: "r60_fall", once: true, condition: { type: "zoneEnter", rect: { x: 15*30-4, y: 13*30, w: 68, h: 34 } }, actions: [{ type: "fallTile", tiles: [{col:15,row:14},{col:16,row:14}], delayTicks: 2, fallSpeed: 9 }] }
+  ]
 });
 
 // ---------------- WORLD 9: SCALE & SPACE (61..70) ----------------
@@ -2426,27 +2471,27 @@ const LEVEL_SOLUTIONS = {
   37: [{"ticks":64,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":64,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":40,"right":true}],
   38: [{"ticks":88,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":84,"right":true}],
   39: [{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":64,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true}],
-  40: [{"ticks":72,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":60,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true}],
-  41: [{"ticks":132,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":40,"right":true}],
-  42: [{"ticks":176,"right":true}],
-  43: [{"ticks":8,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":32,"left":true},{"ticks":184,"right":true}],
-  44: [{"ticks":8,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":124,"right":true}],
-  45: [{"ticks":16,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":12,"right":true},{"ticks":4,"left":true},{"ticks":4},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":12,"right":true},{"ticks":8,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"jump":true},{"ticks":8,"left":true,"jump":true},{"ticks":8,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":8,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":8,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true}],
+  40: [{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":40,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":32,"right":true}],
+  41: [{"ticks":112,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true}],
+  42: [{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":52,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":32,"right":true}],
+  43: [{"ticks":56,"left":true},{"ticks":60,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":28,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":64,"right":true}],
+  44: [{"ticks":52,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":60,"right":true}],
+  45: [{"ticks":48,"right":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":8,"left":true},{"ticks":12},{"ticks":4,"jump":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"jump":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true},{"ticks":4},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":12,"right":true},{"ticks":4,"left":true},{"ticks":4},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"jump":true},{"ticks":8},{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true}],
   46: [{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":12,"right":true},{"ticks":16,"left":true},{"ticks":4,"right":true},{"ticks":20,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true,"jump":true},{"ticks":40,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":100,"right":true}],
-  47: [{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":64,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true}],
-  48: [{"ticks":176,"right":true}],
-  49: [{"ticks":160,"right":true}],
-  50: [{"ticks":84,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":16,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":12,"left":true},{"ticks":4,"right":true},{"ticks":4},{"ticks":32,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":56,"right":true}],
+  47: [{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":12,"right":true},{"ticks":8,"left":true},{"ticks":12,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":32,"right":true}],
+  48: [{"ticks":52,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":28,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true}],
+  49: [{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":40,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true}],
+  50: [{"ticks":24,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":60,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":16,"right":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":12,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":92,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true}],
   51: [{"ticks":80,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":76,"right":true}],
   52: [{"ticks":44,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"left":true},{"ticks":20,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"jump":true},{"ticks":12,"left":true},{"ticks":12,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true},{"ticks":8,"left":true},{"ticks":16,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":28,"right":true}],
-  53: [{ticks:64,right:true},{ticks:14,right:true,jump:true},{ticks:140,right:true}],
-  54: [{"ticks":44,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":12,"right":true},{"ticks":12,"left":true},{"ticks":4,"right":true},{"ticks":16,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":40,"right":true}],
-  55: { setupRuns: [[{ticks:30,right:true},{ticks:180}]], solve: [{"ticks":176,"right":true}] },
-  56: [{"ticks":28,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":28,"right":true}],
-  57: [{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":40,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true}],
+  53: [{"ticks":40,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":60,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":80,"right":true}],
+  54: [{"ticks":32,"right":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4},{"ticks":4,"right":true},{"ticks":8},{"ticks":4,"right":true},{"ticks":24,"right":true,"jump":true},{"ticks":4,"left":true},{"ticks":16,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":16,"right":true},{"ticks":8,"left":true},{"ticks":12,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true}],
+  55: { setupRuns: [[{ticks:30,right:true},{ticks:180}]], solve: [{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":32,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":32,"right":true}] },
+  56: [{"ticks":12,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":28,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":12,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true}],
+  57: [{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":16,"right":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":24,"right":true,"jump":true},{"ticks":28,"right":true}],
   58: [{"ticks":12,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true}],
-  59: [{ticks:32,left:true},{ticks:22,right:true},{ticks:22,left:true},{ticks:110,left:true}],
-  60: [{"ticks":8,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":16,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":8,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":8,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":12,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true}],
+  59: [{"ticks":8,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true},{"ticks":8,"left":true},{"ticks":8,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":8,"right":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true,"jump":true},{"ticks":60,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":40,"right":true}],
+  60: [{"ticks":84,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true}],
   61: [{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":64,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true}],
   62: [{"ticks":176,"right":true}],
   63: [{"ticks":8,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":36,"left":true}],
@@ -3722,7 +3767,8 @@ function bindTouch(id, field) {
   btn.addEventListener("touchcancel", e => { e.preventDefault(); set(false); });
 }
 bindTouch("btn-left", "left"); bindTouch("btn-right", "right"); bindTouch("btn-jump", "jump");
-document.getElementById("btn-touch-restart").addEventListener("touchstart", e => { e.preventDefault(); if (app.screen === "play") startLevel(app.currentLevelIndex, false); });
+const touchRestartBtn = document.getElementById("btn-touch-restart");
+if (touchRestartBtn) touchRestartBtn.addEventListener("touchstart", e => { e.preventDefault(); if (app.screen === "play") startLevel(app.currentLevelIndex, false); });
 if (touchFsBtn) {
   touchFsBtn.addEventListener("touchstart", e => { e.preventDefault(); tryLockLandscape(true); });
   touchFsBtn.addEventListener("click", () => tryLockLandscape(true));
@@ -3762,6 +3808,7 @@ function resizeCanvas() {
   const rawW = window.visualViewport ? window.visualViewport.width : window.innerWidth;
   const rawH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
   const mobile = isTouchCapable();
+  if (document.body && document.body.classList) document.body.classList.toggle("touch-device", mobile);
   const forceRotate = mobile && rawH > rawW;
   app.cssRotated90 = forceRotate;
   stageEl.classList.toggle("landscape-forced", forceRotate);
@@ -3976,7 +4023,7 @@ function renderEntities(state, alpha) {
     if (fp.variant === "settings") {
       drawPixelText(ctx, "SETTINGS", fp.x + fp.w / 2, fp.y + 18, 3, PAL.GOLD, "center");
       drawPixelText(ctx, "MASTER VOLUME", fp.x + fp.w / 2, fp.y + 82, 2, PAL.WHITE, "center");
-      ctx.fillStyle = PAL.STONE; ctx.fillRect(fp.x + 40, fp.y + 216, fp.w - 80, 6);
+      ctx.fillStyle = PAL.STONE; ctx.fillRect(fp.x + 40, fp.y + 226, fp.w - 80, 6);
     } else if (fp.variant === "stacktrace") {
       drawPixelText(ctx, "UNCAUGHT TRUST_ERROR", fp.x + fp.w / 2, fp.y + 18, 2, PAL.CORAL, "center");
     }
@@ -3992,11 +4039,8 @@ function renderEntities(state, alpha) {
 
   for (const s of state.signs) {
     const sx = s.col * TILE, sy = s.row * TILE;
-    ctx.save();
-    ctx.font = `700 16px ${UI_FONT}`;
-    const measuredW = ctx.measureText(String(s.text)).width + 20;
-    ctx.restore();
-    const sw = Math.max(s.w || 88, Math.ceil(measuredW));
+    const measuredW = String(s.text).length * 12 + 20;
+    const sw = Math.max(s.w || 88, measuredW);
     const sh = Math.max(s.h || 28, 30);
     ctx.fillStyle = PAL.SURFACE; ctx.fillRect(sx - 4, sy - 4, sw, sh);
     ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 1.5; ctx.strokeRect(sx - 4, sy - 4, sw, sh);
@@ -4295,8 +4339,8 @@ function renderHUD(state) {
   ctx.strokeStyle = PAL.BORDER; ctx.lineWidth = 1.5; ctx.strokeRect(320, 6, 632, 34);
   drawPixelText(ctx, `Deaths: ${shownLvlD}`, 352, 15, 2, PAL.CORAL, "left", null, 130);
 
-  addButton(754, 10, 96, 26, "Restart [R]", () => startLevel(app.currentLevelIndex, false), PAL.STONE, PAL.WHITE, PAL.BORDER);
-  addButton(856, 10, 88, 26, "Pause [Esc]", openPauseMenu, PAL.STONE, PAL.WHITE, PAL.BORDER);
+  addButton(786, 10, 76, 26, "RETRY", () => startLevel(app.currentLevelIndex, false), PAL.STONE, PAL.WHITE, PAL.BORDER);
+  addButton(868, 10, 76, 26, "PAUSE", openPauseMenu, PAL.STONE, PAL.WHITE, PAL.BORDER);
 
   if (app.fakeAlertTicks > 0) {
     ctx.fillStyle = PAL.CORAL; ctx.fillRect(180, 48, 600, 36);
@@ -4306,7 +4350,7 @@ function renderHUD(state) {
 
   ctx.fillStyle = PAL.SURFACE; ctx.fillRect(0, LOGICAL_H - 34, LOGICAL_W, 34);
   ctx.fillStyle = PAL.BORDER; ctx.fillRect(0, LOGICAL_H - 34, LOGICAL_W, 1);
-  drawPixelText(ctx, state.narratorOverride || app.narratorText, 16, LOGICAL_H - 25, 2, PAL.WHITE, "left", null, LOGICAL_W - 32);
+  drawPixelText(ctx, state.narratorOverride || app.narratorText, 480, LOGICAL_H - 24, 2, PAL.WHITE, "center", null, isTouchCapable() ? 600 : 910);
 
   if (progress.bigDeathOverlay) {
     ctx.fillStyle = PAL.PANEL; ctx.fillRect(LOGICAL_W - 220, 48, 206, 84);
@@ -4773,17 +4817,14 @@ function renderMindGame() {
   ctx.strokeStyle = PAL.BORDER; ctx.lineWidth = 1.5; ctx.strokeRect(346, 6, 606, 34);
   drawPixelText(ctx, `Fails: ${progress.g2Fails[id] || 0}`, 362, 15, 2, PAL.CORAL, "left");
 
-  addButton(754, 10, 92, 26, "Retry [R]", () => startMindLevel(app.g2CurrentIdx), PAL.STONE, PAL.WHITE, PAL.BORDER);
-  addButton(852, 10, 92, 26, "Menu [Esc]", () => { app.screen = "title"; }, PAL.STONE, PAL.WHITE, PAL.BORDER);
+  addButton(786, 10, 76, 26, "RETRY", () => startMindLevel(app.g2CurrentIdx), PAL.STONE, PAL.WHITE, PAL.BORDER);
+  addButton(868, 10, 76, 26, "MENU", () => { app.screen = "title"; }, PAL.STONE, PAL.WHITE, PAL.BORDER);
 
   // Prompt Banner (M01 embeds clickable "START" inside the sentence itself)
   ctx.fillStyle = PAL.SURFACE; ctx.fillRect(60, 56, 840, 46);
   ctx.strokeStyle = PAL.BORDER; ctx.lineWidth = 1.5; ctx.strokeRect(60, 56, 840, 46);
   if (id === 1) {
-    ctx.save();
-    ctx.font = `700 16px ${UI_FONT}`;
-    const startW = ctx.measureText("START").width;
-    ctx.restore();
+    const startW = 58;
     drawPixelText(ctx, 'CLICK "', 254, 71, 2, PAL.WHITE, "right");
     drawPixelText(ctx, "START", 258, 71, 2, PAL.GOLD, "left");
     drawPixelText(ctx, '" TO PROVE YOU ARE HUMAN', 258 + startW + 4, 71, 2, PAL.WHITE, "left");
@@ -5065,7 +5106,7 @@ function renderMindGame() {
   // Narrator footer
   ctx.fillStyle = PAL.SURFACE; ctx.fillRect(0, LOGICAL_H - 34, LOGICAL_W, 34);
   ctx.fillStyle = PAL.BORDER; ctx.fillRect(0, LOGICAL_H - 34, LOGICAL_W, 1);
-  drawPixelText(ctx, app.narratorText, 16, LOGICAL_H - 25, 2, PAL.WHITE, "left", null, LOGICAL_W - 32);
+  drawPixelText(ctx, app.narratorText, 480, LOGICAL_H - 24, 2, PAL.WHITE, "center", null, isTouchCapable() ? 600 : 910);
 
   if (g2.failTicks > 0) {
     ctx.save(); ctx.globalAlpha = 0.28; ctx.fillStyle = PAL.CORAL; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H); ctx.restore();
