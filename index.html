@@ -121,7 +121,7 @@
     touch-action: none;
   }
   #theme-toggle {
-    position: fixed;
+    position: absolute;
     bottom: 12px;
     right: 12px;
     z-index: 40;
@@ -142,6 +142,14 @@
     left: 12px;
     bottom: auto;
     right: auto;
+  }
+  @media (pointer: coarse) {
+    #theme-toggle {
+      top: 52px;
+      left: 12px;
+      bottom: auto;
+      right: auto;
+    }
   }
   #theme-toggle:hover {
     border-color: var(--accent);
@@ -249,8 +257,8 @@
       </div>
     </div>
     <div id="toast"></div>
+    <button id="theme-toggle" type="button" aria-label="Toggle light or dark theme" title="Toggle theme"></button>
   </div>
-  <button id="theme-toggle" type="button" aria-label="Toggle light or dark theme" title="Toggle theme"></button>
 </div>
 
 <script>
