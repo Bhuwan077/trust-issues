@@ -5003,15 +5003,15 @@ function renderTitleScreen() {
   ctx.strokeStyle = PAL.STONE; ctx.lineWidth = 2; ctx.strokeRect(490, 272, 424, 146);
   ctx.fillStyle = PAL.CORAL; ctx.fillRect(490, 272, 5, 146);
   drawPixelText(ctx, "04 // DON'T DROP THE CAKE", 508, 286, 2, PAL.CORAL, "left");
-  drawPixelText(ctx, "TOWERING CAKE BALANCE CHAOS (30 VENUES)", 508, 308, 1, PAL.WHITE, "left");
-  drawPixelText(ctx, `STARS: ${cStat.stars}/90  |  DROPS: ${cStat.fails}`, 508, 324, 1, PAL.CORAL, "left");
+  drawPixelText(ctx, "TOWERING CAKE BALANCE CHAOS (72 VENUES)", 508, 308, 1, PAL.WHITE, "left");
+  drawPixelText(ctx, `STARS: ${cStat.stars}/216  |  DROPS: ${cStat.fails}`, 508, 324, 1, PAL.CORAL, "left");
   ctx.fillStyle = "#171625"; ctx.fillRect(788, 282, 112, 46);
   const sw = Math.round(Math.sin(app.uiTick * 0.1) * 4);
   ctx.fillStyle = PAL.GOLD; ctx.fillRect(824, 318, 40, 3);
   ctx.fillStyle = PAL.WHITE; ctx.fillRect(830 + Math.round(sw * 0.4), 309, 28, 8);
   ctx.fillStyle = PAL.CORAL; ctx.fillRect(833 + sw, 300, 22, 8);
   ctx.fillStyle = PAL.GOLD; ctx.fillRect(836 + Math.round(sw * 1.4), 291, 16, 8);
-  addButton(508, 346, 392, 54, "CARRY: DON'T DROP THE CAKE >", () => { window.location.href = "cake.html"; }, PAL.CORAL, PAL.WHITE, PAL.WHITE, "8-TIER SPRING PHYSICS • SLOW-MO DROPS");
+  addButton(508, 346, 392, 54, "CARRY: DON'T DROP THE CAKE >", () => { window.location.href = "cake.html"; }, PAL.CORAL, PAL.WHITE, PAL.WHITE, "10-TIER PHYSICS • 9 VENUES • SLOW-MO DROPS");
 
   // ---- BOTTOM DOCK & NARRATOR BAR ----
   addButton(138, 434, 216, 36, "HALL OF SHAME [H]", () => { app.screen = "shame"; }, PAL.STONE, PAL.CORAL, PAL.CORAL);

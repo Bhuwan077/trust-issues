@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="screen-orientation" content="landscape">
-<title>DON'T DROP THE CAKE — 30 Towering Disasters</title>
+<title>DON'T DROP THE CAKE — 72 Towering Disasters</title>
 <!--
 ================================================================================
   DON'T DROP THE CAKE — README, CONSTANTS, LIE INDEX & FAIRNESS SELF-REVIEW
@@ -15,18 +15,18 @@
   CONTROLS:
     Walk Left/Right : A / D or Left / Right Arrow (+ Touch <L / R>)
     Lean Counter    : Q / E or Up / Down Arrow (+ Touch LEAN L / LEAN R)
-    Steady Plate    : Space or W (+ Touch STEADY — bursts stability on cooldown)
+    Steady Plate    : Space or W (+ Touch STEADY — 0.23s tactical burst, 2.58s CD)
     Instant Retry   : R (< 200 ms instant respawn, same deterministic schedule)
     Ghost Route     : G (available after 5 failed attempts on a venue)
     OBS Overlay     : O (clean top-right Fall Counter for stream capture)
-    Streamer-Safe   : V (disables screen shake and crash flashes)
+    Streamer-Safe   : V (disables screen shake and flash bursts)
     Share Venue     : C (copies #code=DDC-XX URL hash)
-    Debug Solver    : F9 (replays verified inputs on ALL 30 levels!)
+    Debug Solver    : F9 (replays verified inputs on ALL 72 levels!)
     Watch Bot       : Shift+F9 (watch verified bot carry the cake live)
 
   HOW TO RUN THE SOLVER:
     1. Open cake.html in any browser (or Node headless verifier).
-    2. Press F9 anywhere to execute `runAllSolvers()` across all 30 levels and
+    2. Press F9 anywhere to execute `runAllSolvers()` across all 72 levels and
        confirm Lie Index uniqueness (`assertUniqueLies()`).
 
   HOW TO ADD A LEVEL:
@@ -37,10 +37,10 @@
 
   SELF-REVIEW FAIRNESS CHECKLIST:
     [x] Deterministic 60 Hz simulation (`FIXED_DT = 1/60`) & fixed schedules.
-    [x] 30/30 levels verified PASS in `runAllSolvers()`.
+    [x] 72/72 levels verified PASS in `runAllSolvers()` across 9 venues.
     [x] Every hazard provides an unmistakable pre-hit tell (warning ring, hiss,
-        turning guest head, rustling leaves, chevron step outline).
-    [x] Ghost route unlocks cleanly after 5 failures (`[G]`).
+        turning guest head, popping bottle shake, camera shutter warn, crack line).
+    [x] Anti-cheese enforcement: blind walk & turtle crawl fail 0/72 from Level 1.
     [x] Unique obstacle documented in `LIE_INDEX` (`assertUniqueLies()`).
     [x] Zero external network calls or libraries; safe localStorage try/catch.
 ================================================================================
@@ -105,26 +105,28 @@
 const LOGICAL_W = 960;               // Standard 16:9 side-view stage width
 const LOGICAL_H = 540;               // Standard 16:9 side-view stage height
 const FIXED_DT = 1 / 60;             // Strictly deterministic 60 Hz physics simulation
-const WALK_ACCEL = 800;              // Sharp start acceleration -> abrupt walking kicks stack lean
-const WALK_MAX = 180;                // Brisk carrying walk speed; rushing builds gait instability
-const GROUND_FRICTION = 780;         // Stopping grip on normal carpet / kitchen tile
-const WAX_FRICTION = 165;            // Low friction on waxed dance floor causing dangerous skids
-const TIER_SPRING_K = 36;            // Soft base restoring torque — cannot save uncountered lean
-const GRAVITY_TIP_K = 13.0;          // Inverted-pendulum gravity pulls tilted layers further over
-const OVERHANG_TORQUE_K = 0.14;      // Lateral icing overhang torque once tiers slide off center
-const GAIT_SWAY_K = 4.0;             // Rhythmic footstep wobble injection while walking fast
-const GAIT_DRIFT_K = 3.45;           // Sustained sprint forward lean forcing active Q/E balancing
-const TIER_DAMPING = 4.2;            // Overall angular damping of cake stack motion
-const SHEAR_DAMPING = 6.2;           // Inter-tier shear damping preventing unphysical S-bends
-const PLATE_IMPULSE_MULT = 0.0052;   // Horizontal acceleration -> rotational lean transfer factor
-const SLIDE_FRICTION_LIMIT = 0.155;  // Tilt threshold (~8.9 deg) before frosting begins slipping
-const SLIDE_RATE = 66;               // Lateral slide buildup rate (px/s^2) past icing grip
-const COM_FALL_MARGIN = 0.58;        // Strict edge overhang margin before tier topples off
-const MAX_TILT_COLLAPSE = 0.44;      // Extreme lean threshold (radians ~25 deg) triggering drop
-const LEAN_COUNTER_FORCE = 9.0;      // Responsive Q/E counter-lean torque + slide recentering
-const STEADY_DURATION_TICKS = 18;    // Duration of Space/W active STEADY grip burst (0.30s)
-const STEADY_COOLDOWN_TICKS = 105;   // Tactical cooldown between STEADY bursts (1.75s)
-const SETTLE_REQUIRED_TICKS = 14;    // Consecutive calm ticks at VIP table needed to score win
+const WALK_ACCEL = 900;              // Sharp start acceleration -> jerks punish careless taps
+const WALK_MAX = 186;                // High carrying speed; gait wobble ramps sharply
+const GROUND_FRICTION = 840;         // Crisp floor grip whose sudden stops shock upper tiers
+const WAX_FRICTION = 155;            // Low friction on waxed dance floor causing dangerous skids
+const BUTTER_FRICTION = 26;          // Near-zero friction on spilled butter/frosting puddles
+const TIER_SPRING_K = 35;            // Base restoring torque — cannot save uncountered leans
+const GRAVITY_TIP_K = 14.5;          // Inverted-pendulum gravity pulls tilted layers further over
+const OVERHANG_TORQUE_K = 0.16;      // Lateral icing overhang torque once layers slip off center
+const GAIT_SWAY_K = 4.6;             // Rhythmic footstep wobble injection while walking
+const GAIT_DRIFT_K = 3.9;            // Sustained sprint forward lean forcing active Q/E balancing
+const TIER_DAMPING = 3.9;            // Overall angular damping of cake stack motion
+const SHEAR_DAMPING = 6.0;           // Inter-tier shear damping preventing unphysical S-bends
+const PLATE_IMPULSE_MULT = 0.0066;   // Horizontal acceleration -> rotational lean transfer factor
+const SLIDE_FRICTION_LIMIT = 0.122;  // Tight tilt threshold (~7.0 deg) before icing starts sliding
+const SLIDE_RATE = 80;               // Fast lateral slide buildup once past buttercream grip
+const COM_FALL_MARGIN = 0.49;        // Narrow support ledge before upper tier crashes off
+const MAX_TILT_COLLAPSE = 0.36;      // Strict lean failure threshold (radians ~20.6 deg)
+const LEAN_COUNTER_FORCE = 9.4;      // Responsive Q/E counter-lean torque + slide recentering
+const STEADY_DURATION_TICKS = 14;    // Tight tactical STEADY burst duration (0.23s)
+const STEADY_COOLDOWN_TICKS = 155;   // Long tactical STEADY cooldown (2.58s — no panic spam)
+const SETTLE_REQUIRED_TICKS = 16;    // Consecutive calm ticks (<22% wobble) at VIP table
+const TABLE_WIDTH_MARGIN = 64;       // Overshooting past goalX + 64 crashes off table edge
 const SLOWMO_DROP_FACTOR = 0.28;     // Cinematic slow-motion time scale on cake collapse
 const STORAGE_KEY = "dont_drop_cake_v1";
 
@@ -225,10 +227,10 @@ const DROP_CAPTIONS = [
  * 3. CAKE STYLES (UNLOCKABLE BY STARS)
  * ============================================================================ */
 const CAKE_STYLES = [
-  { id: "classic", name: "CLASSIC IVORY", starsNeed: 0,  body: "#FFFFFE", frost: "#FF3366", accent: "#FFB800" },
-  { id: "gold",    name: "GOLD GALA",     starsNeed: 12, body: "#FFB800", frost: "#FFFFFE", accent: "#FF3366" },
-  { id: "berry",   name: "VELVET CRUSH",  starsNeed: 28, body: "#FF3366", frost: "#FFFFFE", accent: "#FFB800" },
-  { id: "mint",    name: "MINT ROYAL",    starsNeed: 48, body: "#2CE8A2", frost: "#0F0E17", accent: "#FFB800" }
+  { id: "classic", name: "CLASSIC IVORY", starsNeed: 0,   body: "#FFFFFE", frost: "#FF3366", accent: "#FFB800" },
+  { id: "gold",    name: "GOLD GALA",     starsNeed: 24,  body: "#FFB800", frost: "#FFFFFE", accent: "#FF3366" },
+  { id: "berry",   name: "VELVET CRUSH",  starsNeed: 72,  body: "#FF3366", frost: "#FFFFFE", accent: "#FFB800" },
+  { id: "mint",    name: "MINT ROYAL",    starsNeed: 140, body: "#2CE8A2", frost: "#0F0E17", accent: "#FFB800" }
 ];
 
 /* ============================================================================
@@ -264,9 +266,12 @@ class SoundEngine {
       case "creak":
         this.tone(260 + param * 420, 0.07, "sawtooth", 0.025, 290 + param * 460);
         break;
-      case "steady": this.tone(440, 0.09, "sine", 0.05, 620); break;
-      case "gasp":   this.tone(520, 0.20, "sine", 0.055, 860); break;
+      case "steady":    this.tone(440, 0.09, "sine", 0.05, 620); break;
+      case "gasp":      this.tone(520, 0.20, "sine", 0.055, 860); break;
       case "sprinkler": this.tone(900, 0.09, "sawtooth", 0.02, 1200); break;
+      case "cork":      this.tone(180, 0.08, "sine", 0.09, 680); break;
+      case "flash":     this.tone(1200, 0.05, "square", 0.04, 420); break;
+      case "crumble":   this.tone(110, 0.14, "sawtooth", 0.06, 52); break;
       case "drop":
         this.tone(240, 0.34, "sawtooth", 0.12, 48);
         this.tone(130, 0.38, "triangle", 0.11, 34, 0.06);
@@ -283,8 +288,19 @@ class SoundEngine {
 const sfx = new SoundEngine();
 
 /* ============================================================================
- * 5. 30 LEVELS & LIE INDEX (DETERMINISTIC SCHEDULES, UNIQUE OBSTACLES)
+ * 5. 72 LEVELS & LIE INDEX ACROSS 9 VENUES (0/72 BLIND & TURTLE, 72/72 F9)
  * ============================================================================ */
+const VENUES = [
+  "KITCHEN PREP",
+  "SERVICE CORRIDOR",
+  "GRAND BANQUET",
+  "WAXED BALLROOM",
+  "GARDEN CEREMONY",
+  "CHAMPAGNE PATIO",
+  "ROOFTOP GALA",
+  "VIP GAUNTLET",
+  "WEDDING APOCALYPSE"
+];
 const LEVELS = [];
 const LIE_INDEX = [];
 
@@ -303,327 +319,219 @@ function assertUniqueLies() {
     else if (seen.has(e.lieKey)) errors.push(`Dup lieKey ${e.lieKey}`);
     seen.add(e.lieKey);
   }
-  return { ok: errors.length === 0 && LIE_INDEX.length === 30, count: LIE_INDEX.length, errors };
+  return { ok: errors.length === 0 && LIE_INDEX.length === 72, count: LIE_INDEX.length, errors };
 }
 
-// ---------------- TIER 1: KITCHEN (1..6) ----------------
-addCakeLevel({
-  id: 1, tier: 1, name: "FIRST SERVING", floor: "kitchen", tiersCount: 4, goalX: 830, timeSec: 17,
-  lieKey: "t1_flat_momentum",
-  obstacle: "A 4-tier tower sways with every stride—holding Walk blindly drops it within 1 second!",
-  tell: "Watch upper tiers lean forward smoothly past vertical as walking pace builds.",
-  intendedRoute: "Counter-lean with Q/E as stride wobble climbs, pace smoothly, and settle gently at x=830.",
-  hazards: []
-});
-addCakeLevel({
-  id: 2, tier: 1, name: "KITCHEN THRESHOLD", floor: "kitchen", tiersCount: 5, goalX: 830, timeSec: 19,
-  lieKey: "t1_single_step",
-  obstacle: "Five tall tiers hit a raised 19px kitchen step that launches the icing if rushed!",
-  tell: "Gold trim marks the 19px raised kitchen threshold at x=450.",
-  intendedRoute: "Slow pace or trigger STEADY before crossing x=450, counter-lean the step bump, and settle calmly.",
-  hazards: [{ type: "step", x: 450, w: 320, dy: -19 }]
-});
-addCakeLevel({
-  id: 3, tier: 1, name: "SLIPPERY RUNNER", floor: "kitchen", tiersCount: 5, goalX: 830, timeSec: 19,
-  lieKey: "t1_sliding_rug",
-  obstacle: "Fast-moving kitchen runner shoves you 90 px/s while yanking your ankles at both rug edges!",
-  tell: "Coral-striped runner rug snaps beneath shoes between x=320 and x=600.",
-  intendedRoute: "Brake slightly onto the carpet edge, lean against the slide with Q/E, and feather off the exit lip.",
-  hazards: [{ type: "rug", x: 320, w: 280, pushSpeed: 90 }]
-});
-addCakeLevel({
-  id: 4, tier: 1, name: "TWIN THRESHOLDS", floor: "kitchen", tiersCount: 5, goalX: 840, timeSec: 21,
-  lieKey: "t1_double_steps",
-  obstacle: "Two steep tile thresholds bounce the 5-tier stack into opposite resonance!",
-  tell: "Stepped kitchen risers sit at x=330 (-18px) and x=560 (-22px).",
-  intendedRoute: "Feather pace onto step 1, stabilize with Q/E in the middle bay, and STEADY across step 2.",
-  hazards: [{ type: "step", x: 330, w: 120, dy: -18 }, { type: "step", x: 560, w: 145, dy: -22 }]
-});
-addCakeLevel({
-  id: 5, tier: 1, name: "STEAM VENT", floor: "kitchen", tiersCount: 5, goalX: 840, timeSec: 22,
-  lieKey: "t1_kitchen_steam",
-  obstacle: "High-pressure kitchen soup steam erupts with brutal leftward torque every 2.5s!",
-  tell: "Rising steam jet blasts across x=430..575 right when a sprinter reaches mid-kitchen.",
-  intendedRoute: "Pause before x=430 until the steam cycle clears or power through with STEADY + counter-lean E.",
-  hazards: [{ type: "wind", x: 430, w: 145, period: 150, onFrom: 110, onTo: 149, force: -14.0 }]
-});
-addCakeLevel({
-  id: 6, tier: 1, name: "SOUS-CHEF EXAM", floor: "kitchen", tiersCount: 6, goalX: 845, timeSec: 23,
-  lieKey: "t1_kitchen_boss",
-  obstacle: "Six unstable tiers slung off a sliding runner straight onto a 19px kitchen threshold!",
-  tell: "Crimson runner feeds directly into the raised kitchen stone floor at x=545.",
-  intendedRoute: "Control rug momentum with Q, tap STEADY at the threshold transition, and settle softly.",
-  hazards: [{ type: "rug", x: 270, w: 220, pushSpeed: 90 }, { type: "step", x: 545, w: 195, dy: -19 }]
-});
+const FLOOR_BY_VENUE = ["kitchen", "hall", "hall", "dance", "grass", "grass", "dance", "hall", "hall"];
+const HAZARD_META = {
+  butter:    { obs: "yellow butter spill strips shoe traction", tell: "Glossy gold puddle smears floor", tip: "counter-lean smoothly across butter" },
+  step:      { obs: "raised floor step jolts the tray upward", tell: "Gold-trimmed step lip ahead", tip: "slow speed or hit STEADY before crossing" },
+  rug:       { obs: "sliding carpet yanks shoes forward", tell: "Coral striped runner shifts underfoot", tip: "brace Q across carpet edges" },
+  crumble:   { obs: "cracked floor slab collapses after ~0.3s", tell: "Hairline crack splits stone slab", tip: "stride briskly without stopping on cracks" },
+  conveyor:  { obs: "moving belt drags shoes backward", tell: "Sliding chevron stripes pull left", tip: "lean forward through reverse pull" },
+  seesaw:    { obs: "teeter plank swings balance across center", tell: "Gold fulcrum triangle pivots board", tip: "flip Q/E lean right across pivot" },
+  wind:      { obs: "blasting lateral gusts hammer the tower", tell: "Streaking air lines cycle periodically", tip: "wait out peak gust or counter E" },
+  gustLR:    { obs: "reversing crosswinds flip direction", tell: "Dual-arrow wind streaks shift sides", tip: "swap Q/E counter-lean with direction" },
+  guest:     { obs: "solid banquet guest shoves carrier aside", tell: "Wait for CLEAR! sideboard step-back", tip: "hold outside patrol lane until CLEAR!" },
+  waiter:    { obs: "sprinting espresso waiter slams tray", tell: "Wait for white uniform CLEAR! beat", tip: "pause behind lane edge until CLEAR!" },
+  dog:       { obs: "hyper Crumb Hound rams your shins", tell: "Cross only while SNIFF (SAFE) holds", tip: "wait until the dog sits down to sniff" },
+  cork:      { obs: "popping champagne cork erupts sideways", tell: "Shaking bottle flashes POP! warning", tip: "pause outside cone during cork burst" },
+  flash:     { obs: "paparazzi flash startles the waiter", tell: "Tripod camera flashes SAY CHEESE! warn", tip: "wait outside flash zone or STEADY" },
+  polish:    { obs: "mirror-waxed dance floor ruins braking", tell: "Glossy parquet glare across lane", tip: "release Walk far early before table" },
+  disco:     { obs: "spinning disco tiles thrash stack left/right", tell: "Alternating gold-coral light strip", tip: "trigger STEADY entering disco strip" },
+  bump:      { obs: "uneven garden turf mound launches plate", tell: "Raised dark turf swell on path", tip: "creep evenly over mound crest" },
+  sprinkler: { obs: "garden sprinkler sprays lethal water jets", tell: "White HISS! mist bursts 0.5s early", tip: "wait dry at edge during water spray" }
+};
 
-// ---------------- TIER 2: BANQUET HALL (7..12) ----------------
-addCakeLevel({
-  id: 7, tier: 2, name: "UNCLE GARY", floor: "hall", tiersCount: 5, goalX: 840, timeSec: 23,
-  lieKey: "t2_pacing_guest",
-  obstacle: "Solid shoulder collisions from Uncle Gary shove you back and flatten your cake!",
-  tell: "Gary paces in foreground; wait until he steps back ('CLEAR!') off the red carpet.",
-  intendedRoute: "Wait at x=310 until Gary steps to the sideboard, then walk briskly past with clean Q/E balance.",
-  hazards: [{ type: "guest", x: 470, minX: 330, maxX: 620, vx: 92, push: 14.0, lanePeriod: 175, clearFrom: 110 }]
-});
-addCakeLevel({
-  id: 8, tier: 2, name: "TRAFFIC WAITER", floor: "hall", tiersCount: 5, goalX: 840, timeSec: 23,
-  lieKey: "t2_waiter_tray",
-  obstacle: "A frantic waiter dashes 145 px/s across the aisle—one collision launches every tier!",
-  tell: "Waiter flashes '!' before stepping back off the carpet runner.",
-  intendedRoute: "Stop cleanly outside his lane, time his sideboard step-back, and cross cleanly.",
-  hazards: [{ type: "waiter", x: 520, minX: 300, maxX: 720, vx: -145, push: 16.0, lanePeriod: 165, clearFrom: 105 }]
-});
-addCakeLevel({
-  id: 9, tier: 2, name: "CRUMB HOUND", floor: "hall", tiersCount: 6, goalX: 840, timeSec: 24,
-  lieKey: "t2_dog_sniff",
-  obstacle: "Six tiers above an excited dog—he only clears the aisle while sitting down to sniff!",
-  tell: "Crumb Hound dashes in-lane until 'SNIFF (SAFE)' pauses him beside the carpet.",
-  intendedRoute: "Wait until SNIFF pauses the hound off-aisle, stride cleanly past, and settle carefully.",
-  hazards: [{ type: "dog", x: 340, minX: 260, maxX: 690, vx: 122, pausePeriod: 140, pauseLen: 55, push: 15.0 }]
-});
-addCakeLevel({
-  id: 10, tier: 2, name: "CHATTERBOX DUO", floor: "hall", tiersCount: 6, goalX: 845, timeSec: 25,
-  lieKey: "t2_twin_guests",
-  obstacle: "Two out-of-phase hall guests ambush anyone who doesn't respect the center gap!",
-  tell: "Each guest alternates foreground blocking with sideboard 'CLEAR!' breaks.",
-  intendedRoute: "Pass guest 1 during the clear beat, settle calmly at x=495, then pass guest 2.",
-  hazards: [
-    { type: "guest", x: 370, minX: 280, maxX: 475, vx: 96, push: 14.0, lanePeriod: 170, clearFrom: 105 },
-    { type: "guest", x: 615, minX: 515, maxX: 730, vx: -96, push: 14.0, lanePeriod: 170, clearFrom: 105 }
-  ]
-});
-addCakeLevel({
-  id: 11, tier: 2, name: "RUG & TRAY", floor: "hall", tiersCount: 6, goalX: 845, timeSec: 25,
-  lieKey: "t2_rug_plus_waiter",
-  obstacle: "Fast sliding carpet throws you directly into a charging espresso waiter!",
-  tell: "Rug ends at x=500 straight at the waiter's left turnaround post.",
-  intendedRoute: "Counter-lean across the rug, brake sharply before x=500 if waiter is in-lane, then clear safely.",
-  hazards: [{ type: "rug", x: 280, w: 220, pushSpeed: 92 }, { type: "waiter", x: 650, minX: 505, maxX: 755, vx: -135, push: 16.0, lanePeriod: 165, clearFrom: 105 }]
-});
-addCakeLevel({
-  id: 12, tier: 2, name: "AISLE CRASHERS", floor: "hall", tiersCount: 6, goalX: 850, timeSec: 26,
-  lieKey: "t2_hall_boss",
-  obstacle: "6 tiers across an 18px step, dashing crumb hound, AND pacing banquet guest!",
-  tell: "Gold step edge leads into alternating SNIFF and CLEAR cycles.",
-  intendedRoute: "Ease smoothly up x=300, thread the hound while sitting, wait for guest clear, and settle softly.",
-  hazards: [
-    { type: "step", x: 300, w: 130, dy: -18 },
-    { type: "dog", x: 470, minX: 370, maxX: 615, vx: 118, pausePeriod: 135, pauseLen: 52, push: 14.5 },
-    { type: "guest", x: 700, minX: 615, maxX: 775, vx: -92, push: 14.0, lanePeriod: 170, clearFrom: 105 }
-  ]
-});
+const LEVEL_SPECS = [
+  // VENUE 1: KITCHEN PREP (1..8)
+  { n: "FIRST SERVING",      tr: 4, tm: 8.0,  gx: 820, lk: "v1_first_serving",  hz: [{ type: "butter", x: 460, w: 75 }] },
+  { n: "SLICK & STEP",       tr: 5, tm: 9.0,  gx: 825, lk: "v1_kitchen_step",   hz: [{ type: "butter", x: 290, w: 65 }, { type: "step", x: 465, w: 300, dy: -20 }] },
+  { n: "GREASY RUNNER",      tr: 5, tm: 9.0,  gx: 825, lk: "v1_greasy_rug",     hz: [{ type: "rug", x: 300, w: 260, pushSpeed: 96 }, { type: "butter", x: 640, w: 65 }] },
+  { n: "TWIN RISERS",        tr: 5, tm: 9.5,  gx: 830, lk: "v1_twin_steps",     hz: [{ type: "step", x: 310, w: 120, dy: -18 }, { type: "step", x: 545, w: 150, dy: -24 }] },
+  { n: "PRESSURE STEAM",     tr: 5, tm: 10.5, gx: 830, lk: "v1_steam_jet",      hz: [{ type: "wind", x: 420, w: 145, period: 140, onFrom: 95, onTo: 138, force: -15.0 }] },
+  { n: "CRACKED QUARRY",     tr: 6, tm: 10.5, gx: 835, lk: "v1_crumble_tile",   hz: [{ type: "crumble", x: 380, w: 120, delay: 18, dy: 22 }, { type: "step", x: 580, w: 150, dy: -19 }] },
+  { n: "CONVEYOR PASS",      tr: 6, tm: 11.5, gx: 835, lk: "v1_conveyor_back",  hz: [{ type: "conveyor", x: 300, w: 220, pushSpeed: -78 }, { type: "butter", x: 600, w: 70 }] },
+  { n: "CHEF'S GAUNTLET",    tr: 6, tm: 12.0, gx: 840, lk: "v1_kitchen_boss",   hz: [{ type: "rug", x: 240, w: 175, pushSpeed: 92 }, { type: "crumble", x: 470, w: 95, delay: 18, dy: 22 }, { type: "step", x: 620, w: 175, dy: -20 }] },
 
-// ---------------- TIER 3: DANCE FLOOR (13..18) ----------------
-addCakeLevel({
-  id: 13, tier: 3, name: "WAXED PARQUET", floor: "dance", tiersCount: 6, goalX: 840, timeSec: 23,
-  lieKey: "t3_low_friction",
-  obstacle: "Butter-slick dance wax ruins stopping distance—late braking skids past the VIP table!",
-  tell: "Mirror-polished parquet streaks reflect spotlight across the entire ballroom floor.",
-  intendedRoute: "Counter-lean steadily across x=200..800, release Walk far early, and brake gently before x=840.",
-  hazards: [{ type: "polish", x: 200, w: 600 }]
-});
-addCakeLevel({
-  id: 14, tier: 3, name: "DISCO SPIN", floor: "dance", tiersCount: 6, goalX: 840, timeSec: 23,
-  lieKey: "t3_spinning_disco",
-  obstacle: "High-torque gold disco tiles thrash your 6-tier stack wildly left and right!",
-  tell: "Flashing gold-coral disco floor strip whips rotational oscillation across x=400..600.",
-  intendedRoute: "Activate STEADY entering x=400, stabilize counter-lean swiftly, and settle smoothly on wax.",
-  hazards: [{ type: "disco", x: 400, w: 200, torque: 12.5 }]
-});
-addCakeLevel({
-  id: 15, tier: 3, name: "CONGA CHAOS", floor: "dance", tiersCount: 6, goalX: 845, timeSec: 25,
-  lieKey: "t3_conga_line",
-  obstacle: "Tightly spaced Conga partners on slippery wax wreck anyone who rushes into them!",
-  tell: "Synced dancers step aside in unison when CLEAR lights up off the dance lane.",
-  intendedRoute: "Stop early on low-grip wax outside x=290, stride smoothly through the CLEAR window, and brake early.",
-  hazards: [
-    { type: "guest", x: 400, minX: 290, maxX: 560, vx: 84, push: 14.0, lanePeriod: 165, clearFrom: 105 },
-    { type: "guest", x: 446, minX: 336, maxX: 606, vx: 84, push: 14.0, lanePeriod: 165, clearFrom: 105 }
-  ]
-});
-addCakeLevel({
-  id: 16, tier: 3, name: "POLISHED GUESTS", floor: "dance", tiersCount: 6, goalX: 845, timeSec: 25,
-  lieKey: "t3_wax_plus_guest",
-  obstacle: "Low-friction braking forces you to predict a pacing dancer BEFORE sliding into range!",
-  tell: "Gleaming floor strip doubles stopping distance straight toward the dancer patrol.",
-  intendedRoute: "Feather speed early, cross cleanly when CLEAR, and glide to a soft stop.",
-  hazards: [{ type: "polish", x: 220, w: 560 }, { type: "guest", x: 540, minX: 420, maxX: 650, vx: -82, push: 14.0, lanePeriod: 170, clearFrom: 105 }]
-});
-addCakeLevel({
-  id: 17, tier: 3, name: "FEVER NIGHT", floor: "dance", tiersCount: 7, goalX: 845, timeSec: 26,
-  lieKey: "t3_disco_plus_conga",
-  obstacle: "Seven tiers hit violent disco spin straight ahead of a 135 px/s dashing waiter!",
-  tell: "Spinning gold mat sits just ahead of the waiter's clearing cycle.",
-  intendedRoute: "STEADY over disco spin, stabilize before x=515, wait for waiter CLEAR, then glide home.",
-  hazards: [{ type: "disco", x: 330, w: 175, torque: 13.0 }, { type: "waiter", x: 660, minX: 515, maxX: 755, vx: -135, push: 16.0, lanePeriod: 165, clearFrom: 105 }]
-});
-addCakeLevel({
-  id: 18, tier: 3, name: "RECEPTION CLIMAX", floor: "dance", tiersCount: 7, goalX: 850, timeSec: 27,
-  lieKey: "t3_dance_boss",
-  obstacle: "7 tiers over mirror wax, spinning disco tiles, AND an accelerating reception carpet!",
-  tell: "Three sequential ballroom surfaces leave near-zero braking room before the VIP table.",
-  intendedRoute: "Steady the disco whip, counter-lean the carpet push at x=565, and brake early on exit.",
-  hazards: [{ type: "polish", x: 200, w: 590 }, { type: "disco", x: 340, w: 150, torque: 13.0 }, { type: "rug", x: 565, w: 155, pushSpeed: 88 }]
-});
+  // VENUE 2: SERVICE CORRIDOR (9..16)
+  { n: "UNCLE GARY",         tr: 5, tm: 12.0, gx: 830, lk: "v2_uncle_gary",     hz: [{ type: "guest", x: 470, minX: 330, maxX: 615, vx: 96, push: 15.0, lanePeriod: 155, clearFrom: 95 }] },
+  { n: "ESPRESSO WAITER",    tr: 5, tm: 12.0, gx: 830, lk: "v2_waiter_dash",    hz: [{ type: "waiter", x: 520, minX: 310, maxX: 700, vx: -150, push: 16.5, lanePeriod: 150, clearFrom: 92 }] },
+  { n: "BUTTER & GARY",      tr: 6, tm: 12.5, gx: 835, lk: "v2_butter_gary",    hz: [{ type: "butter", x: 280, w: 75 }, { type: "guest", x: 510, minX: 410, maxX: 660, vx: -98, push: 15.0, lanePeriod: 155, clearFrom: 95 }] },
+  { n: "TEETER PLANK",       tr: 6, tm: 11.0, gx: 835, lk: "v2_seesaw_plank",   hz: [{ type: "seesaw", x: 350, w: 180, force: 10.5 }, { type: "butter", x: 640, w: 65 }] },
+  { n: "BACKING BELT",       tr: 6, tm: 14.5, gx: 835, lk: "v2_belt_waiter",    hz: [{ type: "conveyor", x: 250, w: 170, pushSpeed: -75 }, { type: "waiter", x: 560, minX: 455, maxX: 715, vx: -140, push: 16.5, lanePeriod: 150, clearFrom: 92 }] },
+  { n: "RUG INTO WAITER",    tr: 6, tm: 14.5, gx: 840, lk: "v2_rug_waiter",     hz: [{ type: "rug", x: 260, w: 195, pushSpeed: 94 }, { type: "waiter", x: 630, minX: 500, maxX: 745, vx: -138, push: 16.5, lanePeriod: 155, clearFrom: 95 }] },
+  { n: "CRACKED AISLE",      tr: 6, tm: 14.5, gx: 840, lk: "v2_crumble_guest",  hz: [{ type: "crumble", x: 300, w: 110, delay: 18, dy: 22 }, { type: "guest", x: 550, minX: 455, maxX: 700, vx: 96, push: 15.0, lanePeriod: 155, clearFrom: 95 }] },
+  { n: "HALLWAYS BOSS",      tr: 7, tm: 15.5, gx: 845, lk: "v2_corridor_boss",  hz: [{ type: "seesaw", x: 260, w: 160, force: 11.5 }, { type: "waiter", x: 540, minX: 460, maxX: 710, vx: -140, push: 16.5, lanePeriod: 150, clearFrom: 92 }, { type: "butter", x: 745, w: 60 }] },
 
-// ---------------- TIER 4: GARDEN (19..24) ----------------
-addCakeLevel({
-  id: 19, tier: 4, name: "UNEVEN LAWN", floor: "grass", tiersCount: 6, goalX: 840, timeSec: 23,
-  lieKey: "t4_grass_bumps",
-  obstacle: "Deep turf mounds launch speedrunners' 6-tier cakes right off their trays!",
-  tell: "Two tall mound silhouettes jut 16px and 19px above the garden walkway.",
-  intendedRoute: "Slow before each mound edge, steady up over bump 1, and counter-lean bump 2.",
-  hazards: [{ type: "bump", x: 350, w: 75, dy: -16 }, { type: "bump", x: 560, w: 85, dy: -19 }]
-});
-addCakeLevel({
-  id: 20, tier: 4, name: "SPRINKLER AMBUSH", floor: "grass", tiersCount: 6, goalX: 845, timeSec: 24,
-  lieKey: "t4_timed_sprinkler",
-  obstacle: "Garden sprinkler hisses right before high-pressure water jets shred your stack!",
-  tell: "White HISS! mist bursts loudly 0.5s before lethal green spray jets fill x=420..540.",
-  intendedRoute: "Wait cleanly dry beside x=410 through the water blast, then stride cleanly across.",
-  hazards: [{ type: "sprinkler", x: 480, w: 125, period: 175, hissAt: 100, blastAt: 130, endAt: 174, push: 17.0 }]
-});
-addCakeLevel({
-  id: 21, tier: 4, name: "GUSTY VOWS", floor: "grass", tiersCount: 6, goalX: 845, timeSec: 25,
-  lieKey: "t4_wind_rhythm",
-  obstacle: "Fierce crosswinds tear leftward across 500px of exposed rose-arch turf!",
-  tell: "Leaves streak fast leftward every 2.75s along the garden aisle.",
-  intendedRoute: "Lean E sharply into every wind wave or hold steady during peak gust ticks.",
-  hazards: [{ type: "wind", x: 260, w: 500, period: 165, onFrom: 80, onTo: 155, force: -12.5 }]
-});
-addCakeLevel({
-  id: 22, tier: 4, name: "PATIO STAIRS", floor: "grass", tiersCount: 7, goalX: 850, timeSec: 25,
-  lieKey: "t4_garden_stairs",
-  obstacle: "Three steep 16px stone risers stack relentless cumulative wobble across 7 tiers!",
-  tell: "Triple stone stair steps climb 48px high toward the garden pavilion.",
-  intendedRoute: "Ascend gently at controlled speed, use STEADY across stairs 1-2, and counter-lean step 3.",
-  hazards: [{ type: "step", x: 370, w: 90, dy: -16 }, { type: "step", x: 460, w: 90, dy: -32 }, { type: "step", x: 550, w: 230, dy: -48 }]
-});
-addCakeLevel({
-  id: 23, tier: 4, name: "STORM LAWN", floor: "grass", tiersCount: 7, goalX: 850, timeSec: 26,
-  lieKey: "t4_sprinkler_wind",
-  obstacle: "High-pressure sprinkler blasts straight into sustained leftward gale winds!",
-  tell: "Sprinkler hiss warns at x=410 while swirling leaf streaks whip behind it.",
-  intendedRoute: "Skip the water spray cleanly, then brace right (E) through the wind tunnel.",
-  hazards: [
-    { type: "sprinkler", x: 410, w: 115, period: 165, hissAt: 90, blastAt: 120, endAt: 164, push: 17.0 },
-    { type: "wind", x: 540, w: 230, period: 155, onFrom: 75, onTo: 145, force: -12.5 }
-  ]
-});
-addCakeLevel({
-  id: 24, tier: 4, name: "GAZEBO FINALE", floor: "grass", tiersCount: 7, goalX: 850, timeSec: 27,
-  lieKey: "t4_garden_boss",
-  obstacle: "Seven tiers through grass mound bounce, sprinkler eruption, AND tall stone threshold!",
-  tell: "Turf mound -> mist warning hiss -> final 20px stone step.",
-  intendedRoute: "Slow over the mound, wait out sprinkler jet cleanly, and trigger STEADY onto the gazebo stone.",
-  hazards: [
-    { type: "bump", x: 300, w: 70, dy: -16 },
-    { type: "sprinkler", x: 470, w: 108, period: 165, hissAt: 95, blastAt: 125, endAt: 164, push: 17.0 },
-    { type: "step", x: 635, w: 175, dy: -20 }
-  ]
-});
+  // VENUE 3: GRAND BANQUET (17..24)
+  { n: "CRUMB HOUND",        tr: 6, tm: 14.5, gx: 835, lk: "v3_crumb_hound",    hz: [{ type: "dog", x: 350, minX: 270, maxX: 685, vx: 126, pausePeriod: 130, pauseLen: 52, push: 15.5 }] },
+  { n: "CHATTERBOX DUO",     tr: 6, tm: 15.5, gx: 840, lk: "v3_chatter_duo",    hz: [{ type: "guest", x: 370, minX: 280, maxX: 470, vx: 98, push: 14.5, lanePeriod: 155, clearFrom: 95 }, { type: "guest", x: 620, minX: 525, maxX: 730, vx: -98, push: 14.5, lanePeriod: 155, clearFrom: 95 }] },
+  { n: "POPPING CORK!",      tr: 6, tm: 13.5, gx: 840, lk: "v3_champagne_pop",  hz: [{ type: "cork", x: 480, w: 115, period: 145, warnAt: 75, popAt: 105, endAt: 140, push: 16.5 }] },
+  { n: "PAPARAZZI FLASH",    tr: 6, tm: 13.5, gx: 840, lk: "v3_paparazzi_1",    hz: [{ type: "flash", x: 495, w: 125, period: 150, warnAt: 75, flashAt: 108, endAt: 138, push: 16.0 }] },
+  { n: "TOAST & TRAY",       tr: 7, tm: 15.0, gx: 840, lk: "v3_cork_waiter",    hz: [{ type: "cork", x: 380, w: 105, period: 145, warnAt: 75, popAt: 105, endAt: 140, push: 16.5 }, { type: "waiter", x: 650, minX: 535, maxX: 755, vx: -138, push: 16.5, lanePeriod: 150, clearFrom: 92 }] },
+  { n: "FLASH ON BUTTER",    tr: 7, tm: 14.0, gx: 840, lk: "v3_flash_butter",   hz: [{ type: "butter", x: 310, w: 80 }, { type: "flash", x: 540, w: 120, period: 145, warnAt: 72, flashAt: 104, endAt: 134, push: 16.0 }] },
+  { n: "HOUND CHASES CORK",  tr: 7, tm: 15.5, gx: 845, lk: "v3_hound_cork",     hz: [{ type: "dog", x: 350, minX: 270, maxX: 520, vx: 120, pausePeriod: 125, pauseLen: 50, push: 15.5 }, { type: "cork", x: 640, w: 105, period: 145, warnAt: 75, popAt: 105, endAt: 140, push: 16.5 }] },
+  { n: "AISLE CRASHERS",     tr: 7, tm: 16.0, gx: 850, lk: "v3_banquet_boss",   hz: [{ type: "step", x: 270, w: 110, dy: -19 }, { type: "cork", x: 460, w: 100, period: 145, warnAt: 75, popAt: 105, endAt: 140, push: 16.5 }, { type: "guest", x: 690, minX: 615, maxX: 770, vx: -95, push: 14.5, lanePeriod: 155, clearFrom: 95 }] },
 
-// ---------------- TIER 5: GRAND WEDDING BOSSES (25..30) ----------------
-addCakeLevel({
-  id: 25, tier: 5, name: "BEST MAN SPEECH", floor: "hall", tiersCount: 7, goalX: 855, timeSec: 18,
-  lieKey: "t5_speech_rush",
-  obstacle: "Brutal 18-second clock forces aggressive pacing over an 18px step & clearing guest!",
-  tell: "Countdown burns fast above 7 towering layers.",
-  intendedRoute: "Keep brisk rhythm with tight Q/E corrections, STEADY step 1, slip behind guest, settle!",
-  hazards: [{ type: "step", x: 390, w: 120, dy: -18 }, { type: "guest", x: 630, minX: 530, maxX: 735, vx: -100, push: 14.0, lanePeriod: 165, clearFrom: 105 }]
-});
-addCakeLevel({
-  id: 26, tier: 5, name: "HOUND ON DISCO", floor: "dance", tiersCount: 7, goalX: 855, timeSec: 25,
-  lieKey: "t5_dog_rug_disco",
-  obstacle: "Waxed parquet + violent disco tiles directly ahead of a sprinting Crumb Hound!",
-  tell: "Flashing gold disco zone ends moments before the dog's patrol turf.",
-  intendedRoute: "STEADY cleanly over disco spin, coast while dog enters SNIFF, and finish softly.",
-  hazards: [{ type: "polish", x: 220, w: 580 }, { type: "disco", x: 330, w: 135, torque: 13.0 }, { type: "dog", x: 590, minX: 495, maxX: 710, vx: -96, pausePeriod: 135, pauseLen: 52, push: 15.0 }]
-});
-addCakeLevel({
-  id: 27, tier: 5, name: "WINDY STAIRS", floor: "grass", tiersCount: 7, goalX: 855, timeSec: 26,
-  lieKey: "t5_stairs_wind_waiter",
-  obstacle: "Gale-force crosswinds hammer your 7 tiers mid-climb up twin 18px garden stairs!",
-  tell: "Leaf gusts blow hard right as steps climb to -36px.",
-  intendedRoute: "Climb stairs between gust waves or counter-lean E strongly while tapping STEADY.",
-  hazards: [
-    { type: "wind", x: 280, w: 490, period: 145, onFrom: 65, onTo: 130, force: -12.5 },
-    { type: "step", x: 440, w: 110, dy: -18 },
-    { type: "step", x: 550, w: 230, dy: -36 }
-  ]
-});
-addCakeLevel({
-  id: 28, tier: 5, name: "WAITER IN MONSOON", floor: "grass", tiersCount: 8, goalX: 855, timeSec: 26,
-  lieKey: "t5_sprinkler_waiter",
-  obstacle: "An EIGHT-TIER skyscraper faces monsoon sprinklers AND a 138 px/s waiter ambush!",
-  tell: "Sprinkler jet precedes the waiter's fast banquet corridor.",
-  intendedRoute: "Cross dry between sprinkler cycles, wait for waiter CLEAR, and settle smoothly on top.",
-  hazards: [
-    { type: "sprinkler", x: 380, w: 110, period: 160, hissAt: 80, blastAt: 110, endAt: 155, push: 17.0 },
-    { type: "waiter", x: 660, minX: 520, maxX: 765, vx: -138, push: 16.0, lanePeriod: 165, clearFrom: 105 }
-  ]
-});
-addCakeLevel({
-  id: 29, tier: 5, name: "EIGHT-TIER FEVER", floor: "dance", tiersCount: 8, goalX: 860, timeSec: 27,
-  lieKey: "t5_eight_tier_nightmare",
-  obstacle: "Eight top-heavy layers slung from a carpet runner onto mirror wax and twin dancers!",
-  tell: "Runner pushes you straight toward dancer 1; bay [605..640] rests cleanly between dancers.",
-  intendedRoute: "Counter-lean off the runner early, brake before x=450, and thread CLEAR beats gracefully.",
-  hazards: [
-    { type: "polish", x: 200, w: 600 },
-    { type: "rug", x: 230, w: 130, pushSpeed: 84 },
-    { type: "guest", x: 520, minX: 455, maxX: 605, vx: 82, push: 14.0, lanePeriod: 165, clearFrom: 100 },
-    { type: "guest", x: 710, minX: 640, maxX: 780, vx: -82, push: 14.0, lanePeriod: 165, clearFrom: 100 }
-  ]
-});
-addCakeLevel({
-  id: 30, tier: 5, name: "THE WEDDING DAY", floor: "hall", tiersCount: 8, goalX: 865, timeSec: 24,
-  lieKey: "t5_grand_wedding_boss",
-  obstacle: "Eight tiers vs sliding runner, violent disco spin, lethal sprinkler, step lip, and 24s timer!",
-  tell: "Every trap strikes back-to-back with unmistakable visual cues before the final VIP table.",
-  intendedRoute: "Ride the rug balanced, STEADY across disco, skip sprinkler spray, ease up the step, and settle!",
-  hazards: [
-    { type: "rug", x: 220, w: 135, pushSpeed: 90 },
-    { type: "disco", x: 385, w: 115, torque: 13.0 },
-    { type: "sprinkler", x: 535, w: 100, period: 160, hissAt: 85, blastAt: 115, endAt: 159, push: 17.0 },
-    { type: "step", x: 665, w: 185, dy: -19 }
-  ]
+  // VENUE 4: WAXED BALLROOM (25..32)
+  { n: "WAXED PARQUET",      tr: 6, tm: 11.5, gx: 835, lk: "v4_wax_parquet",    hz: [{ type: "polish", x: 190, w: 615 }] },
+  { n: "DISCO SPIN",         tr: 6, tm: 12.0, gx: 835, lk: "v4_disco_spin",     hz: [{ type: "disco", x: 380, w: 205, torque: 13.5 }] },
+  { n: "CONGA CHAOS",        tr: 7, tm: 15.0, gx: 840, lk: "v4_conga_chaos",    hz: [{ type: "guest", x: 390, minX: 280, maxX: 550, vx: 88, push: 14.5, lanePeriod: 155, clearFrom: 95 }, { type: "guest", x: 436, minX: 326, maxX: 596, vx: 88, push: 14.5, lanePeriod: 155, clearFrom: 95 }] },
+  { n: "POLISHED FLASH",     tr: 7, tm: 13.5, gx: 840, lk: "v4_wax_flash",      hz: [{ type: "polish", x: 200, w: 590 }, { type: "flash", x: 510, w: 120, period: 145, warnAt: 70, flashAt: 100, endAt: 132, push: 16.0 }] },
+  { n: "FEVER NIGHT",        tr: 7, tm: 15.0, gx: 845, lk: "v4_disco_waiter",   hz: [{ type: "disco", x: 320, w: 175, torque: 13.5 }, { type: "waiter", x: 640, minX: 530, maxX: 750, vx: -138, push: 16.5, lanePeriod: 150, clearFrom: 92 }] },
+  { n: "BUTTER ON DANCE",    tr: 7, tm: 13.0, gx: 845, lk: "v4_butter_disco",   hz: [{ type: "butter", x: 310, w: 80 }, { type: "disco", x: 460, w: 170, torque: 14.0 }] },
+  { n: "CRACKED BALLROOM",   tr: 7, tm: 13.5, gx: 845, lk: "v4_crumble_wax",    hz: [{ type: "polish", x: 200, w: 590 }, { type: "crumble", x: 350, w: 100, delay: 17, dy: 22 }, { type: "disco", x: 530, w: 150, torque: 13.5 }] },
+  { n: "RECEPTION CLIMAX",   tr: 8, tm: 15.0, gx: 850, lk: "v4_ballroom_boss",  hz: [{ type: "polish", x: 190, w: 615 }, { type: "disco", x: 330, w: 145, torque: 13.8 }, { type: "rug", x: 550, w: 155, pushSpeed: 90 }] },
+
+  // VENUE 5: GARDEN CEREMONY (33..40)
+  { n: "UNEVEN LAWN",        tr: 6, tm: 12.0, gx: 835, lk: "v5_grass_bumps",    hz: [{ type: "bump", x: 340, w: 75, dy: -17 }, { type: "bump", x: 550, w: 85, dy: -20 }] },
+  { n: "SPRINKLER AMBUSH",   tr: 7, tm: 14.0, gx: 840, lk: "v5_sprinkler_1",    hz: [{ type: "sprinkler", x: 480, w: 125, period: 165, hissAt: 90, blastAt: 120, endAt: 160, push: 17.5 }] },
+  { n: "GUSTY VOWS",         tr: 7, tm: 13.5, gx: 840, lk: "v5_wind_gusts",     hz: [{ type: "wind", x: 250, w: 505, period: 155, onFrom: 75, onTo: 145, force: -13.5 }] },
+  { n: "PATIO STAIRS",       tr: 7, tm: 13.5, gx: 845, lk: "v5_patio_stairs",   hz: [{ type: "step", x: 360, w: 90, dy: -16 }, { type: "step", x: 450, w: 90, dy: -32 }, { type: "step", x: 540, w: 235, dy: -48 }] },
+  { n: "SINKING STONES",     tr: 7, tm: 13.5, gx: 845, lk: "v5_crumble_stones", hz: [{ type: "crumble", x: 320, w: 100, delay: 17, dy: 22 }, { type: "crumble", x: 540, w: 100, delay: 17, dy: 22 }] },
+  { n: "STORM LAWN",         tr: 7, tm: 15.0, gx: 845, lk: "v5_storm_lawn",     hz: [{ type: "sprinkler", x: 400, w: 115, period: 155, hissAt: 85, blastAt: 115, endAt: 150, push: 17.5 }, { type: "wind", x: 540, w: 230, period: 150, onFrom: 70, onTo: 138, force: -13.5 }] },
+  { n: "HOUND IN RAIN",      tr: 7, tm: 15.5, gx: 845, lk: "v5_hound_spray",    hz: [{ type: "sprinkler", x: 360, w: 105, period: 155, hissAt: 85, blastAt: 115, endAt: 150, push: 17.5 }, { type: "dog", x: 580, minX: 495, maxX: 730, vx: -115, pausePeriod: 130, pauseLen: 52, push: 15.5 }] },
+  { n: "GAZEBO FINALE",      tr: 8, tm: 15.5, gx: 850, lk: "v5_garden_boss",    hz: [{ type: "bump", x: 280, w: 70, dy: -17 }, { type: "sprinkler", x: 460, w: 108, period: 155, hissAt: 85, blastAt: 115, endAt: 150, push: 17.5 }, { type: "step", x: 630, w: 185, dy: -21 }] },
+
+  // VENUE 6: CHAMPAGNE PATIO (41..48)
+  { n: "DOUBLE POP",         tr: 7, tm: 14.5, gx: 840, lk: "v6_double_cork",    hz: [{ type: "cork", x: 360, w: 105, period: 140, warnAt: 70, popAt: 100, endAt: 135, push: 17.0 }, { type: "cork", x: 610, w: 105, period: 140, warnAt: 30, popAt: 60, endAt: 95, push: 17.0 }] },
+  { n: "BUTTER ON GRASS",    tr: 7, tm: 13.0, gx: 840, lk: "v6_butter_bump",    hz: [{ type: "butter", x: 300, w: 80 }, { type: "bump", x: 460, w: 85, dy: -19 }, { type: "butter", x: 620, w: 75 }] },
+  { n: "TREADMILL TOAST",    tr: 7, tm: 14.5, gx: 845, lk: "v6_belt_cork",      hz: [{ type: "conveyor", x: 260, w: 190, pushSpeed: -82 }, { type: "cork", x: 580, w: 110, period: 145, warnAt: 75, popAt: 105, endAt: 140, push: 17.0 }] },
+  { n: "PATIO TEETER",       tr: 7, tm: 13.5, gx: 845, lk: "v6_seesaw_spray",   hz: [{ type: "seesaw", x: 290, w: 175, force: 12.0 }, { type: "sprinkler", x: 590, w: 110, period: 155, hissAt: 85, blastAt: 115, endAt: 150, push: 17.5 }] },
+  { n: "TOAST & PHOTOS",     tr: 8, tm: 14.5, gx: 845, lk: "v6_cork_flash",     hz: [{ type: "cork", x: 370, w: 105, period: 145, warnAt: 75, popAt: 105, endAt: 140, push: 17.0 }, { type: "flash", x: 610, w: 115, period: 150, warnAt: 75, flashAt: 108, endAt: 138, push: 16.5 }] },
+  { n: "RUNNER TO MIST",     tr: 8, tm: 14.5, gx: 845, lk: "v6_rug_spray",      hz: [{ type: "rug", x: 240, w: 175, pushSpeed: 94 }, { type: "sprinkler", x: 530, w: 110, period: 155, hissAt: 85, blastAt: 115, endAt: 150, push: 17.5 }] },
+  { n: "DUO UNDER CORKS",    tr: 8, tm: 16.0, gx: 850, lk: "v6_duo_cork",       hz: [{ type: "guest", x: 350, minX: 270, maxX: 430, vx: 92, push: 14.5, lanePeriod: 155, clearFrom: 95 }, { type: "cork", x: 575, w: 105, period: 145, warnAt: 75, popAt: 105, endAt: 140, push: 17.0 }] },
+  { n: "PATIO BOSS",         tr: 8, tm: 16.0, gx: 855, lk: "v6_patio_boss",     hz: [{ type: "seesaw", x: 250, w: 155, force: 12.0 }, { type: "cork", x: 485, w: 105, period: 145, warnAt: 75, popAt: 105, endAt: 140, push: 17.0 }, { type: "step", x: 660, w: 165, dy: -20 }] },
+
+  // VENUE 7: ROOFTOP GALA (49..56)
+  { n: "CROSSWIND GALE",     tr: 7, tm: 13.5, gx: 840, lk: "v7_crosswind",      hz: [{ type: "gustLR", x: 260, w: 480, period: 140, force: 9.8 }] },
+  { n: "SKYLINE CRUMBLE",    tr: 8, tm: 13.5, gx: 845, lk: "v7_sky_crumble",    hz: [{ type: "crumble", x: 290, w: 95, delay: 16, dy: 22 }, { type: "seesaw", x: 465, w: 150, force: 10.5 }, { type: "crumble", x: 675, w: 80, delay: 16, dy: 22 }] },
+  { n: "STROBE BALLROOM",    tr: 8, tm: 14.0, gx: 845, lk: "v7_disco_flash",    hz: [{ type: "disco", x: 290, w: 160, torque: 14.0 }, { type: "flash", x: 575, w: 115, period: 145, warnAt: 70, flashAt: 100, endAt: 132, push: 16.5 }] },
+  { n: "GUSTING BELT",       tr: 8, tm: 14.5, gx: 845, lk: "v7_gust_belt",      hz: [{ type: "conveyor", x: 270, w: 170, pushSpeed: -84 }, { type: "gustLR", x: 480, w: 280, period: 140, force: 10.0 }] },
+  { n: "ROOFTOP WAITER",     tr: 8, tm: 15.0, gx: 850, lk: "v7_wind_waiter",    hz: [{ type: "wind", x: 240, w: 230, period: 150, onFrom: 65, onTo: 135, force: -13.5 }, { type: "waiter", x: 610, minX: 500, maxX: 745, vx: -140, push: 16.5, lanePeriod: 150, clearFrom: 92 }] },
+  { n: "SLICK SKYLINE",      tr: 8, tm: 14.5, gx: 850, lk: "v7_wax_gust",       hz: [{ type: "polish", x: 200, w: 595 }, { type: "butter", x: 350, w: 70 }, { type: "gustLR", x: 480, w: 260, period: 140, force: 9.8 }] },
+  { n: "BALCONY STAIRS",     tr: 8, tm: 14.5, gx: 850, lk: "v7_windy_stairs",   hz: [{ type: "wind", x: 270, w: 480, period: 140, onFrom: 60, onTo: 122, force: -13.5 }, { type: "step", x: 430, w: 110, dy: -18 }, { type: "step", x: 540, w: 240, dy: -36 }] },
+  { n: "ROOFTOP CLIMAX",     tr: 9, tm: 15.0, gx: 855, lk: "v7_rooftop_boss",   hz: [{ type: "gustLR", x: 240, w: 300, period: 140, force: 9.8 }, { type: "disco", x: 440, w: 130, torque: 14.0 }, { type: "flash", x: 645, w: 110, period: 145, warnAt: 70, flashAt: 100, endAt: 132, push: 16.5 }] },
+
+  // VENUE 8: VIP GAUNTLET (57..64)
+  { n: "BEST MAN SPEECH",    tr: 8, tm: 10.0, gx: 850, lk: "v8_speech_sprint",  hz: [{ type: "step", x: 380, w: 120, dy: -19 }, { type: "butter", x: 590, w: 70 }] },
+  { n: "HOUND ON DISCO",     tr: 8, tm: 15.0, gx: 850, lk: "v8_hound_disco",    hz: [{ type: "polish", x: 210, w: 585 }, { type: "disco", x: 315, w: 135, torque: 13.5 }, { type: "dog", x: 580, minX: 490, maxX: 720, vx: -105, pausePeriod: 130, pauseLen: 52, push: 15.5 }] },
+  { n: "TRIPLE THREAT",      tr: 8, tm: 14.5, gx: 850, lk: "v8_triple_trap",    hz: [{ type: "crumble", x: 260, w: 90, delay: 16, dy: 22 }, { type: "cork", x: 455, w: 105, period: 140, warnAt: 70, popAt: 100, endAt: 135, push: 17.0 }, { type: "seesaw", x: 625, w: 140, force: 11.0 }] },
+  { n: "MONSOON SERVICE",    tr: 9, tm: 15.0, gx: 850, lk: "v8_monsoon_vip",    hz: [{ type: "sprinkler", x: 370, w: 105, period: 150, hissAt: 80, blastAt: 110, endAt: 145, push: 17.5 }, { type: "waiter", x: 640, minX: 520, maxX: 755, vx: -140, push: 16.5, lanePeriod: 150, clearFrom: 92 }] },
+  { n: "CARPET WHIPLASH",    tr: 9, tm: 14.5, gx: 855, lk: "v8_rug_belt",       hz: [{ type: "rug", x: 230, w: 145, pushSpeed: 94 }, { type: "conveyor", x: 425, w: 145, pushSpeed: -84 }, { type: "butter", x: 640, w: 70 }] },
+  { n: "NINE-TIER FEVER",    tr: 9, tm: 15.5, gx: 855, lk: "v8_nine_tier_wax",  hz: [{ type: "polish", x: 200, w: 595 }, { type: "rug", x: 235, w: 120, pushSpeed: 84 }, { type: "guest", x: 520, minX: 450, maxX: 595, vx: 86, push: 14.5, lanePeriod: 155, clearFrom: 95 }, { type: "guest", x: 705, minX: 635, maxX: 775, vx: -86, push: 14.5, lanePeriod: 155, clearFrom: 95 }] },
+  { n: "PAPARAZZI STAIRS",   tr: 9, tm: 15.0, gx: 855, lk: "v8_flash_stairs",   hz: [{ type: "flash", x: 310, w: 110, period: 145, warnAt: 70, flashAt: 100, endAt: 132, push: 16.5 }, { type: "step", x: 470, w: 95, dy: -16 }, { type: "step", x: 565, w: 95, dy: -32 }, { type: "step", x: 660, w: 175, dy: -46 }] },
+  { n: "VIP GATEKEEPER",     tr: 9, tm: 15.5, gx: 860, lk: "v8_vip_boss",       hz: [{ type: "disco", x: 260, w: 125, torque: 14.0 }, { type: "cork", x: 455, w: 100, period: 140, warnAt: 70, popAt: 100, endAt: 135, push: 17.0 }, { type: "sprinkler", x: 630, w: 100, period: 155, hissAt: 85, blastAt: 115, endAt: 150, push: 17.5 }] },
+
+  // VENUE 9: WEDDING APOCALYPSE (65..72)
+  { n: "TEN TIER CURTAIN",   tr: 10, tm: 13.0, gx: 850, lk: "v9_ten_tiers",     hz: [{ type: "butter", x: 340, w: 70 }, { type: "seesaw", x: 500, w: 165, force: 10.0 }] },
+  { n: "DISCO TYPHOON",      tr: 10, tm: 14.5, gx: 855, lk: "v9_disco_typhoon", hz: [{ type: "polish", x: 200, w: 590 }, { type: "disco", x: 290, w: 145, torque: 14.0 }, { type: "gustLR", x: 495, w: 230, period: 135, force: 9.8 }] },
+  { n: "CRUMBSTORM",         tr: 10, tm: 15.5, gx: 855, lk: "v9_crumbstorm",    hz: [{ type: "crumble", x: 255, w: 90, delay: 16, dy: 22 }, { type: "dog", x: 480, minX: 390, maxX: 600, vx: 118, pausePeriod: 125, pauseLen: 50, push: 15.5 }, { type: "cork", x: 675, w: 95, period: 140, warnAt: 70, popAt: 100, endAt: 135, push: 17.0 }] },
+  { n: "WAITER IN GALE",     tr: 10, tm: 16.0, gx: 855, lk: "v9_waiter_gale",   hz: [{ type: "wind", x: 250, w: 220, period: 145, onFrom: 65, onTo: 130, force: -14.0 }, { type: "waiter", x: 615, minX: 500, maxX: 745, vx: -142, push: 16.5, lanePeriod: 150, clearFrom: 92 }] },
+  { n: "CAKE APOCALYPSE 1",  tr: 10, tm: 16.0, gx: 860, lk: "v9_apoc_step",     hz: [{ type: "conveyor", x: 235, w: 140, pushSpeed: -82 }, { type: "disco", x: 420, w: 125, torque: 14.0 }, { type: "sprinkler", x: 590, w: 95, period: 150, hissAt: 80, blastAt: 110, endAt: 145, push: 17.5 }, { type: "step", x: 710, w: 145, dy: -20 }] },
+  { n: "CAKE APOCALYPSE 2",  tr: 10, tm: 16.5, gx: 860, lk: "v9_apoc_wax",      hz: [{ type: "polish", x: 200, w: 605 }, { type: "rug", x: 240, w: 125, pushSpeed: 88 }, { type: "flash", x: 440, w: 110, period: 145, warnAt: 70, flashAt: 100, endAt: 132, push: 16.5 }, { type: "guest", x: 650, minX: 580, maxX: 750, vx: -92, push: 15.0, lanePeriod: 155, clearFrom: 95 }] },
+  { n: "BEFORE THE VOWS",    tr: 10, tm: 16.5, gx: 860, lk: "v9_penultimate",   hz: [{ type: "crumble", x: 240, w: 85, delay: 16, dy: 22 }, { type: "cork", x: 410, w: 95, period: 140, warnAt: 70, popAt: 100, endAt: 135, push: 17.5 }, { type: "gustLR", x: 530, w: 200, period: 135, force: 12.5 }, { type: "butter", x: 750, w: 60 }] },
+  { n: "ETERNAL VOWS BOSS",  tr: 10, tm: 16.5, gx: 865, lk: "v9_final_boss",    hz: [{ type: "rug", x: 215, w: 120, pushSpeed: 90 }, { type: "disco", x: 365, w: 110, torque: 14.0 }, { type: "cork", x: 515, w: 90, period: 140, warnAt: 70, popAt: 100, endAt: 135, push: 17.5 }, { type: "sprinkler", x: 635, w: 90, period: 150, hissAt: 80, blastAt: 110, endAt: 145, push: 17.5 }, { type: "step", x: 750, w: 115, dy: -19 }] }
+];
+
+LEVEL_SPECS.forEach((s, idx) => {
+  const venueIdx = Math.floor(idx / 8);
+  const obsList = s.hz.map(h => (HAZARD_META[h.type] || { obs: h.type }).obs);
+  const tells = s.hz.map(h => (HAZARD_META[h.type] || { tell: h.type }).tell);
+  const tips = s.hz.map(h => (HAZARD_META[h.type] || { tip: "balance" }).tip);
+  addCakeLevel({
+    id: idx + 1,
+    tier: venueIdx + 1,
+    name: s.n,
+    floor: FLOOR_BY_VENUE[venueIdx],
+    tiersCount: s.tr,
+    goalX: s.gx,
+    timeSec: s.tm,
+    lieKey: s.lk,
+    obstacle: `${s.tr} tiers (${s.tm}s clock) vs ${obsList.join(" + ")}; table overshoot crashes!`,
+    tell: tells.join(" • "),
+    intendedRoute: tips.join("; then ") + `; settle calm at x=${s.gx}.`,
+    hazards: s.hz
+  });
 });
 
 /* ============================================================================
- * 6. DETERMINISTIC SOLUTIONS REGISTRY (VERIFIED 30/30 VIA F9, 0/30 BLIND)
+ * 6. DETERMINISTIC SOLUTIONS REGISTRY (VERIFIED 72/72 F9, 0/72 ANTI-CHEESE)
  * ============================================================================ */
 const LEVEL_SOLUTIONS = {
-   1: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,6r,1rq,1r,3rq,1r,1rq,1r,2s,1qs,2s,5r,1,1q,2,1q,4r,1re,5r,1rq,1r,3rq,1r,1rq,2r,1rq,3,1q,1,1rq,5r,1rq,1r,1rq,2r,1rq,6r,3rq,1r,2rq,7r,1rq,1r,2rq,1r,2rq,1r,1rq,7r,1rq,1r,3rq,1r,1rq,1r,1,1q,1,1q,1,5r,2s,1qs,2s,1rq,3r,1re,6r,1rq,2r,2rq,1r,1rq,7r,1rq,1r,3rq,1r,1rq,1r,1rq,1r,3,1q,1,1rq,5r,1rq,1r,1rq,1r,1rq,7r,3rq,1r,2rq,7r,1rq,1r,2rq,1r,2rq,1r,1rq,7r,1rq,1r,1rq,5q,3r,1re,1r,1es,1qs,3s,1q,3,1q,4l,1lq,10,1r",
-   2: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,13r,1rq,5q,1rq,1r,1re,2r,1re,4r,1rq,1r,3rq,1r,1rq,1r,1rq,7r,3rq,1r,2rq,7r,1rq,1r,2rq,1r,1rq,3q,1,1q,2r,2re,4r,4rq,1r,1rq,1r,1q,1rq,1,1rq,1,2r,1re,3r,2rq,1r,2rq,2r,1rq,1r,4s,1qs,6r,1rq,3r,4,1q,6r,2rq,1r,1rq,1,1q,1,1q,1,3r,1re,2r,2rq,1r,2rq,2r,1rq,6r,1rq,1r,3rq,1r,1rq,7r,1rq,1r,4rq,1,2q,1,1q,2r,2re,3r,2rq,1r,2rq,1r,1rq,3r,1rq,3r,1rq,1r,2rq,1r,2rq,1r,1rq,3s,1qs,1s,3,1q,4,1q,11,1r",
-   3: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,13r,1rq,5q,1rq,1r,1re,2r,1re,4r,1rq,1r,3rq,1r,1rq,1r,1rq,2r,1re,3r,1rq,1r,3rq,1r,1rq,7r,1rq,1r,1rq,1r,3rq,1r,1rq,2r,3,1q,1,1rq,5r,1rq,1r,1rq,7r,1rq,1r,2rq,1r,2rq,1r,1rq,5r,1s,1qs,2s,1qs,1r,1,1r,1,1rq,4r,1re,1,1q,3,1rq,5r,2rq,1r,1rq,3,1q,1,1rq,1re,4r,2rq,1r,1rq,1r,1rq,7r,3rq,1r,2rq,7r,1rq,1r,2rq,1r,2rq,1r,1q,1,1q,1,1q,2,1q,2,1lq,1l,1lq,1l,1lq,7,1e,2,1r",
-   4: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,13r,1rq,5q,1rq,1r,1re,2r,1re,4r,1rq,1r,3rq,1r,1rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,7r,5q,2r,1rq,5r,1re,2r,1rq,1r,1rq,1r,3rq,1r,1rq,1r,1rq,6r,2rq,1r,3rq,1r,1rq,7r,1rq,1r,3rq,1r,1rq,1r,1rq,6r,1rq,1r,5rq,1r,1rq,7r,1rq,1qs,1s,1qs,2s,1rq,4r,1re,4r,1q,2,2q,1rq,4r,1re,5r,1rq,1r,4rq,1r,2rq,1r,1rq,6r,1rq,1r,3rq,1r,1rq,6r,1rq,1r,1rq,1r,3rq,1r,1rq,1,1q,2,1q,1r,1,1r,1,1r,2,3q,1,1q,1,1q,1,1q,11",
-   5: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,13r,1rq,5q,1rq,1r,1re,2r,1re,4r,1rq,1r,3rq,1r,1rq,1r,1rq,7r,3rq,1r,2rq,7r,1rq,1r,2rq,1r,1rq,3q,1,1q,2r,2re,4r,2rq,1r,2re,1r,16re,1es,1s,1es,1s,1es,1r,2re,1r,1re,2r,1rq,10r,1rq,1r,3rq,1r,1rq,1r,1rq,6r,1rq,1r,3rq,1r,1rq,1r,1rq,7r,1rq,5q,1rq,1r,1re,2r,1re,4r,1rq,1r,3rq,1r,1rq,1r,1rq,1r,3,1q,1,1rq,5r,2rq,2r,1rq,6r,1rq,1r,3rq,1r,1rq,6r,1s,1qs,2s,1qs,2,1q,3,1q,13,1r",
-   6: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,9r,2rq,1r,3rq,1,1q,2,1q,2r,1re,1r,1re,1r,2rq,1r,1rq,3q,1,1q,2r,2re,4r,3rq,1r,1rq,1r,1rq,5r,1,4q,1rq,1,1rq,1,1rq,1r,1re,2r,1re,4r,2rq,1r,4rq,1r,1rq,2r,3s,1qs,1s,6r,1rq,3r,2,1q,2,3r,1re,2r,4rq,2r,1rq,7r,4rq,1r,2q,1,1q,1,2r,1re,1r,1re,1r,2rq,1r,4rq,2r,1rq,6r,2rq,1r,3rq,2r,1,1q,1,1q,1,6r,2rq,1r,1rq,1l,1lq,1l,1lq,2l,1lq,1l,1lq,1l,1s,1qs,3s,10,1r",
-   7: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,13r,1rq,5q,1rq,1r,1re,2r,1re,4r,1rq,1r,3rq,1r,1rq,1r,1rq,7r,3rq,1r,2rq,7r,1rq,1r,2rq,1r,1rq,3q,1,1q,2r,2re,4r,4rq,1r,1rq,7r,1rq,1r,2rq,1r,2rq,1r,1rq,5r,2s,1qs,2s,1rq,4r,3,1q,1,1r,1,1r,1,1r,2,2q,1,1rq,4r,2l,5e,1,2e,1,4e,5le,5e,5le,1l,1le,1l,3le,4l,2,1e,1,1e,1r,2re,1r,1re,1,1e,1,1e,11,3r,7re,5le,5es,2re,1r,3re,1r,3re,1r,2re,1r,6re,5e,4re,1r,1re,1r,1re,1r,1re,1r,1re,3r,2rq,1r,3rq,7r,1rq,1r,3rq,1r,2rq,7r,1rq,1r,3rq,1r,1rq,1r,1rq,7r,2rq,1r,3rq,2r,1rq,6r,1rq,1s,1qs,2s,1qs,12r,1rq,1r,1rq,1r,1rq,1r,1rq,1r,3,1q,1,1rq,5r,1rq,1r,1rq,1r,1rq,4r,2,3q,1rq,5r,1rq,3r,2,1q,1,1q,1rq,4r,1l,3lq,1l,1lq,1l,1lq,2l,1q,1,1q,12,1r",
-   8: "5s,4r,1re,1,1q,3,4r,1re,7r,1re,2r,2,1q,1,1q,1,1q,1,2q,5r,1re,1,1rq,1,1rq,1,1r,1,1r,1e,3r,1re,1r,1,4q,1rq,4r,3,1q,1,5r,1,4q,1rq,1,1r,1,1r,1,1r,1,1r,1,1r,1e,1rq,1,4r,1rq,1r,1rq,2r,1rq,1r,4s,1qs,7r,1rq,2r,4,1q,6r,1rq,1r,2rq,1,1q,1,1q,1,2r,1re,4r,3rq,1r,1rq,1r,1rq,7r,3rq,1r,2rq,7r,1rq,1r,2rq,1r,2rq,1r,1rq,7r,1rq,1r,3rq,1q,1,2q,1,3r,1re,1r,1re,1r,3rq,1r,2rq,1r,1rq,5r,2s,1qs,2s,1rq,13r,2rq,1r,3rq,1,1q,2,1q,2r,1re,4r,3rq,1r,1rq,3r,1,1q,1,1q,1,1rq,1r,1re,1r,1rq,1r,1rq,1r,1rq,1r,1,1q,1,1q,1,5r,1l,5lq,1l,1lq,1l,1lq,1,1q,1,1q,11,1r",
-   9: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,1,1q,1,1q,1,2r,1re,4r,3rq,1r,1rq,1r,1rq,7r,3rq,1r,2rq,7r,1rq,1r,2rq,1r,1rq,3q,1,1q,2r,2re,4r,4rq,1r,1rq,7r,1rq,1r,3rq,1r,1rq,1r,1rq,5r,2s,1qs,2s,1rq,9r,2,1q,2,1rq,1,1rq,1,1rq,12r,2rq,1r,3rq,2r,1,1q,1,1q,1,6r,2rq,1r,1rq,2r,1rq,6r,3rq,1r,2rq,1,1q,2,1q,2r,1re,2r,1,4q,1rq,3r,1re,7r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1q,3,1q,4,1q,10,1r",
-  10: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,1,1q,1,1q,1,2r,1re,4r,3rq,1r,1rq,1r,1rq,7r,3rq,1r,2rq,7r,1rq,1,4q,1rq,7r,1re,1r,1rq,2r,4rq,1r,1rq,7r,1rq,1r,2rq,1r,2rq,1r,1rq,3s,1qs,1s,5r,2,1q,1,1q,3l,1lq,1l,3r,1re,1r,1re,1e,1r,1,1r,1,1q,1,1q,1,1rq,4r,2,2q,1,1rq,1r,1re,1r,1re,1,1r,1e,1rq,1e,1q,1,1q,1,1q,5r,2,2q,1,1rq,1r,1re,2r,1e,1q,2,1q,2r,1re,1r,1re,3,2q,5r,1,1r,1,1rq,1,1q,1,1q,1,1q,2r,2re,1r,1re,1,1r,1,1r,1,1r,1,1rq,1,1rq,2re,2r,1es,4s,1re,1r,2re,2r,1re,3r,1re,5r,1rq,1r,3rq,1r,1rq,7r,5q,1rq,4r,1le,1lq,1l,1lq,1l,3r,1re,2r,3rq,1r,2q,1,1q,1,1l,1lq,2l,1lq,1,1q,1,1q,11,1r",
-  11: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,9r,3rq,1r,2rq,1,1q,2,1q,2r,1re,1r,1re,1r,3rq,1r,1rq,1r,1rq,7r,1rq,1r,3rq,1,3q,1,1r,1,1r,1,1r,1re,4r,3rq,1r,1rq,1r,1rq,7r,3rq,1r,2rq,2s,1qs,2s,8r,1rq,3r,1rq,1re,1r,1,1q,1,1q,1,1rq,5r,2rq,2r,1l,1lq,1l,1lq,1l,5r,1,4q,1rq,1r,1re,2r,1re,4r,2rq,1r,3rq,1r,1rq,7r,5q,1rq,2r,1re,8r,2rq,1r,6q,2,1q,1,1lq,2l,1lq,1l,1qs,1es,1qs,2s,5,1r",
-  12: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,1,1q,1,1q,1,2r,1re,4r,3rq,2q,1rq,1q,3r,1re,1r,1re,2r,1rq,1r,4rq,1r,1rq,7r,1rq,1r,3rq,1r,1rq,1r,1rq,7r,3rq,1r,3rq,1,1q,2,1q,2r,1re,2r,1,4q,1rq,3r,1re,4s,1qs,7r,1rq,10r,2rq,1r,3rq,1r,1rq,7r,1rq,1r,4rq,2r,1rq,3r,2,1q,1,3q,1,2q,5r,1re,3r,1re,2,1q,2,1rq,4r,1,5q,1,1q,2,1lq,1l,1lq,1l,1lq,2r,1re,1r,1re,5e,5es,5e,13re,1r,3rq,1r,1rq,6r,4rq,1r,2rq,7r,1rq,1r,4rq,1r,1rq,3r,2,1q,1,1q,1rq,1,1r,1,1rq,1l,3lq,1l,1q,1,1q,1,1q,12",
-  13: "5s,20r,1e,4,1rq,3r,1rq,4lq,1l,1,1q,3,1r,1re,5r,3rq,1l,2lq,2l,4r,1re,1r,2rq,1r,3rq,2r,1rq,5r,1l,4lq,1r,1rq,10r,2rq,1r,3rq,2r,1rq,4r,3s,1qs,1s,2r,1rq,7r,2l,1lq,1l,1lq,1r,1rq,2r,1rq,3l,1lq,1l,6r,1rq,1r,2rq,1lq,1l,1lq,2l,7r,3rq,1r,1rq,2r,1rq,5r,1,4q,1l,2lq,1l,1lq,1r,3,1r,1re,5r,3rq,1r,1rq,7r,1rq,1r,3rq,1r,1rq,1r,1rq,3r,5s,1rq,3r,1rq,9r,2rq,1r,3rq,2,1q,2,5r,5lq,1rq,2r,1re,1r,3l,1lq,2l,2lq,1l,2lq,1l,1lq,1l,1lq,1l,1lq,2l,1lq,1l,12",
-  14: "5s,20r,1e,4,1rq,3r,1rq,4lq,1l,1,1q,3,1r,1re,5r,3rq,1l,2lq,2l,4r,1re,1r,2rq,1r,3rq,2r,1rq,5r,1l,4lq,1r,1rq,10r,2rq,1r,3rq,2r,1rq,4r,3s,1qs,1s,2r,1rq,2r,1l,1le,3l,3,2q,10rq,1re,1r,4re,4r,1l,4lq,9rq,1r,1rq,1r,1re,1r,6re,1,4q,11rq,1r,2rq,1r,2rq,1r,1rq,7r,1rq,1r,3rq,1r,1rq,1r,1rq,5r,3s,1qs,1s,2r,1rq,7r,2,1q,1,1q,1r,1rq,1r,1rq,7r,1rq,1r,2rq,1r,2rq,1r,1rq,4l,1lq,2l,1lq,1l,1lq,1l,1lq,1l,1lq,1l,1lq,1l,1lq,2l,1lq,12",
-  15: "5s,20r,1e,4,1rq,3r,1rq,4lq,1l,1,1q,3,1r,1re,5r,3rq,1l,2lq,2l,4r,1re,1r,2rq,1r,3rq,2r,1rq,5r,1l,4lq,1r,1rq,10r,2rq,1r,3rq,2r,1rq,4r,3s,1qs,1s,2r,1rq,7r,2l,1lq,1l,1lq,1l,3lq,1l,1lq,1l,1lq,2l,1,1q,13,1l,1lq,3l,1q,1,1e,2,3r,1re,1r,4l,1lq,5,5l,1lq,5l,1lq,3l,1q,4,5l,1r,3re,1r,1e,1,1e,5,1e,1,5r,3,1e,6,5s,5l,5,4r,1re,3r,1re,2r,1re,2r,1re,2r,1re,1r,1re,4r,1rq,1r,2rq,1r,1rq,2l,1lq,2l,5r,2rq,1r,2rq,2r,1rq,6r,1rq,3lq,1l,1lq,1rq,3r,1re,5r,5lq,1rq,4r,1le,1l,1lq,2l,1rq,3r,1rq,1s,1qs,3s,8r,1rq,2r,1rq,3r,1rq,7r,2rq,3lq,1l,1lq,4r,1re,3r,1rq,1r,4rq,2r,1rq,7r,4rq,1r,1rq,3,1q,1,4r,1rq,1l,5lq,1l,1lq,4l,1lq,2l,5,2l,1lq,2l,1q,9,1r",
-  16: "5s,20r,1e,4,1rq,3r,1rq,4lq,1l,1,1q,3,1r,1re,5r,3rq,1l,2lq,2l,4r,1re,1r,2rq,1r,3rq,2r,1rq,5r,1l,4lq,1r,1rq,10r,2rq,1r,3rq,2r,1rq,4r,3s,1qs,1s,2r,1rq,7r,2l,1lq,1l,1lq,1r,1rq,2r,1rq,3l,1lq,1l,6r,1rq,1r,2rq,1lq,1l,1lq,2l,7r,3rq,1r,1rq,2r,1rq,5r,1,4q,1l,2lq,1l,1lq,1r,3,1r,1re,5r,3rq,1r,1rq,7r,1rq,1r,3rq,1r,1rq,1r,1rq,3r,5s,1rq,3r,1rq,9r,2rq,1r,3rq,2,1q,2,5r,5lq,1rq,2r,1re,1r,3l,1lq,1l,1,1q,1,2q,1l,2lq,1l,1lq,2l,1lq,2l,1lq,2l,1lq,1l,10,1r",
-  17: "2r,1re,4r,1re,8r,1rq,2r,1re,2r,1re,2r,1qs,2s,1qs,1s,2,1q,2,9r,4rq,2r,1rq,6r,1rq,1r,1rq,3q,1,1q,2r,1re,3r,1rq,1r,3rq,1r,2rq,6r,1,1q,1,2q,2r,1re,1r,1re,3le,1l,1le,1l,4lq,9rq,1r,1re,1r,6re,2r,5rq,1qs,1s,1qs,1s,1qs,2r,1rq,7r,1e,2,1e,1,3r,2rq,1l,4lq,3r,1re,5r,1rq,4lq,1l,1rq,3r,1re,3l,1lq,1l,1lq,1l,3lq,1,1q,2,1q,2l,1lq,2l,1rq,1re,2r,1re,5,3l,1lq,3l,1lq,2l,4r,1re,2l,1lq,2l,4r,1re,5,1l,1lq,2l,1lq,4,1e,3r,1re,1r,5s,5l,9r,1re,14r,1re,3r,1rq,1r,2rq,1r,2rq,1l,1lq,1l,1lq,1l,3r,1re,1r,1rq,1r,3rq,1l,2lq,2l,1rq,1re,3r,2,2q,1,2rq,2r,1rq,5r,1l,1lq,1l,5lq,1l,1lq,1l,1lq,3l,1lq,3l,1lq,13",
-  18: "2r,1re,4r,1re,8r,1rq,2r,1re,2r,1re,2r,1qs,2s,1qs,1s,2,1q,2,9r,4rq,2r,1rq,6r,1rq,1r,1rq,3q,1,1q,2r,1re,3r,1rq,1r,3rq,1r,2rq,6r,1,1q,1,2q,2r,1re,1r,1re,3le,1l,1le,1l,4lq,9rq,1r,1re,1r,6re,2r,5rq,1qs,1s,1qs,1s,1qs,2r,1rq,7r,5l,1rq,1re,2r,1rq,1r,3rq,2r,1rq,3r,3,1q,1,1rq,2r,2rq,1l,1lq,3l,5r,1l,4lq,1r,1rq,2r,1re,5r,1,3q,1,2rq,1r,1rq,7r,3rq,1r,2rq,1r,1rq,7r,1rq,1r,2rq,1qs,3s,1qs,7l,1lq,4l,1lq,2l,1,1q,5,1q,12,2r",
-  19: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,1,1q,1,1q,1,2r,1re,4r,3rq,1r,1rq,1r,1rq,7r,3rq,1r,2rq,1r,1rq,1r,2,1q,2,1rq,5r,2rq,1r,1rq,7r,1rq,1r,2rq,1r,3rq,1,1q,1,1q,1,2r,1re,2r,1,4q,1rq,4r,1es,1qs,3s,7r,1rq,9r,1rq,1r,2rq,1r,4rq,4r,2,2q,1,1rq,1,1rq,1,1r,1rq,10r,1rq,1r,2rq,1r,3rq,1r,1rq,4r,2,3q,3r,1rq,2r,1rq,7r,1rq,1r,3rq,1r,1rq,1r,1rq,7r,1qs,1s,1qs,2s,1rq,4r,1re,1rq,1re,1rq,1re,1lq,2l,3lq,1l,2lq,1l,2q,2,1q,10,1r",
-  20: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,1,1q,1,1q,1,2r,1re,4r,3rq,1r,1rq,1r,1rq,7r,3rq,1r,2rq,7r,1rq,1r,2rq,1r,1rq,3q,1,1q,2r,2re,4r,4rq,1r,1rq,6r,1rq,1r,7rq,1r,1qs,1s,1qs,1s,1qs,1re,1q,1r,1,1r,1rq,1re,1rq,1r,1rq,1re,1rq,2r,1re,1,1q,2,1q,1rq,4r,1,4q,2r,1re,1r,1re,3r,1rq,1r,3rq,1r,1rq,2r,1rq,6r,2rq,1r,3rq,1,1q,2,1q,1r,1,1r,1,6r,2rq,1r,1rq,7r,1rq,1r,3rq,1r,1rq,2r,1rq,6r,3rq,1r,2rq,7r,1qs,2s,1qs,1s,1,1q,2,1q,4,1q,1e,1q,8,1r",
-  21: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,1,1q,1,1q,1,2r,1re,4r,3rq,1r,1rq,1r,1rq,1r,8re,2r,1re,1r,11re,2r,2re,1r,10re,2r,2re,1r,9re,1r,1re,1r,1re,1r,3re,2es,2s,1es,1r,1re,1r,1re,2r,1re,3r,1re,5r,1rq,1r,4rq,1r,1rq,1r,1,1q,2,1q,3r,1re,1r,2rq,1r,2rq,1,1q,1,1q,1,3r,1re,3r,4rq,2r,1rq,6r,5q,1r,1,1rq,1,1rq,1r,1re,1r,1re,5r,3rq,1r,2rq,1l,1lq,1l,1lq,1l,2r,1re,2r,2s,1qs,2s,1rq,13r,1rq,5lq,1l,1lq,1l,1lq,1l,1,1q,1,1q,11,1r",
-  22: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,1,1q,1,1q,1,2r,1re,4r,4rq,2r,1rq,7r,4rq,1,3q,1,2r,1re,5r,1rq,1r,2rq,1r,2rq,7r,1rq,1r,3rq,1r,1rq,1r,1rq,7r,2rq,1r,3rq,1r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,9r,1rq,1re,1r,2rq,1r,2rq,3q,1,1q,1r,1,1r,1,1r,1re,5r,3rq,1r,2q,1,1q,1,2r,1re,4r,2rq,1r,4q,1,1r,1,1r,1,2r,1re,3r,1rq,1r,3rq,7r,1rq,1r,2rq,1r,2rq,1r,1q,1,1q,1,1q,2r,1re,5rq,1r,3rq,1r,1rq,1r,3s,1qs,1s,5r,1l,1lq,1l,1lq,3l,1lq,2l,1q,2,1q,11,1r",
-  23: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,1,1q,1,1q,1,2r,1re,4r,4rq,2r,1rq,7r,4rq,1,3q,1,1r,1,1r,1,2r,1re,3r,2rq,1r,2rq,1,1q,2,1q,1r,1,1r,1,1r,1rq,1re,1rq,1r,1rq,1r,3rq,1r,1rq,1r,1rq,1re,1rq,1r,6rq,2r,1rq,5r,2s,1qs,2s,1rq,13r,4rq,1r,1rq,1,1q,2,1q,2r,1re,2r,1,4q,1rq,2r,1re,6r,1,4q,2r,1rq,10r,1rq,1r,3rq,1r,1rq,2r,1rq,2r,5re,1r,1re,2r,7re,1r,1rq,1r,3rq,1r,2rq,7r,1rq,1r,1rq,1qs,1s,1qs,2s,1q,4,1q,14,1r",
-  24: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,1,1q,1,1q,1,2r,1re,4r,4rq,1r,1rq,7r,1rq,1r,3rq,1r,2rq,7r,1rq,1r,2rq,1r,3rq,2r,1,1q,2,1q,6r,2rq,1r,1rq,1e,3q,1,1rq,1re,1rq,1re,1rq,1re,4rq,1qs,1s,1qs,1s,1qs,2r,1re,1rq,1re,1q,1,1q,1,1q,3r,1rq,9r,1rq,1r,3rq,1r,1rq,2r,1rq,6r,2rq,1r,3rq,3r,1rq,4r,1rq,1r,3rq,1r,2rq,7r,1rq,1r,2rq,1r,2rq,1r,1rq,7r,3rq,1r,2rq,1r,1rq,7r,1rq,1r,4rq,1,1q,1rq,1r,1,1rq,1r,1re,1r,1re,1qs,2s,1qs,1s,1,1q,3,1q,14,1r",
-  25: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,1,1q,1,1q,1,2r,1re,4r,4rq,2r,1rq,7r,4rq,1,3q,1,1r,1,1r,1,2r,1re,3r,3rq,1r,1rq,1r,1rq,6r,1rq,1r,2rq,1r,2rq,1r,1rq,7r,3rq,1r,2rq,1r,1rq,7r,2rq,1r,3rq,1r,1rq,6r,1rq,1r,1qs,1s,1qs,2s,1rq,4r,1e,1q,3,1r,1,1r,1,1rq,1,3q,1,1rq,2r,1re,1r,1,1r,1,1r,3,1q,2,1q,1,1q,1,1q,15,1r,1re,1r,1re,1r,1le,1l,1lq,1l,1lq,1l,1lq,1l,1lq,1l,1rq,1r,1re,1r,1re,2l,1lq,1l,1lq,3,1e,1,1re,1r,1re,2r,1re,4r,1re,2r,1re,5r,2rq,1r,3rq,2s,1qs,2s,8r,1rq,3r,1rq,3r,1re,1r,1rq,2r,3rq,1r,2rq,3r,1l,1lq,1l,1lq,1l,1rq,1re,2r,1rq,1,4q,3r,2re,2l,2lq,1l,2lq,1l,2lq,1,1q,1,1q,11,1r",
-  26: "2r,1re,4r,1re,8r,1rq,2r,1re,2r,1re,2r,1qs,2s,1qs,1s,2,1q,2,9r,4rq,2r,1rq,6r,1rq,1r,1rq,3q,1,1q,2r,1re,3r,1rq,1r,3rq,1r,2rq,6r,1,1q,1,2q,2r,1re,1r,1re,3le,1l,1le,1l,4lq,9rq,1r,1re,1r,6re,2r,5rq,1qs,1s,1qs,1s,1qs,3r,1rq,1r,1l,1lq,2l,1lq,3r,1re,4r,1rq,1r,3rq,1r,1rq,1,1q,3,4r,1rq,1r,3rq,1r,1lq,1l,1lq,2l,6r,2rq,1r,1rq,1lq,1l,1lq,2l,1rq,1re,5r,3rq,1r,1rq,1r,1rq,7r,3rq,1r,2rq,2r,1rq,6r,1rq,1r,2rq,2q,2,1q,5s,3r,1rq,3r,1rq,7r,1l,4lq,1l,3lq,1l,1q,4,3l,1lq,3l,1lq,2l,10,1r",
-  27: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,6r,2re,1r,1re,1r,1re,2r,12re,2r,1re,1r,11re,2r,2re,1r,9re,1e,3,1r,12re,1r,3rq,1r,1rq,6r,1rq,1r,3rq,1r,2rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,2r,1s,1qs,3s,1rq,1re,2r,1rq,3r,1rq,1r,2,1q,2,2r,1re,3r,2rq,1r,2rq,7r,1rq,2r,1re,1r,1re,1r,1re,1r,11re,2r,6re,2r,8rq,1r,1rq,6r,1rq,1r,3rq,1r,4lq,2l,1lq,1l,1lq,1l,1,1q,1,1q,11,1r",
-  28: "2r,1re,1r,1re,4r,1re,1r,1rq,10r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,3rq,1r,2rq,1,1q,1,1q,1,2r,1re,4r,4rq,2r,1rq,6r,1rq,1r,3rq,1r,1rq,3r,1,1q,1,1q,1,1rq,4r,1,4q,1rq,1r,1rq,1re,1r,1e,1q,1,1q,1,3rq,1re,3rq,1r,1rq,7r,3rq,1r,1qs,1s,1qs,2s,9r,1rq,3r,1rq,6r,1,4q,2r,1rq,2r,1l,1lq,1l,1lq,1l,1,1q,2,1q,2,1q,1,1q,3l,1lq,1l,1q,1e,1,1e,1,1re,1r,1re,2r,1re,3r,1re,1r,1rq,3r,2l,1lq,1l,1lq,2r,1re,3r,2rq,1r,2rq,7r,1rq,1r,3rq,1r,1rq,1qs,3es,1s,3re,1r,3re,1r,2re,1rq,2r,7rq,1r,1rq,7r,1rq,1r,4rq,2r,1rq,7r,4rq,1r,2q,1,1q,1,1r,1,1r,1,1r,1,1r,1,1rq,2,3q,1,1q,1,1q,1,1q,10,1r",
-  29: "2r,1re,4r,1re,8r,1rq,1r,1re,3r,1re,2r,1qs,2s,1qs,1s,2,1q,2,8r,1rq,1r,3rq,2r,1rq,2r,1re,3r,2rq,1r,3rq,2r,1,1q,3,3r,2rq,1r,2rq,1r,1rq,3,1q,1,3r,2rq,1r,2rq,1r,1rq,5r,2,3q,1r,1rq,1r,1rq,1r,1lq,3l,1lq,6r,3rq,1r,1rq,4r,4s,1qs,3r,1rq,10r,2rq,1r,3rq,2r,1rq,2r,3l,1lq,1l,3lq,1l,1lq,1q,2,1q,1,2l,1lq,2l,1rq,1re,2r,1re,1r,1re,2r,1re,1r,3,1rq,1l,1lq,1l,2lq,1,1q,3,1lq,3l,1lq,3l,1lq,2l,1lq,3l,1rq,1re,2r,1re,5,4l,1lq,2r,1re,2r,1re,2r,1re,1r,4l,1q,1r,1re,2r,1re,2r,1re,10r,1rq,1r,5s,5r,1rq,3r,1rq,8r,1rq,1r,2rq,1r,2rq,1r,1rq,7r,2rq,1r,3rq,1l,1lq,2l,1lq,4l,1lq,1l,1lq,2l,1lq,1l,1lq,2l,1lq,13",
-  30: "2r,1re,1r,1re,4r,1re,1r,1rq,10r,2rq,1r,3rq,2r,1rq,6r,2rq,1r,3rq,7r,2s,1qs,2s,1rq,1re,1rq,1re,1rq,1re,1rq,7r,1rq,1r,3rq,1r,3lq,2l,1rq,1re,1r,1re,2r,3rq,3r,3re,2e,3,1r,1,1rq,1q,6rq,5q,1r,7re,2r,1re,4rq,1q,1,1q,1,1q,1r,1q,1r,1q,1rq,1q,1r,1q,1r,1q,1r,1rq,1re,1rq,1re,1rq,1re,1rq,1re,1rq,1r,5rq,1r,1rq,7r,1qs,2s,1qs,1s,1rq,1re,1rq,1re,1r,2,1q,2,6r,3rq,1r,4q,1,2r,1re,1,2r,1re,2r,1rq,1r,3rq,7r,1rq,1r,2rq,1r,3rq,7r,1rq,1r,2rq,1r,3rq,7r,1rq,1r,1rq,1r,3rq,1r,1rq,1,4q,2l,1lq,1l,1lq,4,1q,7,1e"
+   1: "1r,1re,1r,1re,1r,1re,2r,1re,6r,1s,1qs,2s,1qs,2r,1re,1rq,3r,1rq,8r,4rq,1r,2rq,2r,2,2q,1,1rq,1r,1re,2r,2rq,1r,1rq,1r,1,1q,1,1q,1,1rq,1re,4r,2rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,7r,4rq,1r,1rq,1r,1rq,1r,2,1q,1,1q,1rq,1re,3r,5q,1r,1,1r,1e,1rq,2re,3r,5rq,2lq,1l,1le,1l,1,4q,8rq,1re,1r,2,3q,1rq,5r,1rq,3r,2s,1qs,1s,1qs,6r,1rq,3r,2l,2lq,1l,1rq,5r,1rq,1r,1rq,7r,4rq,1,4q,1r,1re,1r,2re,1r,2rq,1r,3rq,1r,1rq,6r,1rq,1r,4rq,7r,1rq,1r,5q,5lq,1l,2lq,14",
+   2: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1l,2lq,2l,1rq,1re,1,1r,1e,1rq,1re,3r,2rq,1r,2rq,1,1q,1,1q,1,2r,1re,3r,1rq,1r,1rq,1r,1l,1lq,2l,1lq,10rq,1q,4,4r,3rq,1r,2rq,7r,2rq,1r,3rq,1r,1rq,7r,6rq,1r,1rq,4r,1rq,1r,1rq,1r,2rq,5q,1r,1e,1rq,1e,1rq,2re,3r,4rq,7r,1rq,1r,4rq,1r,1rq,7r,4rq,1r,1rq,1r,1rq,6r,1qs,1s,2qs,1s,1rq,1re,1rq,1re,7r,5rq,1r,1rq,7r,7rq,2r,1rq,1re,1r,1rq,2r,4rq,1r,3lq,1l,1lq,1l,1lq,1l,1lq,1l,1q,1,1q,14",
+   3: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1l,2lq,2l,1rq,1re,1,1r,1e,1rq,1re,3r,2rq,1r,2rq,5r,1,4q,1rq,4r,1e,1q,1,1q,1,1rq,2re,1r,1re,1rq,1r,3rq,1r,1rq,7r,3rq,1r,2rq,1,2q,2,1rq,1e,1rq,1e,1rq,1re,3r,1rq,1r,1rq,1r,1rq,1r,2l,1lq,1l,1lq,5r,2rq,1r,1rq,1r,1l,1lq,1l,1lq,1l,1rq,1re,4r,2rq,1r,1rq,1,1q,1,1q,1,1rq,2re,3r,2rq,1r,1rq,4r,13rq,5r,2rq,1r,3rq,7r,1rq,1r,4rq,1r,1rq,7r,1qs,1s,2qs,1s,1lq,1l,1lq,2l,1lq,2l,1q,4,1e,8",
+   4: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1l,2lq,2l,1rq,1re,1,1r,1e,1rq,1re,3r,2rq,1r,2rq,5r,1,4q,1rq,6r,1rq,2r,1,2q,1rq,1,1rq,4r,1rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,6r,1rq,1r,5rq,2r,1rq,4r,1rq,1r,4rq,1r,1rq,1,1q,1,1q,1,1rq,1e,1rq,1e,1rq,5r,1rq,1r,1rq,2r,2l,3lq,1rq,3r,2rq,4r,1rq,6r,3rq,5q,2r,3re,1s,1qs,1s,1qs,1s,1rq,1re,1rq,1re,1rq,8r,2rq,1r,5rq,2r,2rq,3r,4rq,1r,1rq,1r,1rq,6r,3rq,1r,2rq,1r,1rq,2,1q,1,1q,1r,1,1rq,1e,1rq,1,1rq,1,1rq,1,3lq,1l,1lq,1q,1,1q,15",
+   5: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1l,2lq,2l,1rq,1re,1,1r,1e,1rq,1re,3r,2rq,1r,2rq,5r,1,4q,1rq,1,1rq,1,1rq,1r,1re,1r,1re,5r,1rq,1r,4rq,1r,1rq,3r,2,3q,1rq,1re,1r,1rq,3r,1rq,6r,1rq,1r,1rq,1r,1re,1r,20re,2r,5rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,6r,1rq,1r,4rq,1,3q,1,1rq,2re,1r,1re,1s,1qs,1s,1qs,1s,1rq,11r,3rq,5q,2r,3re,1,4q,1rq,4r,1,1q,1,1q,1,1rq,1e,1r,1,6r,2rq,1r,1rq,6r,1rq,1r,3rq,3lq,1l,2lq,1l,1lq,1l,1lq,1,1q,1,1q,8,1e,4",
+   6: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,12r,4rq,1r,1rq,1r,1rq,4r,1,4q,1rq,1,1rq,1,1rq,1re,2r,2re,2r,1rq,1r,2rq,1r,3rq,7r,2rq,1r,4rq,1r,1rq,1,1rq,1q,1rq,1r,1re,2r,1rq,1r,4rq,7r,8rq,1r,1rq,6r,5rq,2r,1q,1,1q,1,1rq,6r,3rq,1r,1rq,4r,1,4q,1rq,1re,1r,1rq,6r,1s,1qs,2s,1qs,5r,1,1q,1,1q,1,1rq,3re,3r,5rq,1r,1rq,1r,1rq,5r,3rq,1r,2rq,1r,1rq,6r,2rq,1r,2rq,3lq,1l,1lq,1l,1lq,1l,2lq,1,1q,1,1q,7,1e,5",
+   7: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,12r,4rq,1r,1rq,1r,1,1q,1,1q,1,1rq,1re,1r,1re,1r,3rq,1r,1rq,2r,1rq,1re,1r,1rq,2r,5rq,1r,1rq,7r,5rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,6r,1rq,1r,5rq,7r,3rq,1r,3rq,6r,1rq,1r,2rq,5q,1rq,1re,1r,2re,3r,3rq,1r,3rq,7r,3rq,1s,3qs,1s,3r,1re,4r,1rq,1r,3rq,1r,1rq,7r,3rq,2l,1lq,1l,1lq,2r,11rq,2r,1l,1lq,1l,2lq,5r,2rq,1r,1rq,1r,1,1q,1,1q,1,1rq,1re,4r,3rq,1r,1,1q,1,1q,1,1rq,1e,1rq,1e,1rq,5r,1rq,1r,1rq,6r,2rq,1r,3rq,1l,2lq,1l,1lq,1l,1lq,1l,2lq,1,1q,1,1q,7,1e,5",
+   8: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,6r,1rq,3r,1,1q,1,1q,1,1rq,1,1r,1,1rq,12r,1rq,1r,4rq,7r,1rq,1r,3rq,1r,1rq,1r,1rq,1r,1,1q,1,2q,1r,1,1rq,1,1rq,5r,1,1q,1,1q,1,1rq,2re,3r,4rq,7r,1rq,1r,6rq,1r,2rq,1r,1re,1r,1rq,1r,8rq,4r,1,4q,1rq,1,1rq,1,1rq,3r,1,1rq,2r,2re,1r,1rq,1r,3rq,1r,2rq,2r,1s,1qs,2s,1qs,6r,1rq,3r,1q,1,1q,1,1q,1r,1,1r,1,1rq,5r,2q,1,1q,1,1rq,2re,4r,5rq,1r,1rq,1r,1q,1,1q,1,1q,1rq,1e,1rq,1,1rq,1,4q,1,2q,1,1q,14",
+   9: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1l,2lq,2l,1rq,1re,1,1r,1e,1rq,1re,3r,2rq,1r,2rq,5r,1,4q,1rq,1,1rq,1,1rq,1r,1re,1r,1re,5r,1rq,1r,4rq,1r,1rq,7r,4rq,1r,1rq,1,2q,2,1rq,1e,1rq,1e,1rq,1,1rq,1,1rq,1,2q,1,2q,1lq,1l,1lq,1q,1,1r,1re,1r,2re,2,1q,1,1q,2r,2re,1r,3re,1r,1e,1q,1,3q,1l,2lq,1l,1lq,1q,1e,23,1r,2re,2r,1re,2r,1re,1,1rq,1,1r,1,1r,2l,1lq,1l,1lq,1,1q,1,2q,5re,5e,5es,5re,5e,3re,2e,5lq,5q,3rq,1re,1r,3re,1r,1re,3r,2rq,1r,1rq,6r,1rq,1r,3rq,1r,2rq,7r,1rq,1r,4rq,1r,1rq,7r,4rq,1r,1rq,7r,2rq,1r,3rq,1r,1rq,6r,1rq,1r,4rq,2r,1rq,1r,1re,2r,1rq,1r,4rq,1r,1rq,4r,1,1q,1,2q,1rq,1,1rq,1,1rq,1,2q,1,2q,1,1q,1,1q,5s,9",
+  10: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1l,2lq,2l,1rq,1re,1,1r,1e,1q,1,2q,1,2lq,1l,2lq,2r,2re,1r,1re,1r,1re,6r,1re,1l,2lq,1l,1lq,1,1q,1,2q,2r,1re,3r,1re,3r,1,2q,1,1q,1r,1re,1r,1re,2r,4rq,1r,1rq,7r,4rq,1r,1rq,1,2q,2,1rq,1e,1rq,1e,1rq,1,1rq,1,1rq,1,1rq,1re,10r,3rq,5q,1r,1e,1rq,1e,1rq,2re,3r,3rq,1r,1rq,1l,2lq,1l,1lq,1r,1re,1,1r,1,1rq,4r,2rq,3r,2s,1qs,2s,1rq,1re,1rq,2r,1,1q,1,1q,1,1rq,1e,1r,1,1r,1re,1r,1re,2r,4rq,1r,1q,1,1q,1,1q,1r,1,1r,1,1r,1,1rq,1,1rq,1,1rq,2r,1re,7r,1rq,1r,4rq,1r,1rq,6r,1rq,1r,4rq,2r,1rq,1r,1re,1r,1rq,2r,4rq,1r,3lq,1l,1lq,1l,1lq,1l,1lq,1l,1q,1,1q,14",
+  11: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,4r,2l,2lq,1l,1rq,1re,1e,1rq,1e,2q,1,1q,1,3r,1rq,1r,5q,2rq,1r,1rq,1r,2lq,1l,2lq,1q,1,1q,1,1q,2r,1re,1,1rq,4r,1rq,1r,1rq,3r,2,3q,1rq,1r,1re,1rq,1r,1,3q,1,1rq,3re,3r,3rq,4q,1,1rq,2re,1r,1re,1,4q,1rq,12r,4rq,1r,1rq,1r,1rq,2r,1re,1r,1rq,1r,3rq,1r,2rq,2r,1s,1qs,2s,1qs,6r,1rq,3r,1q,1,1q,1,1q,1r,1,1r,1,1rq,1r,1re,1rq,2r,3lq,1l,1lq,1r,1re,1r,1re,1r,1re,4rq,1r,1rq,1r,1rq,1r,1le,2lq,1l,1lq,1rq,1re,3r,1rq,1r,1rq,1r,1rq,2r,1re,1rq,2r,4rq,1,4q,1l,1lq,1l,1lq,1l,1lq,1l,1lq,1q,1e,12",
+  12: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,12r,4rq,1r,1rq,1r,1rq,6r,3rq,1r,2rq,3r,4re,10r,1re,1r,1re,2r,1rq,1r,2rq,1r,1q,1,2q,1,1rq,1e,1r,1,1rq,1e,4q,1rq,6r,1rq,2r,5lq,1rq,1r,1rq,1r,11rq,1r,1rq,1r,4rq,2r,1rq,1re,3r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,2s,1rq,4r,1l,2lq,2l,1,1e,3,11rq,1r,1re,2r,1rq,1r,4rq,1r,1rq,7r,3rq,1r,2rq,1r,1rq,6r,1rq,1r,4rq,1l,2lq,1l,1lq,1l,1lq,1l,1lq,1l,1q,1,1q,14",
+  13: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,1e,1rq,1e,2r,1re,3r,2rq,1r,1rq,1r,1,2q,1,1q,1r,1re,2r,1re,4rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,1,1q,1,1q,1,1rq,1re,1r,1re,1r,3rq,1r,1rq,1r,1rq,6r,5rq,1r,1rq,7r,5rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,2r,1,1q,1,1q,1,1rq,2r,1rq,2r,1rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,7r,4rq,1r,1rq,4r,1s,1qs,1s,1qs,1s,1rq,1re,1rq,1re,1rq,2,1q,1,1q,1l,1lq,1l,1lq,1l,1q,1,1q,2,2r,3re,1r,1re,1r,1re,1,1rq,1,1rq,1,1rq,2r,1re,7r,2rq,1r,2rq,3q,1,1q,1r,1re,1r,1re,1r,1,4q,1rq,4r,1e,1q,1,1q,1,1rq,1re,4r,3rq,1r,1,2q,1,1q,1r,1re,1r,1re,1r,5q,1rq,2r,1re,1r,1le,1lq,1l,2lq,2r,1,1rq,1,1rq,1,1rq,1,1q,1,2q,1,1q,1,1q,1,1q,14",
+  14: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,4r,3,1q,1,1r,1,1r,1,6r,2rq,7r,1rq,1r,4rq,2r,1rq,2r,1le,3lq,1l,1rq,1r,1,1rq,1,1rq,10r,2rq,1r,1rq,5q,1r,1re,1r,2re,1r,1rq,1r,2rq,5q,1l,2lq,1l,1lq,1,1q,1,1q,1,1r,1re,1r,4re,1r,1re,1,4r,1rq,1,4q,1r,1,1r,1e,1rq,1e,1rq,1e,1rq,1,3r,1rq,1r,1l,1lq,3e,2es,1s,1es,1s,1r,1re,2r,1re,2,1q,1e,1q,2l,1lq,1l,1lq,2,2e,1,1re,1r,2re,1r,1le,2lq,1l,1lq,1rq,2re,1r,1re,2r,1re,1r,1,1rq,1,1r,1,1rq,1e,1,1q,1,1q,2r,2re,1r,1re,3r,3rq,7r,2rq,1r,3rq,2q,1,1q,1,1rq,2re,1r,1re,1r,4rq,1r,1rq,1r,1rq,2r,1re,1r,1rq,1r,3rq,1r,2rq,4r,1,2q,1,1q,5lq,1l,2lq,14",
+  15: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,12r,4rq,1r,1rq,1r,1rq,6r,3rq,1r,2rq,2r,1,1rq,1q,1rq,1,1rq,1q,1r,1,1rq,4r,1rq,1r,1rq,5r,1rq,1r,7rq,6r,1rq,1r,4rq,1r,1rq,1,1q,1,1q,1,1rq,2re,3r,4rq,1,1q,1,1q,1,1q,1,1q,1,1q,1l,2lq,1l,1lq,1rq,2re,1r,1re,1le,2lq,1l,1lq,2r,1re,1r,1re,1le,2lq,1l,1lq,2r,1re,1r,2re,1r,1re,4r,1re,7r,1,3q,1re,5es,5e,10re,5e,4le,1lq,10q,2rq,1r,2re,1r,2re,2r,1,1q,1rq,1,1rq,1,2q,1,1q,1rq,3re,1r,2re,1r,1re,1rq,5q,1rq,3r,1re,1e,1q,1,2q,5r,1,4q,1rq,1re,1r,2re,3r,4rq,1r,1rq,6r,1rq,1r,2rq,1r,3rq,2r,1,1q,1,1q,1,1rq,1re,3r,1rq,1r,2rq,1r,1l,1lq,1l,1lq,1l,1rq,1re,1,1r,1,5lq,1qs,1s,1qs,2s,4,1q,1e,1q,6",
+  16: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,5r,6re,4r,1rq,3r,1re,2r,1re,3r,1rq,1r,3rq,1r,1rq,1r,1l,3lq,1l,1rq,2r,1rq,1r,21rq,4r,1rq,1r,3rq,3q,1,1q,1r,1e,1rq,1e,1rq,1e,1rq,1e,1rq,1,3lq,1l,1lq,1rq,1r,1re,1r,1re,1r,1e,1rq,1e,1rq,1e,1r,1,1r,1,1r,1,1rq,1,1rq,1,1rq,1,1q,1rq,1e,2q,1,1q,1l,1lq,1l,1lq,1q,2l,1lq,1l,1lq,1,1e,1,2e,1r,2re,1r,1re,1le,2lq,1l,1lq,5s,5,1l,1lq,2l,1lq,2,2e,1,1re,1r,2re,1r,1re,3r,1,1rq,1re,2r,1re,1r,1re,1r,1rq,2r,4rq,1r,1rq,1r,1rq,1r,1e,2q,1,1q,1rq,1r,1re,1rq,2r,1rq,1r,1rq,6r,1rq,1r,3rq,3q,1,1q,2r,2re,3r,3rq,2l,3lq,1rq,1r,8rq,3r,1rq,1r,1,1q,1,1q,1,1rq,4r,1l,6lq,1l,1lq,1l,2lq,15",
+  17: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,12r,4rq,1r,1rq,1r,1rq,4r,1,4q,1rq,1,1rq,1,1rq,1re,2r,2re,2r,1rq,1r,2rq,1r,3rq,5r,1,4q,1rq,4r,1,2q,1,1q,1r,1re,1r,1re,3r,4rq,1r,1rq,2r,2,1q,1,1q,1rq,1r,1re,1rq,2r,1rq,1r,1rq,6r,1rq,1r,3rq,3lq,1l,1lq,2r,2re,1r,1re,2rq,1r,3rq,1r,1rq,6r,1rq,1r,4rq,2r,1rq,1r,1es,1qs,1s,1qs,1s,1rq,1re,2r,1rq,2,1q,1,1q,2r,3re,1r,1rq,1r,4rq,1r,1rq,1r,2,1q,1,1q,6r,2rq,1r,1rq,7r,4rq,1r,1rq,1r,1rq,2l,1lq,1l,1lq,1l,3lq,1l,2q,1,1q,4,1e,8",
+  18: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,12r,4rq,1r,1rq,1r,1rq,4r,1,4q,1rq,1,1rq,1,1rq,1re,2r,2re,2r,1rq,1r,2rq,1r,3rq,5r,1,4q,1rq,4r,1,2q,1,1q,1r,1re,1r,1re,3r,4rq,1r,1rq,2r,2,1q,1,1q,1rq,1r,1re,1rq,2r,1rq,1r,1rq,6r,1rq,1r,3rq,3lq,1l,1lq,2r,1e,1r,1,1r,1,1rq,1,1q,1rq,1,1rq,1,1r,1,1rq,1,1r,1e,1qs,2s,1qs,1s,2r,1re,2r,1e,1q,1,1q,1,1rq,1r,1re,2r,2,3q,2r,2re,1r,1e,1r,1e,1rq,1e,5lq,2r,1re,2r,1,2q,1,2q,1,2q,1,1r,1re,1r,2re,1r,2re,1r,1e,2r,1re,3r,3rq,1r,2lq,1l,2lq,1r,1re,1r,1re,3r,4rq,6r,1rq,2r,5rq,1l,2lq,1l,1lq,1l,1lq,1l,1lq,1l,1q,1,1q,14",
+  19: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,12r,4rq,1r,1rq,1r,1rq,4r,1,4q,1rq,1,1rq,1,1rq,1re,2r,2re,2r,1rq,1r,2rq,1r,3rq,5r,1,4q,1rq,2r,1re,1rq,1re,1rq,1re,1rq,1re,2l,1lq,1l,1lq,1r,1rq,1e,1rq,1,1rq,1r,1rq,1re,1r,1e,2,1q,1,1rq,1re,3r,2rq,1r,1rq,1r,1,1q,1,1q,1,1rq,1re,4r,3rq,1r,1,2q,1,1q,1r,1e,1rq,1e,1rq,4r,1rq,1r,1rq,3r,2s,1qs,1s,1qs,6r,1rq,3r,1,1q,1,1q,1,1rq,1r,1re,2r,2rq,1r,1rq,1r,1,1q,1,1q,1,1rq,1e,1rq,1,1rq,5r,1rq,7r,2rq,1r,3rq,1r,1rq,4r,1,4q,1rq,4r,2,1q,1,1q,1l,1lq,1l,2lq,1l,1lq,1l,1q,13",
+  20: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,12r,4rq,1r,1rq,1r,1rq,4r,1,4q,1rq,1,1rq,1,1rq,1re,2r,2re,2r,1rq,1r,2rq,1r,3rq,5r,1,8q,1,1rq,1r,1re,1r,1re,1r,1,1rq,1q,24rq,1r,1rq,1,2q,1,1q,2r,2re,2r,2rq,1r,2rq,7r,1rq,1r,3rq,1r,2rq,7r,1rq,1r,2qs,1s,1qs,1s,1rq,1re,2r,1re,4r,1rq,1r,4rq,7r,1rq,1r,4rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,7r,5rq,2r,1rq,1r,2l,1lq,1l,4lq,1l,1lq,1q,1,1q,14",
+  21: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,4r,2,2q,1,1r,1,1r,1,5r,1rq,1r,1rq,1r,1rq,6r,3rq,1r,1rq,3q,1,1q,1r,1e,1rq,1e,1rq,1re,4r,3rq,1r,1rq,1re,1rq,1re,1rq,1re,1rq,1re,3rq,1r,1rq,7r,1rq,1r,4rq,1r,1rq,7r,4rq,1r,1rq,1r,1rq,2r,1re,1r,1rq,1r,3rq,1r,2rq,1r,1,2q,2,1rq,1e,1rq,1,1r,1,1rq,1,1rq,1,4q,1,1rq,1re,1r,2re,4s,1qs,2l,1lq,2l,1q,1e,23,1r,1re,1r,2re,1r,1re,1r,1re,1,1rq,1,1rq,1,1rq,1,1rq,1e,1rq,1e,1rq,3re,2r,5rq,1r,1rq,7r,4rq,1r,1rq,1r,1rq,6r,3rq,1r,2rq,1r,1rq,1r,1re,2r,1rq,1r,2rq,1r,3rq,1r,1l,2lq,1l,1lq,1l,1lq,1l,2lq,1,1q,1,1q,7,1e,5",
+  22: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,4r,2,2q,1,1r,1,1r,1,1r,1,1rq,1,1rq,1,1rq,1,1rq,1e,1rq,1r,1re,2r,1rq,1r,2rq,1r,1rq,1l,4lq,1rq,1r,6rq,1r,2rq,1r,1rq,1r,1rq,7r,3rq,5q,2r,3re,1,4q,1rq,12r,2rq,1r,3rq,1r,1rq,4r,1,4q,1rq,3r,1re,1rq,7r,2rq,1r,3rq,1r,1rq,6r,1rq,1r,4rq,2r,1qs,3s,1qs,6r,1rq,2r,1rq,7r,4rq,1r,1rq,1r,1rq,2,1q,1,1q,1r,1,1rq,1e,1rq,4r,1rq,5r,1,4q,1rq,9r,1l,2lq,1l,6lq,1,2q,14",
+  23: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,4r,2,2q,1,1r,1,1r,1,5r,1rq,1r,1rq,1r,1rq,6r,3rq,1r,1rq,3q,1,1q,1r,1e,1rq,1e,1rq,1re,4r,3rq,2r,1,1q,1,1q,1,1rq,1e,1rq,1,1rq,5r,1q,1,2q,1,1rq,1e,1r,1,5r,1rq,1r,1rq,1r,1rq,6r,2rq,1r,2rq,3q,1,1q,1r,1re,1r,1re,3r,3rq,3q,1,1q,1rq,3re,1r,1re,2rq,1r,4rq,7r,1qs,1s,2qs,1s,1rq,2r,1re,1r,1,1q,3,1rq,1re,4r,3rq,1r,1,2q,1,1q,1r,1e,1rq,1e,1rq,4r,1rq,1,4q,1r,1e,1rq,1e,2r,1re,2r,2rq,1r,2rq,1r,1,1q,1,1q,1,1rq,1re,1r,1re,1r,3rq,1r,1rq,5r,1l,9lq,2q,15",
+  24: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,10r,1rq,1r,5rq,1r,1rq,1,2q,1,1q,1r,1e,1rq,1e,1rq,5r,2rq,6r,1rq,1r,4rq,1r,3rq,2r,2,2q,1e,1rq,1re,1rq,1re,1rq,1,3q,1,1lq,1l,1lq,1l,1lq,1e,1q,1,1q,1,1rq,3re,1r,2e,1,2q,2r,2re,1r,1e,1q,1,2q,2r,2re,2r,1re,3r,1,1q,1,1rq,1e,1lq,1l,1lq,1l,1lq,1rq,3re,1r,1re,1,1rq,1,1rq,2s,1qs,1s,1qs,3r,1re,2r,1re,4r,1rq,1r,2rq,5q,1r,1,1r,1e,1rq,2re,3r,4rq,1r,1q,1,1q,1,1q,1r,1re,1r,1re,1r,5q,1rq,2r,1re,1r,1e,1q,1,2q,1r,1,1rq,1,1rq,12r,3rq,5q,2r,2re,1r,1e,4q,1rq,1r,1re,1rq,1r,1,1q,1,1q,1,1rq,1e,1rq,1e,1rq,1re,4r,3rq,2r,1,1q,1,1q,1,2lq,1l,2lq,1l,2lq,14",
+  25: "2r,1re,1r,1re,3r,1re,10r,1re,4r,1rq,1qs,1s,1qs,1s,1qs,9r,1rq,5lq,1rq,1re,2r,1re,4r,5rq,2r,1rq,1r,1re,1r,1lq,1l,3lq,1rq,2r,1rq,1r,2l,1lq,2l,6r,4rq,1l,1lq,2l,1lq,1r,1re,4r,4rq,1l,1lq,1l,1lq,1l,2r,1re,2r,5lq,1q,1,1q,1,1r,1re,1r,1re,4r,3rq,1r,2rq,7r,4q,1,1rq,2r,1rq,1re,2r,1rq,2r,4rq,1r,2lq,2l,1lq,2r,1re,3r,4rq,1r,1rq,3r,4s,1qs,2r,1rq,2r,1rq,7r,4rq,1r,1rq,1r,1rq,6r,3rq,1l,4lq,2r,1re,1r,1re,1r,1rq,1r,4rq,1r,1rq,7r,3rq,1r,4lq,2l,1lq,3l,1lq,2l,1lq,1l,1lq,2l,1lq,1l,1q,5,1e,7",
+  26: "2r,1re,1r,1re,3r,1re,10r,1re,4r,1rq,1qs,1s,1qs,1s,1qs,9r,1rq,5lq,1rq,1re,2r,1re,4r,5rq,2r,1rq,1r,1re,1r,1lq,1l,3lq,1rq,2r,1rq,1r,2l,1lq,2l,6r,4rq,1l,1lq,2l,1lq,4,2r,1rq,2r,1rq,3,7e,1,4q,9rq,2r,1re,2r,1re,1r,1re,2r,1re,1,4q,5rq,5lq,1rq,4re,2e,1,2q,14rq,1r,1q,1,1q,2,4s,1qs,2r,1rq,3r,1rq,6r,1rq,1r,4rq,1r,2,1q,2,3r,2rq,1r,3rq,1r,2l,1lq,2l,1rq,4r,1rq,1r,2rq,1r,1l,1lq,2l,1lq,5r,5lq,1l,1lq,2l,1lq,3l,1lq,2l,1lq,2l,1q,14",
+  27: "2r,1re,1r,1re,3r,1re,10r,1re,4r,1rq,1qs,1s,1qs,1s,1qs,5r,3,1q,1,1rq,1r,2rq,1r,1rq,7r,5rq,2r,1q,4,2r,2rq,1r,3rq,2r,3,1q,1,1r,1rq,1r,3rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,7r,1rq,4q,1,1lq,1l,1lq,2l,1rq,1re,1r,1re,1r,1,4q,1,1q,1,1q,6,5r,3q,1,1q,1r,1re,3r,14rq,1re,5e,2re,1r,1re,1r,2l,1lq,2l,5re,1s,1qs,1s,2qs,1rq,1re,1rq,2r,1l,1lq,3l,2r,1re,3r,1rq,1r,4rq,3r,2l,1lq,1l,1lq,1r,1rq,2r,1rq,1r,1rq,7r,1rq,1r,4rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,7r,2rq,5lq,1l,1lq,2l,1lq,3l,1lq,1l,2,1q,2,2l,1lq,15",
+  28: "2r,1re,1r,1re,3r,1re,10r,1re,4r,1rq,1qs,1s,1qs,1s,1qs,5r,3,1q,1,1rq,1r,2rq,1r,1rq,7r,5rq,2r,1q,4,2r,2rq,1r,3rq,2r,3,1q,1,1r,1rq,1r,3rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,3r,2l,1lq,1l,3lq,1l,2lq,1q,1,1q,2,3r,1re,1r,1re,1r,1re,1r,1re,10rq,5r,5q,2r,1rq,2r,1e,1q,2,1q,1r,1rq,1r,3rq,7r,1rq,1r,4rq,1r,1rq,4r,3s,1qs,1s,1rq,3r,1rq,7r,4rq,1r,1rq,1r,1rq,5,1r,1rq,1r,2rq,3lq,1l,1lq,4,2r,1re,1r,1rq,2r,3rq,1r,1l,1lq,3l,1rq,1r,1re,1rq,2r,3rq,1r,1l,1lq,2l,1lq,1l,1lq,1l,1lq,1l,2lq,1l,1lq,1l,1lq,1l,1lq,1l,1q,14",
+  29: "2r,1re,1r,1re,3r,1re,10r,1re,4r,1rq,1qs,1s,1qs,1s,1qs,5r,3,1q,1,1rq,1r,2rq,1r,1rq,7r,5rq,2r,1q,4,2r,2rq,1r,3rq,2r,1l,1lq,2l,1lq,1rq,2r,1re,1r,2l,1le,1l,1le,2l,1le,1lq,1l,1rq,1r,8rq,3r,2re,4le,1l,1q,1,2q,9rq,2r,1re,1r,1re,2r,5l,1q,1,2q,1rq,3lq,1l,1lq,1l,2lq,1l,1lq,1,1q,3,1lq,2l,1lq,1l,1rq,1re,1r,1re,2r,1re,3r,1re,3r,1re,1r,1re,1r,1re,1r,1es,1qs,2s,1qs,1,1q,3,1lq,4l,2,1q,2,2l,1lq,1l,1lq,2r,1re,2r,2,1q,1,1q,3r,1re,1r,2l,1lq,2l,5,3r,1re,2r,1re,1r,1rq,3r,1rq,7r,1,4q,1r,1rq,1r,1rq,7r,4rq,1,2q,2,1r,1re,1r,1rq,1r,4q,1,1rq,4r,2,1q,1,1q,1r,2rq,1r,1rq,1lq,1l,1lq,2l,1lq,2l,1lq,1l,1lq,1l,1lq,1l,1lq,1l,1lq,2l,1q,14",
+  30: "2r,1re,1r,1re,3r,1re,10r,1re,4r,1rq,1qs,1s,1qs,1s,1qs,5r,3,1q,1,1rq,1r,2rq,1r,1rq,7r,5rq,2r,1q,4,2r,2rq,1r,3rq,2r,4l,1lq,12q,3,10rq,2lq,3l,1rq,1re,4r,3rq,1r,1lq,1l,1lq,2l,8r,1re,1r,2le,1l,1le,1lq,3r,7rq,5lq,1r,4re,2e,3q,12rq,1r,1re,1r,5re,1es,1qs,1s,1qs,1s,1rq,3r,1rq,1re,1rq,1re,1rq,1re,1q,1,3q,1r,1rq,1r,1rq,7r,3rq,1r,2rq,1r,1rq,1r,5,1rq,1r,3rq,1r,1rq,3r,2,1q,1,1q,1r,1rq,1r,2rq,1lq,1l,1lq,2l,1lq,2l,1lq,1l,1lq,1l,1lq,1l,1lq,1l,1lq,2l,1q,14",
+  31: "2r,1re,1r,1re,3r,1re,10r,1re,4r,1rq,1qs,1s,1qs,1s,1qs,5r,3,1q,1,1rq,1r,2rq,1r,1rq,7r,5rq,2r,1q,4,2r,2rq,1r,3rq,2r,3,1q,1,1r,1rq,1r,3rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,4r,3q,1rq,1,1q,1,2q,1r,1rq,3r,1e,1q,3,1r,1rq,1r,1rq,1r,2rq,2r,2rq,6r,1rq,1r,3rq,1r,2rq,4r,1re,3e,2,3r,1rq,1r,13rq,1r,6re,2s,2qs,1s,3rq,1r,1rq,1r,1rq,5r,2rq,1r,2lq,1l,1lq,1l,2r,1re,3r,2rq,1r,2rq,1r,1rq,1r,1re,1l,1lq,1l,2lq,1r,1rq,2r,1rq,2r,1rq,6r,1rq,1r,4rq,1l,1lq,1l,1lq,3l,1lq,1l,1lq,1l,1lq,1l,1lq,1l,1lq,1l,1lq,1l,1,1q,13",
+  32: "5s,3r,1re,12r,1re,2r,1re,4r,4rq,1r,2rq,7r,4rq,1r,2rq,7r,3rq,1r,2rq,1r,1rq,5r,1,4q,1r,1rq,3r,1l,1lq,2l,1lq,1rq,2r,2re,2l,1lq,1l,1lq,1rq,1r,10rq,2r,6re,2r,15rq,1r,1re,1r,1re,1rq,3r,1re,1rq,2r,3rq,1r,2rq,5r,2s,1qs,2s,1lq,1l,1lq,2l,1rq,1re,3r,1re,3r,1rq,1r,3rq,1r,1q,4,4r,4rq,1r,1rq,1,1q,3,3r,4rq,1r,1rq,7r,4rq,1r,2rq,7r,4rq,1r,3lq,2l,1lq,3l,1lq,1l,1lq,1l,1lq,1l,1lq,2l,1lq,1l,1q,3,1e,1q,1e,1q,1e,1,1q,1e,2",
+  33: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,12r,4rq,1r,1rq,1r,1rq,6r,3rq,1r,3rq,2r,1rq,5r,5rq,2r,1rq,6r,3rq,1r,4rq,6r,1rq,1r,4rq,1r,1rq,6r,1rq,1r,4rq,1,2q,1,1q,1r,1re,1r,1re,2r,6rq,1r,1rq,6r,4rq,1r,1rq,1r,1rq,2r,1re,1rq,2r,7rq,4r,1s,1qs,1s,1qs,1s,1rq,1re,1rq,4r,1rq,2r,2,1q,1,1q,1rq,5r,1rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,3r,1re,1rq,1r,1rq,1r,4rq,1l,2lq,1l,1lq,1l,1lq,1l,1lq,1l,2lq,15",
+  34: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,4r,2,2q,1,1r,1,1r,1,5r,1rq,1r,1rq,1r,1rq,6r,3rq,1r,1rq,3q,1,1q,1r,1e,1rq,1e,1rq,1re,4r,3rq,2r,1,1q,1,1q,1,1rq,1e,1rq,1,1rq,1r,1re,1rq,1re,1rq,1,4q,1rq,1re,1rq,1re,1r,1re,7rq,1r,1rq,1re,1rq,1r,1rq,1r,7rq,1re,1rq,1r,5q,1rq,12r,2rq,1r,4rq,7r,1rq,1r,4rq,2r,1rq,1re,3r,1rq,1r,4rq,1r,1rq,7r,3rq,1r,3rq,3r,2s,1qs,2s,1rq,4r,1,1q,1,1q,1,1rq,1e,1r,1,1r,1e,1rq,1e,1rq,1,1rq,5r,1rq,3r,1l,1lq,1l,4lq,1l,2lq,1q,1,1q,14",
+  35: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,4r,2,2q,1,1r,1,1r,1,5r,1rq,1re,1r,11re,1r,1re,1r,10re,1r,1re,1r,10re,1r,1re,2r,10re,1r,1re,2r,11re,2r,1re,2rq,6r,1rq,1r,4rq,1r,1rq,6r,1rq,1r,5rq,1,1q,1,1q,1,1rq,2re,3r,3rq,1r,3q,1,1q,1r,1re,1r,1re,1r,2s,2qs,1s,1rq,1r,1re,8r,4rq,1,4q,1rq,1e,1r,1e,1rq,4re,1r,3rq,1r,1rq,5r,1,4q,1rq,4r,1,1q,1,1q,1,1lq,1l,1lq,1l,1lq,1l,2lq,14",
+  36: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,4r,2,2q,1,1r,1,1r,1,5r,1rq,1r,1rq,1r,1rq,6r,3rq,1r,2rq,4r,1rq,1,1rq,1,2rq,3r,2rq,1r,1rq,7r,5rq,1r,1rq,3r,1,1rq,1,1rq,1,2rq,4r,2rq,7r,5rq,1r,1rq,3r,2,1rq,1r,1,3rq,2r,1rq,1r,1rq,2r,1l,1lq,1l,2lq,6r,2rq,2r,1s,1qs,2s,1qs,1r,1re,1rq,1re,1rq,2r,1rq,2r,1l,2lq,1l,1lq,1r,1re,4r,2rq,1r,1rq,1,2q,1,1q,1r,1e,1rq,1e,1rq,5r,2rq,7r,1rq,1r,20rq,4r,1l,4lq,1l,4lq,1q,1,1q,14",
+  37: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,4r,2,2q,1,1r,1,1r,1,5r,1rq,1r,1rq,1r,1rq,6r,3rq,1r,1rq,3q,1,1q,1r,1e,1rq,1e,1rq,4r,1rq,1r,1rq,1r,1rq,1r,1rq,6r,6rq,1r,2rq,5r,1rq,1r,2rq,5q,1rq,1re,1r,2re,1l,4lq,1rq,1re,2r,1rq,1re,1rq,3r,1,1q,1,2q,1rq,4r,1,3q,1,1rq,2re,4r,6rq,2r,1rq,1r,1re,1r,1rq,1s,1qs,1s,2qs,1r,1rq,12r,4rq,1r,1rq,1r,1rq,6r,4rq,1r,1rq,1r,1q,1,1q,1,1q,2r,1re,3r,3rq,1r,1rq,7r,5rq,2r,1q,1,1q,1,1q,1l,1lq,1l,2lq,1l,2lq,14",
+  38: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,4r,2,2q,1,1r,1,1r,1,5r,1rq,1r,1rq,1r,1rq,6r,3rq,1r,1rq,3q,1,1q,1r,1e,1rq,1e,1rq,1re,4r,3rq,2r,1,1q,1,1q,1,1r,1q,1re,1q,2rq,1re,1rq,1re,1rq,4lq,1l,1rq,1re,1q,1re,1q,1r,2rq,2r,2rq,3r,1,1q,1,2q,6r,2rq,2r,1,1q,1,1q,1,1rq,1re,3r,1rq,1r,2rq,6r,1rq,1r,1rq,1r,4rq,7r,1qs,1s,2qs,1s,1rq,2r,1re,1rq,1le,1lq,2l,1lq,2r,1re,3r,2rq,1r,1rq,10re,1r,1re,1r,10re,1r,1re,1r,1rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,2r,2l,2lq,1l,5lq,1,2q,14",
+  39: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,4r,2,2q,1,1r,1,1r,1,5r,1rq,1r,1rq,1r,1rq,6r,3rq,1r,1rq,3q,1,1q,1r,1e,1rq,1e,1rq,1re,4r,3rq,2r,1,1q,1,1q,1,1r,1rq,2re,1r,2rq,1r,1rq,1r,1rq,2r,1re,1r,1rq,1r,3rq,1r,2rq,2r,1,1q,1,2q,1r,1,1rq,1e,1rq,4r,1rq,5r,1,4q,1rq,12r,2rq,1r,4rq,1,1q,1,1q,1,1rq,2re,3r,3rq,1r,1rq,4r,2s,1qs,1s,1qs,1r,1,1rq,1,12r,4rq,3lq,1l,1lq,2r,1e,1r,1,5r,5q,1rq,1re,1r,2re,3r,2rq,1r,3rq,1r,1rq,4r,1l,7lq,1l,1lq,2q,1,1q,5,1e,7",
+  40: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,1e,1rq,1e,2r,1re,3r,3rq,1r,1rq,6r,1rq,1r,1rq,1r,5rq,6r,1rq,1r,4rq,1r,2rq,1,1rq,1,1rq,1,2r,1re,2r,4rq,1r,1rq,4r,1,4q,1re,1q,1rq,1q,1r,1q,1r,1q,1r,1q,1re,1rq,1re,1r,1re,1q,1,3q,1rq,1q,1rq,1q,1rq,1q,1re,1q,1r,1q,1re,1rq,1re,1r,1re,5rq,1r,1rq,7r,3rq,1r,2rq,1r,1rq,1r,1re,2r,1rq,1r,1rq,1r,4rq,7r,2rq,1r,6rq,6r,1rq,1r,4rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,7r,6rq,1r,2rq,2r,2l,3lq,1qs,1s,1qs,1s,1qs,2l,1lq,14",
+  41: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,4r,2,2q,1,1r,1,1r,1,5r,1rq,1r,1rq,1r,1rq,6r,3rq,1r,1rq,3q,1,1q,1r,1e,1rq,1e,1rq,1e,1rq,1e,1rq,1e,1rq,1re,1rq,1re,1rq,1re,1rq,1re,1rq,1re,1rq,1re,3rq,1r,3rq,6r,1rq,1r,1rq,1r,4rq,2r,1,1q,1,1q,1,1rq,1r,1re,2r,2rq,1r,1rq,1r,1l,2lq,1l,1lq,2r,1e,1rq,1,1rq,4r,1q,1,2q,1,1rq,2re,1r,1re,1r,4rq,1s,1qs,1s,1qs,1s,2r,1re,4r,1rq,1r,1rq,1e,3q,1,1rq,1re,1r,3re,1r,4rq,1r,1rq,1r,1rq,6r,2rq,1r,3rq,1r,1rq,1r,1e,2q,1,1q,1rq,1re,3r,2rq,2r,1rq,6r,4rq,1r,1rq,3r,1l,2lq,1l,3lq,1l,2lq,1q,1,1q,14",
+  42: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,4r,2,2q,1,1r,1,1r,1,5r,1rq,1r,1rq,2r,11rq,2lq,2l,1lq,5q,5rq,1r,1rq,3r,1,1q,1,2q,6r,2rq,7r,2rq,1r,5rq,6r,1rq,1r,4rq,1r,1rq,7r,7rq,1r,1rq,1r,1re,1r,1rq,2r,3rq,1r,2rq,1r,1rq,2r,1re,3l,2lq,5rq,5qs,3r,7rq,7r,3rq,5q,1r,1e,1rq,1e,1rq,2re,1r,1re,1rq,1r,4rq,1,1q,1,1q,1,1rq,2re,3r,2rq,1r,1rq,2q,1,1q,1,1lq,1l,1lq,1l,1lq,1l,2lq,14",
+  43: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,4r,3,1q,1,1rq,2re,3r,4rq,1,3q,1,1rq,3re,2r,4rq,2q,1,2q,2r,2re,3r,4rq,1r,1rq,2r,1,1q,1,2q,1r,1,1rq,1,1rq,11r,1rq,1r,5rq,2r,1rq,1re,2r,1rq,1r,1rq,1r,4rq,1r,1rq,6r,2rq,1r,2rq,4q,1,1rq,1e,1r,1,2r,1re,2r,2rq,1r,2rq,6r,1s,3qs,1s,1rq,3r,1re,1lq,2l,1lq,1l,1r,1re,2r,1re,1rq,1r,3rq,1r,1rq,1r,1re,2r,1rq,1r,1rq,1r,4rq,1r,1,2q,2,1rq,1re,1r,1re,1r,3rq,1r,1rq,1,2q,1,1q,1re,1r,1re,1r,1re,2r,1rq,1r,1rq,2q,1,1q,1,1rq,1e,1rq,1e,6r,2rq,1r,1rq,1r,1,1q,1,1q,1,1rq,1e,1rq,1,1rq,5r,1rq,7r,4rq,1r,1rq,1r,1rq,1r,1re,2r,5q,1rq,9r,2l,8lq,2q,3,4s,1qs,1e,1q,1e,1q,3",
+  44: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,1,4q,1rq,4r,2,2q,1,2r,1re,1r,1re,2rq,4r,4re,1r,2re,2r,1rq,2r,1rq,2r,1re,2r,1re,2r,1rq,1r,4rq,1r,1rq,1l,4lq,1rq,1re,1,1rq,1q,2rq,1r,7rq,1r,13rq,4r,4rq,1r,1rq,1r,1,1q,1,1q,1,1rq,1re,1r,1re,1r,2rq,1r,2rq,5r,1,4q,1rq,1re,4r,1rq,6r,1rq,1r,4rq,1r,1l,2lq,1l,1lq,1r,1re,1,1rq,1e,1rq,3r,1rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,1q,1,1q,1,1rq,1e,1r,1,1r,1re,1r,1re,1r,3rq,1r,1rq,1r,1rq,6r,2rq,1r,3rq,1r,1rq,2,1q,1,1q,1l,2lq,1l,2lq,1l,1lq,1q,2,1e,10",
+  45: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,1e,1rq,1e,2r,1re,3r,3rq,1r,1rq,1,1q,1,1q,1,1rq,1e,1rq,1e,1rq,5r,2rq,3r,2l,3lq,6r,2rq,7r,3rq,1r,1rq,3q,1,1q,1r,1,1re,1q,1re,1rq,1re,1r,1re,1rq,1re,2rq,1r,1rq,6r,1rq,1r,4rq,2r,1rq,1e,2q,1,1q,1r,1,1rq,1,1rq,11r,1rq,1r,3rq,1r,2rq,1r,1,1q,1,1q,1,1rq,1re,1r,1re,1rq,1r,2rq,1r,1rq,1s,1qs,3s,1rq,1e,1rq,1e,1rq,5r,1rq,1r,1rq,6r,1rq,1r,4rq,1,2q,1,1q,1r,1re,1r,1re,2r,3rq,1r,2rq,7r,3rq,1r,2rq,1r,1rq,2r,1re,1rq,2r,2rq,1r,3rq,1r,1,2q,1,1q,1,1q,1,1q,1,2q,1,1q,14",
+  46: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,2re,1r,1re,2r,1rq,1r,2rq,1r,1rq,1r,1rq,2l,1lq,1l,1lq,2r,1re,3r,3rq,1r,1,1q,1,1q,1,1rq,1e,1rq,1e,1rq,5r,3lq,1l,1lq,1rq,1re,1e,1rq,1e,1rq,1r,1re,1r,1rq,5q,1rq,1e,1r,1,1r,1re,1r,1re,1r,1re,5rq,4lq,1l,1rq,1re,1rq,1re,1rq,1re,1rq,1r,5rq,1r,1rq,1e,4q,2rq,3r,1rq,1r,1rq,2r,2l,2lq,1l,1rq,1r,1re,1r,1rq,1r,1rq,1r,1rq,7r,2rq,1r,3rq,3r,1s,1qs,2s,1qs,6r,1rq,3r,1,1q,1,1q,1,1rq,1re,3r,1rq,1r,2rq,1r,1,1q,1,1q,1,1rq,1re,1r,1re,1rq,1r,2rq,1r,1rq,6r,1rq,1r,2rq,7lq,1l,2lq,1,1q,1,1q,8,1e,1q,1e,1q,1e",
+  47: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,1e,1rq,1e,2r,1re,3r,3rq,1r,1rq,1,1q,1,1q,1,1rq,1e,1rq,1e,1rq,5r,4q,1,1lq,1l,1lq,1l,1lq,1r,1re,1r,2re,2r,1re,1r,1rq,1r,1rq,1r,1rq,1r,1,1q,1,1q,1,1rq,1e,1rq,1,1rq,6r,1rq,6r,3rq,1r,2rq,1r,1q,1,1q,1,1q,1r,1re,4r,3rq,1r,1rq,7r,4rq,1r,1rq,1r,1q,1,1q,1,1q,1r,1re,4r,3rq,1r,1rq,6r,1rq,1r,4rq,2r,1rq,1r,1re,1r,1rq,1s,1qs,1s,1qs,1s,1rq,9r,1,4q,1rq,12r,3rq,1r,2rq,1r,1rq,4r,1,4q,1rq,12r,4rq,1r,1rq,1r,1rq,2r,1re,1rq,1l,9lq,1q,1,1q,14",
+  48: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,6r,1rq,3r,1,1q,1,1q,1,1rq,1,1rq,1,1rq,1re,1r,3re,1r,4re,1r,1re,1r,1rq,2r,1rq,3r,4,1q,1r,1,1r,1,1rq,1,1rq,1,1rq,1,1rq,4r,1,4q,1rq,1q,1rq,1q,3rq,1r,8rq,2r,5rq,1r,1re,1rq,1re,1rq,1re,1rq,1re,1rq,1re,3rq,1r,1rq,1r,1rq,2re,1r,1rq,1r,1rq,1r,4rq,7r,1rq,1r,4rq,1r,1rq,7r,3rq,1r,2rq,1r,1q,1,1q,1,1q,1r,1re,4r,3rq,1r,1rq,6r,3rq,1qs,1s,2qs,1s,1rq,1re,3r,1re,1rq,3r,4rq,1r,2q,1,2q,1r,2re,3r,1rq,1r,3rq,1r,1rq,6r,1rq,1r,4rq,1,1rq,1q,1rq,1,1rq,1,1rq,1e,1r,1,3q,1,3q,1,1q,14",
+  49: "2r,1re,1r,1re,3r,1re,10r,1re,4r,1rq,1qs,1s,1qs,1s,1qs,5r,3,1q,1,1rq,1r,2rq,1r,1rq,7r,5rq,3r,1re,5r,3rq,4lq,2l,1lq,3l,1lq,2l,1lq,1l,10q,1rq,1r,2rq,1r,3rq,1r,3rq,1q,1rq,3q,1,1rq,4q,1rq,1q,14rq,1r,4rq,1r,1rq,3r,1re,1rq,2r,2rq,1r,3rq,6r,1re,4r,1re,2r,1re,1r,5re,5,1s,1es,2s,1es,1r,2re,1r,1re,7,1e,1,1e,3re,2r,4q,1,1rq,1r,1rq,2r,4,1q,5lq,1rq,3q,1rq,3q,1r,4q,1rq,1q,10rq,3r,1rq,1r,4rq,1r,1rq,7r,2rq,1r,3rq,1r,1l,1lq,3l,1lq,1l,1lq,1l,2lq,1l,1lq,1l,1lq,1l,1lq,1l,1lq,1l,1q,1,1e,14",
+  50: "5s,3r,1re,12r,1re,2r,1re,4r,4rq,1r,2rq,7r,4rq,1r,2rq,7r,3rq,1r,2rq,1r,1rq,5r,1,4q,1r,1rq,3r,1l,1lq,2l,1lq,1rq,3r,4rq,1r,1rq,2r,1re,2r,1rq,1r,6rq,1r,2rq,2r,1re,1rq,2r,4rq,1r,1rq,1r,1rq,6r,3rq,2r,1re,1r,1re,1r,2re,1r,1re,1r,1,2q,1,1q,3r,1re,1r,3s,1qs,1s,1r,1rq,1r,1rq,1r,1lq,1l,1lq,2l,2q,1,1q,1rq,1r,9rq,2lq,2l,1lq,1rq,3r,1rq,1,1q,1,1q,1,1r,1re,2r,1rq,1,4q,1r,1rq,8r,5rq,4q,1,1r,1re,2r,1rq,1r,3rq,1r,2rq,1r,1rq,6r,5lq,2q,1,1q,1r,3l,1lq,2l,1lq,2l,1lq,2l,1lq,1l,1,1q,13",
+  51: "5s,3r,1re,12r,1re,2r,1re,4r,4rq,1r,2rq,7r,4rq,1r,2rq,7r,3rq,1r,2rq,1r,1rq,3l,1lq,1l,1rq,1re,1r,1rq,1r,9rq,1re,1r,2re,2r,2l,1lq,1l,1lq,4q,4rq,1r,1rq,1r,1rq,1r,1re,1r,4le,1l,3,1q,6rq,5lq,1rq,4re,5lq,1rq,2r,1re,2r,1re,1rq,2r,1rq,1r,3rq,1lq,1l,2lq,1l,2r,1re,2r,2s,1qs,1s,1qs,2,1q,7,1rq,3r,1rq,1r,2rq,7r,5q,2r,1rq,7r,5rq,1l,1lq,1l,1lq,1l,2r,1re,3r,4rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,3r,1re,1lq,1l,3lq,1rq,2r,1rq,1r,2l,1lq,2l,1lq,2l,1lq,1l,1lq,1l,1lq,1l,2lq,2l,1lq,3,1q,3,1e,1q,1e,5",
+  52: "5s,3r,1re,12r,1re,2r,1re,4r,4rq,1r,2rq,7r,4rq,1r,2rq,7r,3rq,1r,2rq,1r,1rq,3r,1re,2r,5rq,1r,1rq,6r,1rq,1r,4rq,1lq,1l,1lq,1l,1lq,2r,1re,3r,3rq,1r,3lq,2l,1rq,1re,1r,1re,1r,5lq,1rq,4r,1re,3r,1rq,1l,4lq,2rq,2r,1re,2l,1lq,1l,1lq,4r,1rq,1r,2rq,1r,1rq,5r,1s,1qs,1s,1qs,1s,1q,2,1q,6,3r,1rq,1r,4rq,6r,1rq,1r,3rq,1r,1re,1r,2re,1le,3l,1lq,1rq,3r,1rq,1l,3lq,2l,1lq,3l,1lq,2l,1lq,1l,5q,3lq,2q,4rq,1r,10q,6rq,1r,3rq,1r,1rq,1r,1rq,2r,11rq,2r,1re,1r,1rq,1r,1rq,1r,4rq,6r,1l,4lq,1r,3re,1r,5e,2re,1r,1re,1r,4,1e,1,2e,2,3r,1rq,1r,3rq,1r,1rq,5r,1s,1qs,1s,1qs,1s,1lq,1l,1lq,3l,1lq,4l,1lq,2l,1lq,2l,1lq,2,1q,9,1e,1q,1",
+  53: "5s,3r,1re,12r,1re,2r,1re,2l,1lq,1l,4lq,1l,3lq,1l,1lq,1l,1q,3,1q,1r,1re,1r,1re,2r,1re,1r,2re,2l,1lq,1l,1lq,9r,1rq,1re,6r,1rq,3r,1re,1r,2re,5e,3le,2l,10re,5le,1r,4re,5e,4le,1l,12re,1rq,1r,2rq,1r,3rq,1q,4,3r,4rq,1r,2rq,3,1q,1,3r,2rq,1s,1qs,1s,1qs,1s,6r,1rq,2r,3rq,1r,1rq,6r,1l,9lq,2l,1lq,2l,1q,9,1r,1re,1r,1re,1r,1re,1r,1re,2r,3,1q,1,1q,1,1q,1,1q,2r,1re,1r,1re,2,1r,1e,1q,1r,1re,1r,1rq,2r,2rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,7r,5rq,1r,1rq,7r,4rq,1r,2lq,1l,1lq,2l,1lq,2l,1lq,1l,1lq,1l,1lq,2l,1lq,1l,1lq,1l,1q,2,1e,1q,1es,1qs,1es,1qs,1es,1q,1e,1q,1e",
+  54: "5s,3r,1re,12r,1re,2r,1re,4r,4rq,1r,2rq,7r,4rq,1r,2rq,7r,3rq,1r,2rq,1r,1rq,5r,1,4q,1r,1rq,3r,1l,1lq,2l,1lq,1rq,3r,1rq,1l,3lq,1l,1r,2rq,1r,6rq,1l,1lq,1l,2lq,1,4q,4rq,1r,1rq,1r,2rq,1r,5,1rq,2r,3rq,1r,1rq,1r,1rq,1r,1re,1r,1rq,2r,3rq,1r,3lq,1l,1lq,4,1r,4re,1r,1re,3r,1re,1es,1s,1es,1s,1es,2r,1re,5r,1re,1r,3re,1r,2re,6r,2re,1r,2re,3r,5rq,1,1q,3,4r,3rq,1r,2rq,1,2q,2,4r,5rq,1r,1l,1lq,2l,1lq,6r,3rq,1r,1lq,2l,1lq,2l,1lq,1l,1lq,1l,2lq,1l,1lq,1l,1lq,1l,1lq,1l,1,1q,8,1e,1q,1e,2",
+  55: "5s,3r,1re,12r,1re,2r,1re,4r,4rq,1r,2rq,7r,4rq,1r,2rq,7r,3rq,1r,2rq,1r,1rq,3,4e,1,1e,1,5re,5e,4re,2r,4re,6e,1,1e,1,1e,1r,4re,8e,1,1e,1,1r,1re,1r,1,1rq,2r,1re,3r,1rq,1r,4rq,1r,1rq,5,2q,1,2q,1rq,1r,1rq,2r,4,1q,1r,2rq,1r,3rq,1r,1rq,6r,1s,1qs,1s,1qs,1s,1rq,3r,1rq,1re,1rq,1re,1rq,2r,3rq,1r,2q,1,1q,1,9re,1r,1e,1,8e,4re,1r,5e,2re,1r,1rq,1r,11rq,3r,4rq,1r,1rq,1lq,1l,1lq,1l,1lq,2l,1lq,1l,1lq,1l,1lq,1l,2lq,1l,1lq,1l,1lq,4,1q,13",
+  56: "5s,2r,1re,1rq,1re,9r,1,2r,1re,2r,1re,3r,1rq,1r,4rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,4r,2,1q,2,1r,1re,1rq,1r,1rq,5r,1l,8lq,1l,1lq,1l,1lq,2l,5lq,5q,3rq,1r,1rq,1r,1rq,2r,1rq,1,4q,2rq,1r,7rq,5lq,1rq,3q,5rq,2r,1rq,2r,1rq,1le,1lq,1l,1lq,1l,1rq,3r,1rq,1r,1rq,3r,2s,1es,1s,1es,1r,1re,3r,1l,1lq,2l,1lq,2r,5re,1r,2re,5e,5re,1r,11rq,1r,2rq,1r,4rq,1,1q,3,3r,1rq,1r,4rq,1r,1rq,6r,5rq,1r,1rq,6r,1rq,1r,3rq,2q,2,1q,1r,1re,3r,4q,1,3lq,1l,1lq,1r,1re,1r,1re,4r,2rq,3lq,1l,1lq,1r,1re,1r,1re,1r,2,3q,4lq,2l,1lq,2l,1lq,5,2l,1lq,2l,1qs,4s,14",
+  57: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,1e,1rq,1e,2r,1re,3r,3rq,1r,1rq,1,1q,1,1q,1,1rq,1e,1rq,1e,1rq,5r,2rq,3r,2l,3lq,6r,2rq,7r,4rq,1r,2rq,1r,1rq,1r,1,1q,1,2q,5r,1rq,1r,1rq,1r,1rq,2r,1re,1rq,2r,4rq,1r,1rq,1r,1rq,1r,1re,1r,1rq,1r,1rq,1r,1rq,1r,5rq,2r,1,1q,1,2q,5r,5q,1r,1e,1rq,1e,1rq,2re,3r,5lq,1r,1re,3r,5rq,5lq,3rq,1r,1re,1s,1qs,1s,2qs,4r,1rq,8r,1rq,1r,4rq,1r,1rq,7r,2rq,1r,3rq,1r,1,1q,1,1q,1,1rq,1re,1r,1re,1r,1rq,1r,3rq,5r,1l,8lq,1l,2q,1,1q,7,1e,1q,1e,1q,1e,1q",
+  58: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1l,1lq,1l,1lq,1l,2r,1re,1r,1re,1r,3rq,1r,3rq,7r,4q,1,3lq,1l,1lq,1r,1re,2r,1rq,2r,1rq,2r,3l,1le,1l,1le,4l,2rq,1r,7rq,3r,6re,2r,4rq,5lq,4q,3rq,2r,1rq,1,1q,1,1q,1,2l,1lq,2l,1rq,4r,3lq,1l,1lq,1rq,1re,1r,1re,1r,1re,2r,1rq,1r,4rq,1r,1,1q,3,3r,2rq,1r,3rq,7r,1rq,1r,2rq,4lq,1l,1rq,2re,2r,1es,1qs,1s,1qs,1s,1rq,3r,1rq,1re,1rq,1re,1rq,1r,1,3q,1,2rq,7r,1rq,1r,4rq,1r,1rq,7r,4rq,1r,2rq,4r,2l,8lq,1q,1,1q,14",
+  59: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,1e,1rq,1e,2r,1re,3r,3rq,1r,1rq,1,1q,1,1q,1,1rq,1e,1rq,1e,1rq,5r,3rq,3r,1rq,2r,1rq,1r,4rq,1r,2rq,4r,2rq,1r,2rq,1r,3rq,1r,1rq,1r,1re,1,3q,1,1rq,1r,1rq,1re,1rq,1re,1rq,1r,1rq,1re,1q,1e,1q,1,1q,1r,1rq,1re,1rq,1re,3rq,7r,3rq,1r,3rq,7r,1rq,1r,4rq,2r,1rq,1re,3r,1rq,1r,4rq,1r,1rq,1,1q,1,1q,1,1rq,6re,1r,1rq,1re,2r,1re,1r,1re,5r,2qs,1s,1qs,1s,3r,1re,1r,2,1q,1,1q,1rq,1r,1rq,1r,6rq,1r,12rq,6r,5rq,1r,1q,1,1q,1,1q,1r,1e,1rq,1e,1rq,1l,3lq,1l,3q,1,1q,8,1e,1q,1e,4",
+  60: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,1e,1rq,1e,2r,1re,3r,3rq,1r,1rq,1,1q,1,1q,1,1rq,1e,1rq,1e,1rq,5r,2rq,3r,2,3q,5r,4q,1,1rq,1e,1r,1,1r,1re,2r,1re,4rq,1r,2rq,1re,1rq,1r,1rq,1re,9rq,1r,1re,1r,1rq,2r,1rq,1r,4rq,3r,1,1q,1,2q,1r,1,1rq,1,1rq,5r,1l,1lq,1l,1lq,1l,1rq,1re,1e,1rq,1,1rq,1,1rq,1,1q,3lq,1l,1lq,1rq,2re,1r,1re,1e,1q,1,1q,1,1rq,3re,1r,1re,5r,2rq,1r,1rq,6r,2rq,1r,3rq,1r,1rq,1r,1re,1r,1rq,2r,2rq,1r,3rq,1r,3re,5es,10re,1r,1rq,1r,3rq,7r,4rq,1r,2rq,6r,1rq,1r,5rq,2r,1rq,1re,1rq,1re,1rq,1r,3rq,1r,5lq,2q,1,1q,1,1q,1,1q,17",
+  61: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,6r,1rq,3r,1,1q,2,1q,1r,1,1rq,1,1rq,2r,1re,1rq,6r,1,4q,1rq,1,1rq,1e,1rq,1,1rq,1e,1rq,1e,1rq,1e,1r,1e,1rq,2r,1re,1rq,1r,3rq,2r,1q,1,1q,1,1q,2r,2re,1rq,1r,2rq,1r,1rq,1l,1lq,1l,2lq,1r,1re,2r,1re,3rq,1r,2rq,4r,1l,4lq,1rq,1re,2r,1rq,1,1q,1,2q,1r,1e,1rq,1e,1rq,1re,4r,3rq,1r,1rq,6r,3rq,1r,3rq,7r,5rq,1r,1rq,3r,2s,1qs,1s,1qs,6r,1rq,2r,1rq,1re,2r,1rq,1r,3rq,1r,1rq,3q,1,1q,1r,1e,1rq,1e,1rq,1re,4r,1l,1lq,1l,1lq,1l,1q,1,3q,6rq,1r,1rq,4r,2rq,2r,1rq,1r,4rq,1r,1rq,1r,2,1q,1,1q,6r,2rq,1r,1rq,2,1q,1,1q,1r,1,1r,1,1rq,5r,2lq,1l,2lq,1r,1re,1,1r,2,4q,1,2q,1,1q,14",
+  62: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1rq,4r,2l,1lq,1l,1lq,4r,1rq,1r,1rq,1r,1rq,1r,1le,1lq,1l,1lq,1l,1rq,1re,1rq,2r,2rq,2r,1rq,1le,1lq,1l,2lq,3r,1rq,2r,2rq,1r,1rq,1e,1q,3,1r,1rq,1r,2rq,3lq,1l,1lq,4,1r,1re,3r,1rq,1r,3rq,1r,2l,1lq,2l,1rq,1re,1r,1rq,2r,3rq,1r,1l,1lq,2l,1lq,2r,1re,1rq,2r,3rq,1r,1lq,2l,1lq,1l,5r,1rq,1r,3rq,2l,1lq,2l,1lq,2l,2lq,2,1q,1,1q,1l,1lq,1l,1lq,1l,1rq,1re,3r,1le,1lq,1l,1lq,1l,1lq,2l,1lq,1l,3r,1re,1r,1re,1r,1re,1r,1re,5,2l,1lq,2l,1rq,1re,1r,1re,1r,5s,2l,1lq,2l,4r,1re,5r,2l,1lq,1l,1lq,2r,1re,1r,1re,1r,1re,1r,1re,1,4r,1rq,1r,1rq,1r,2rq,5,2r,3rq,1r,2rq,1r,1rq,2r,1re,1rq,2r,3rq,1r,2rq,1r,1rq,1r,1re,1r,1rq,2r,10lq,2q,1,1q,1e,12",
+  63: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,1e,1rq,1e,2r,1re,3r,3rq,1r,1rq,1,1q,1,1q,1,1rq,1e,1rq,1e,1rq,5r,2rq,3r,2,3q,1r,1,1rq,1,1rq,7r,1re,1rq,1r,5rq,1r,2rq,7r,3rq,1r,2rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,6r,2rq,1r,4rq,6r,1rq,1r,1rq,1r,4rq,1r,1rq,1,1rq,1,1rq,1r,2re,1r,5rq,1r,1rq,7r,5rq,1r,1rq,7r,2rq,1r,4rq,1r,1s,1qs,3s,1rq,1re,3r,1rq,1r,1rq,2r,1rq,2r,1re,1r,5lq,1rq,3r,1re,1r,1rq,3r,2,3q,1rq,1,1rq,1,1rq,1,1q,1,2q,1rq,3re,2r,1rq,1r,1q,1rq,5lq,1q,1,2q,1,1q,13",
+  64: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,1e,1rq,1e,2r,1re,3r,3rq,1r,1rq,1r,4re,1e,3,1q,1rq,1q,1rq,1q,5rq,1r,1,2q,2,1r,6re,1r,1rq,1r,1,4q,9rq,5r,1re,1rq,1r,1rq,1r,3rq,1re,1rq,1re,1rq,1re,1rq,1re,1rq,1r,1rq,1r,4rq,6r,2rq,1r,4rq,7r,1rq,1r,4rq,2r,1rq,1r,1re,2r,1rq,1r,3rq,1r,2rq,7r,1qs,1s,2qs,1s,1rq,1re,1rq,1re,7r,3rq,1r,3rq,7r,1rq,1r,3rq,3q,1,1q,2r,2re,1r,1re,4rq,1r,2rq,7r,3rq,1r,1rq,4q,1,1rq,3re,3r,3rq,5lq,1l,1lq,1l,1lq,1l,1q,1,1q,14",
+  65: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,1e,1rq,1e,2r,1re,3r,3rq,1r,1rq,1,1q,1,1q,1,1rq,1e,1rq,1e,1rq,5r,4q,1,1rq,3re,2r,1rq,1r,2rq,1lq,2l,1lq,1l,10rq,1lq,1l,1lq,2l,1rq,1r,8rq,1r,1rq,1r,1rq,1re,1,2q,1,1q,1rq,1re,2r,1rq,1r,1rq,3r,1l,2lq,1l,1lq,3r,3re,4r,2re,1r,2re,2r,1rq,1r,1rq,1r,1rq,3r,1re,3r,1rq,1r,6rq,2r,1rq,2r,3rq,5qs,1rq,3r,1rq,1,1q,1,2q,1r,1,1rq,1,1rq,1re,1rq,1re,1rq,7r,1rq,1r,3rq,1r,2rq,1r,1l,1lq,1l,1lq,1l,1rq,1re,1,1rq,1,1rq,5r,1rq,6r,1rq,1r,4rq,2r,1rq,1re,2r,5lq,1rq,1re,1q,1rq,1e,4lq,1l,1lq,1l,1lq,1q,15",
+  66: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1rq,1re,1rq,6r,1rq,1r,4rq,1r,1rq,7r,3rq,2r,1rq,1l,4lq,4q,4rq,1r,1re,2l,1le,1l,2le,3l,1lq,1rq,1r,8rq,3,2e,5re,5q,3rq,2r,2l,3lq,1r,1rq,2r,1rq,2l,1lq,2l,1rq,1re,1r,1re,1rq,1r,2rq,1r,1rq,2lq,2l,1lq,7re,3r,1,1e,1,2e,4re,1r,6,1e,1,2e,5re,4,2q,4,1rq,1re,2r,2rq,1r,3rq,1,1q,3,3s,2qs,2rq,2r,1rq,5,2r,1rq,1r,4rq,1r,1rq,1l,1lq,2l,1lq,1,2q,1,1q,1rq,1re,1r,1re,1r,1,1rq,1,1rq,1,1q,1,2q,1,1q,1,1q,1,1q,1r,2re,1r,4re,1r,1e,1rq,1re,3r,5lq,1rq,1re,1e,1rq,1e,1lq,1l,1lq,1l,1lq,1,2q,1,1q,1le,2lq,1l,1lq,1q,2e,1,1e,1,1e,13",
+  67: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,1e,1rq,1e,2r,1re,3r,3rq,1r,1rq,1,1q,1,1q,1,1rq,1e,1rq,1e,1rq,4r,2rq,1r,1rq,1r,1rq,5r,5rq,1r,2rq,3r,1rq,2r,1rq,1r,5rq,7r,4rq,1r,2rq,1r,1rq,1re,1rq,1re,1rq,2r,5rq,1r,1rq,2,2q,1,1rq,2re,2r,3rq,1r,1rq,1,2q,1,1q,1r,1e,1rq,1e,1rq,5r,2rq,7r,6rq,2r,1rq,1re,3r,1rq,1r,1rq,1r,4rq,5r,2s,1qs,1s,1qs,6r,1rq,1re,1rq,1re,2r,1rq,1r,4rq,1r,1rq,7r,3rq,1r,3rq,7r,2rq,1r,4rq,7r,10lq,3q,14",
+  68: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,1,1q,1,1q,1,1l,1lq,2l,1lq,1rq,2re,1r,1re,2l,2lq,1l,1q,1e,8,1r,2re,1r,1re,2r,1re,1r,1e,1rq,1re,1r,2re,2r,2rq,1r,2rq,1r,12re,1r,1re,1r,12re,1r,9re,2e,1q,1e,1,2r,1re,2r,1re,3r,1rq,1,4q,2rq,3r,1re,3r,1rq,1r,2rq,1r,4rq,6r,1rq,1r,4rq,1r,1rq,6r,2rq,1r,4rq,1s,1qs,2s,1qs,1r,1re,3r,1,1q,1,2q,2lq,1l,2lq,1l,2lq,1l,2lq,1l,1lq,2l,1rq,7re,1r,1re,1le,1lq,1l,2lq,1r,1re,1r,2re,1r,2re,1r,1re,1r,1re,2r,1rq,1r,1rq,7r,1rq,1r,4rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,6r,2rq,1r,4rq,1r,1rq,1re,1rq,1re,1rq,2r,5rq,1r,1rq,7r,4rq,3q,1,1q,1r,1,1r,1e,1rq,2re,2r,2rq,1r,2rq,1r,1l,1lq,1l,1lq,1l,1q,1,1q,1,1q,1qs,2s,1qs,1es,1lq,2l,1lq,2l,1lq,2l,1lq,1rq,3re,1r,2e,1,2e,1r,2re,1r,1re,1le,1lq,1l,1lq,1,1q,13",
+  69: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1q,1,1q,1,1q,1r,1re,1r,2re,1r,1re,3r,2rq,1r,1rq,1r,1l,1lq,1l,2lq,2r,1re,3r,3rq,1r,1rq,6r,4rq,1r,2rq,1r,1,1q,1,1q,1,1rq,1re,4r,3rq,1r,1,2q,1,1q,1r,1re,4r,3rq,1r,2q,1,1q,1,1rq,2re,3r,3rq,1r,1rq,1r,1rq,1r,1re,1q,1,3q,1rq,1re,1rq,2r,1rq,1r,1rq,2r,2l,2lq,1l,1rq,1r,1,1rq,1,2rq,1r,1rq,2r,4re,1r,1re,1r,1re,1rq,1r,3rq,1r,5qs,1r,1,1rq,1,1r,5,5re,1r,1re,1r,7rq,5q,1rq,1q,1rq,1,1r,1re,1r,1re,2r,3rq,1r,2rq,7r,3rq,1r,3rq,7r,3rq,1r,2rq,1r,1rq,5r,1rq,1r,1rq,1r,5rq,1r,1,1q,1,1q,1,1rq,1re,3r,2rq,1r,1rq,1r,1,2q,1,1q,1r,1re,4r,3rq,1r,1rq,4r,1l,4lq,1rq,1re,1r,1rq,1r,5lq,2q,1,2q,14",
+  70: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1rq,1re,1rq,6r,1rq,2r,3rq,1l,2lq,2l,1q,3,1r,1e,1q,1,1q,1rq,1l,1lq,1l,2lq,1l,1lq,1l,1lq,1l,2r,1re,1r,1re,5,2l,1lq,1l,1lq,2l,1lq,2l,1rq,1re,2r,1re,1r,1re,2r,1re,1l,1lq,1l,7lq,2q,1,2e,3re,1r,5rq,3r,1re,2r,1e,1q,1e,1r,4,1rq,1,1r,1rq,3r,1lq,1l,1lq,2l,1lq,2l,1lq,2l,1lq,1l,1lq,1l,1rq,1re,2r,1re,4r,1rq,1e,1q,3,2r,1re,1r,1re,2r,1rq,1r,1rq,4lq,1l,1q,3,1r,1e,1,1q,1,1rq,3r,1rq,1r,2s,1qs,1es,1qs,1le,1lq,2l,1lq,4r,1rq,1,1q,2,1q,1r,1re,1r,1re,1rq,1r,3rq,1r,2q,1,1q,1,1r,1re,2r,2rq,1r,4rq,4r,1l,1lq,1l,2lq,1r,1rq,2r,1rq,1l,1lq,1l,1lq,1l,2r,1re,2r,1,4q,2r,1rq,3r,1re,1rq,2r,4rq,1r,3q,1,1q,1r,1e,1rq,1e,1rq,1le,4lq,1l,3lq,15",
+  71: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,5r,1,2q,2,1rq,1e,1rq,1e,2r,1re,3r,3rq,1r,1rq,1,1q,1,1q,1,1rq,1e,1rq,1e,1rq,1r,1rq,1r,1,2rq,9r,1rq,1r,7rq,6r,1re,1rq,1r,3rq,1r,1rq,1r,1rq,1re,1rq,1re,1rq,1re,1rq,1r,3rq,1r,1rq,1re,1rq,1re,1rq,1re,1rq,1re,5rq,1r,1q,1,1q,1,1q,2r,1re,1r,1re,2rq,1r,3rq,4r,4re,1r,1re,2r,1re,1r,10re,2r,1re,1r,9re,1r,1re,2r,2re,5r,1rq,1r,4rq,1r,1rq,3r,1s,1qs,2s,1qs,3r,2rq,1r,1rq,6r,1rq,1r,1lq,1l,3lq,9rq,1r,2rq,1r,3rq,6r,1rq,1r,2rq,1r,3rq,1l,2lq,1l,1lq,1l,2lq,1l,1lq,1,1q,1,1q,3,1e,1q,1e,2r,2re,1r,1le,1lq,1l,2lq,1l,1lq,1l,2lq,1l,2lq,1l,1lq,1rq,3re,1r,1le,2l,1lq,1l,1r,8re,1r,2re,1r,1re,1r,1re,2r,1re,1,5lq,1q,1,1q,1,1q,1r,2re,1r,1re,1le,2lq,1l,1lq,1rq,2re,1r,1re,1le,1lq,1l,2lq,5s,9,1q,1re,1r,2re,1r,2re,1r,1re,1,5lq,1l,2lq,1q,1e,1rq,2re,1r,1re,1l,3lq,1l,1rq,1re,1r,2re,1l,1lq,1l,2lq,2r,2re,1r,1le,1lq,1l,2lq,1l,1lq,1l,1lq,1l,1q,3e,1,2re,1r,2re,1le,1lq,1l,2lq,11,1e,1q,1e,1q,1e,1,1q,1e,1,1q,1e,1,1q,1e,1q,1e,1q,1e,1q",
+  72: "1r,1re,1r,1re,1r,1re,2r,1re,10r,1rq,1r,4rq,1r,1rq,3r,2s,1qs,1s,1qs,6r,1rq,1r,1re,1rq,5r,2rq,1r,2rq,2q,1,2q,1r,1e,1rq,1e,1r,1,1q,1,2q,1rq,1re,3r,1,1rq,1,1r,1,1rq,1e,1r,1e,1rq,1e,1q,1e,2,2re,1r,1re,1rq,1r,9rq,5r,1re,1r,1re,1r,1re,2,3q,10rq,1r,1rq,1re,1rq,1re,6rq,1r,1rq,7r,4rq,1r,2rq,7r,5rq,1r,2q,1,1q,1,1rq,1e,1r,1,1rq,1re,3r,1rq,1s,2qs,2s,1rq,1e,1rq,1e,1rq,1re,1r,1re,1rq,1r,1rq,1r,3rq,7r,1rq,1r,4rq,2r,1q,1,1q,5r,1rq,1r,1rq,1r,2rq,1r,1q,1,1q,1,1q,2r,1re,3r,3rq,1r,1rq,4r,1,5q,1,3q,1rq,1re,3r,1l,4lq,1q,12,1q,1e,1q"
 };
 
 function expandSolution(seq) {
@@ -648,11 +556,15 @@ function expandSolution(seq) {
 /* ============================================================================
  * 7. CAKE STACK SPRING-DAMPER & CASCADE COLLAPSE ENGINE
  * ============================================================================ */
-function getFloorY(def, x) {
+function getFloorY(def, x, hazardsState) {
   let y = 415;
-  for (const h of def.hazards) {
+  const list = hazardsState || def.hazards;
+  for (const h of list) {
     if ((h.type === "step" || h.type === "bump") && x >= h.x && x <= h.x + h.w) {
       y = Math.min(y, 415 + h.dy);
+    }
+    if (h.type === "crumble" && h.collapsed && x >= h.x && x <= h.x + h.w) {
+      y = Math.max(y, 415 + (h.dy || 22));
     }
   }
   return y;
@@ -662,11 +574,11 @@ function createCakeState(def, styleId = "classic") {
   const style = CAKE_STYLES.find(s => s.id === styleId) || CAKE_STYLES[0];
   const tiers = [];
   for (let i = 0; i < def.tiersCount; i++) {
-    const ratio = 1 - (i / (def.tiersCount + 1)) * 0.62;
+    const ratio = 1 - (i / (def.tiersCount + 1)) * 0.64;
     tiers.push({
       idx: i,
       w: Math.round(76 * ratio),
-      h: 22,
+      h: 19,
       xOff: 0,
       vx: 0,
       angle: 0,
@@ -680,15 +592,16 @@ function createCakeState(def, styleId = "classic") {
       fallAngVel: 0
     });
   }
+  const initY = getFloorY(def, 110, null);
   return {
     def,
     style,
     tick: 0,
     simAccum: 0,
-    timeLeft: def.timeSec * 60,
+    timeLeft: Math.round(def.timeSec * 60),
     playerX: 110,
-    playerY: getFloorY(def, 110),
-    prevFloorY: getFloorY(def, 110),
+    playerY: initY,
+    prevFloorY: initY,
     playerVx: 0,
     facing: 1,
     walkPhase: 0,
@@ -700,6 +613,7 @@ function createCakeState(def, styleId = "classic") {
     settleTicks: 0,
     bumpCooldown: 0,
     onRug: false,
+    onButter: false,
     impactTag: "",
     impactTagTicks: 0,
     wobblePct: 0,
@@ -708,7 +622,11 @@ function createCakeState(def, styleId = "classic") {
     zeroWobbleStreak: 0,
     bestZeroStreak: 0,
     tiers,
-    hazards: def.hazards.map(h => ({ ...h, curX: h.x || 0, curVx: h.vx || 0, headTurn: false, inLane: true, activeSpray: false, hissing: false, gusting: false })),
+    hazards: def.hazards.map(h => ({
+      ...h, curX: h.x || 0, curVx: h.vx || 0, headTurn: false, inLane: true,
+      activeSpray: false, hissing: false, gusting: false,
+      crackedTicks: 0, collapsed: false, popping: false, flashing: false, curDir: -1
+    })),
     bubbles: [],
     soundEvents: [],
     dropReports: [],
@@ -745,7 +663,7 @@ function stepCake(state, input) {
   }
   state.simAccum -= 1.0;
   state.tick++;
-  if (!state.collapsing) state.timeLeft = Math.max(0, state.def.timeSec * 60 - state.tick);
+  if (!state.collapsing) state.timeLeft = Math.max(0, Math.round(state.def.timeSec * 60) - state.tick);
 
   if (state.steadyTicks > 0) state.steadyTicks--;
   if (state.steadyCooldown > 0) state.steadyCooldown--;
@@ -758,20 +676,43 @@ function stepCake(state, input) {
     state.soundEvents.push({ name: "steady", param: 1 });
   }
 
-  // Determine floor zone friction, rug push, disco spin, wind, sprinkler, and solid aisle NPCs
   let onPolish = state.def.floor === "dance";
+  let onButter = false;
   let discoTorque = 0;
   let rugPush = 0;
   let externalImpulse = 0;
   let nowOnRug = false;
   for (const h of state.hazards) {
     if (h.type === "polish" && state.playerX >= h.x && state.playerX <= h.x + h.w) onPolish = true;
-    if (h.type === "disco" && state.playerX >= h.x && state.playerX <= h.x + h.w) {
-      discoTorque += Math.sin(state.tick * 0.25) * (h.torque || 12.5);
+    if (h.type === "butter" && state.playerX >= h.x && state.playerX <= h.x + h.w) {
+      onButter = true;
+      if (Math.abs(state.playerVx) > 35) externalImpulse += Math.sin(state.tick * 0.4) * 8.5 + Math.sign(state.playerVx) * 4.5;
     }
-    if (h.type === "rug" && state.playerX >= h.x && state.playerX <= h.x + h.w) {
-      nowOnRug = true;
-      rugPush += h.pushSpeed;
+    if (h.type === "disco" && state.playerX >= h.x && state.playerX <= h.x + h.w) {
+      discoTorque += Math.sin(state.tick * 0.27) * (h.torque || 13.5);
+    }
+    if (h.type === "rug" || h.type === "conveyor") {
+      if (state.playerX >= h.x && state.playerX <= h.x + h.w) {
+        nowOnRug = true;
+        rugPush += h.pushSpeed;
+      }
+    }
+    if (h.type === "seesaw" && state.playerX >= h.x && state.playerX <= h.x + h.w) {
+      const frac = ((state.playerX - h.x) / h.w) * 2 - 1;
+      externalImpulse += frac * (h.force || 10.5);
+    }
+    if (h.type === "crumble") {
+      if (!h.collapsed && state.playerX >= h.x && state.playerX <= h.x + h.w) {
+        h.crackedTicks++;
+        if (h.crackedTicks === 1 && !state.collapsing) {
+          state.soundEvents.push({ name: "crumble", param: 1 });
+          state.impactTag = "CRACKING!"; state.impactTagTicks = 20;
+        }
+        if (h.crackedTicks >= (h.delay || 18)) {
+          h.collapsed = true;
+          if (!state.collapsing) { state.impactTag = "TILE COLLAPSE!"; state.impactTagTicks = 24; }
+        }
+      }
     }
     if (h.type === "wind") {
       const ph = state.tick % h.period;
@@ -784,21 +725,54 @@ function stepCake(state, input) {
         }
       }
     }
+    if (h.type === "gustLR") {
+      const ph = state.tick % h.period;
+      const half = Math.floor(h.period / 2);
+      h.gusting = (ph >= 20 && ph < half - 8) || (ph >= half + 16 && ph < h.period - 8);
+      h.curDir = ph < half ? -1 : 1;
+      if (h.gusting && state.playerX >= h.x && state.playerX <= h.x + h.w) {
+        externalImpulse += h.curDir * (h.force || 12.0);
+        if (!state.collapsing && state.tick % 16 === 0 && !state.impactTagTicks) {
+          state.impactTag = h.curDir < 0 ? "<< CROSSWIND!" : "CROSSWIND! >>";
+          state.impactTagTicks = 18;
+        }
+      }
+    }
     if (h.type === "sprinkler") {
       const ph = state.tick % h.period;
       h.hissing = (ph >= h.hissAt && ph < h.blastAt);
       h.activeSpray = (ph >= h.blastAt && ph <= h.endAt);
       if (h.hissing && ph === h.hissAt) state.soundEvents.push({ name: "sprinkler", param: 1 });
       if (h.activeSpray && Math.abs(state.playerX - h.x) <= h.w / 2) {
-        externalImpulse += (h.push || 16.5) * (state.tick % 2 === 0 ? 1 : -0.75);
+        externalImpulse += (h.push || 17.5) * (state.tick % 2 === 0 ? 1 : -0.75);
         if (!state.collapsing) { state.impactTag = "SPRAYED!"; state.impactTagTicks = 22; }
       }
     }
+    if (h.type === "cork") {
+      const ph = state.tick % h.period;
+      h.hissing = (ph >= h.warnAt && ph < h.popAt);
+      h.popping = (ph >= h.popAt && ph <= h.endAt);
+      if (h.popping && ph === h.popAt) state.soundEvents.push({ name: "cork", param: 1 });
+      if (h.popping && Math.abs(state.playerX - h.x) <= h.w / 2) {
+        externalImpulse += (h.push || 17.0) * (state.tick % 2 === 0 ? -1 : 0.85);
+        if (!state.collapsing) { state.impactTag = "CHAMPAGNE POP!"; state.impactTagTicks = 22; }
+      }
+    }
+    if (h.type === "flash") {
+      const ph = state.tick % h.period;
+      h.hissing = (ph >= h.warnAt && ph < h.flashAt);
+      h.flashing = (ph >= h.flashAt && ph <= h.endAt);
+      if (h.flashing && ph === h.flashAt) state.soundEvents.push({ name: "flash", param: 1 });
+      if (h.flashing && Math.abs(state.playerX - h.x) <= h.w / 2) {
+        externalImpulse += (h.push || 16.0) * (state.playerVx >= 0 ? 1 : -1);
+        if (!state.collapsing) { state.impactTag = "PAPARAZZI!"; state.impactTagTicks = 22; }
+      }
+    }
     if (h.type === "guest" || h.type === "waiter") {
-      const lp = h.lanePeriod || 170, cf = h.clearFrom || 105;
+      const lp = h.lanePeriod || 155, cf = h.clearFrom || 95;
       const ph = state.tick % lp;
       h.inLane = (ph < cf);
-      h.headTurn = (ph >= cf - 24 && ph < cf);
+      h.headTurn = (ph >= cf - 22 && ph < cf);
       if (h.inLane) {
         h.curX += h.curVx * FIXED_DT;
         if (h.curX < h.minX) { h.curX = h.minX; h.curVx = Math.abs(h.curVx); }
@@ -806,9 +780,9 @@ function stepCake(state, input) {
       }
       if (!state.collapsing && h.inLane && Math.abs(state.playerX - h.curX) < 25) {
         const shoveDir = Math.sign(state.playerX - h.curX || h.curVx || -1);
-        externalImpulse += shoveDir * (h.push || 14.0);
+        externalImpulse += shoveDir * (h.push || 15.0);
         if (state.bumpCooldown === 0) {
-          state.playerVx = shoveDir * 135;
+          state.playerVx = shoveDir * 140;
           state.bumpCooldown = 14;
           state.impactTag = h.type === "waiter" ? "WAITER HIT!" : "GUEST BUMP!";
           state.impactTagTicks = 26;
@@ -827,7 +801,7 @@ function stepCake(state, input) {
       }
       if (!state.collapsing && h.inLane && Math.abs(state.playerX - h.curX) < 23) {
         const shoveDir = Math.sign(state.playerX - h.curX || h.curVx || 1);
-        externalImpulse += shoveDir * (h.push || 15.0);
+        externalImpulse += shoveDir * (h.push || 15.5);
         if (state.bumpCooldown === 0) {
           state.playerVx = shoveDir * 145;
           state.bumpCooldown = 14;
@@ -840,45 +814,69 @@ function stepCake(state, input) {
   }
 
   if (nowOnRug !== state.onRug) {
-    const rugKick = (0.4 + Math.abs(state.playerVx) / WALK_MAX) * 5.0;
+    const rugKick = (0.45 + Math.abs(state.playerVx) / WALK_MAX) * 5.8;
     externalImpulse += (nowOnRug ? -rugKick : rugKick) * Math.sign(state.playerVx || 1);
     state.onRug = nowOnRug;
     if (!state.collapsing) { state.impactTag = "CARPET LIP!"; state.impactTagTicks = 22; }
+  }
+  if (onButter !== state.onButter) {
+    if (onButter && Math.abs(state.playerVx) > 20) {
+      externalImpulse += -Math.sign(state.playerVx) * 6.5;
+      if (!state.collapsing) { state.impactTag = "BUTTER SLIP!"; state.impactTagTicks = 24; }
+    }
+    state.onButter = onButter;
   }
 
   // Locomotion & horizontal acceleration calculation
   const oldVx = state.playerVx;
   const moveDir = state.collapsing ? 0 : ((input.right ? 1 : 0) - (input.left ? 1 : 0));
   if (moveDir !== 0) state.facing = moveDir;
-  const fric = onPolish ? WAX_FRICTION : GROUND_FRICTION;
+  const fric = onButter ? BUTTER_FRICTION : (onPolish ? WAX_FRICTION : GROUND_FRICTION);
   if (moveDir !== 0) {
-    const accMult = onPolish ? 0.62 : 1.0;
+    const accMult = onButter ? 0.42 : (onPolish ? 0.62 : 1.0);
     state.playerVx = Math.max(-WALK_MAX, Math.min(WALK_MAX, state.playerVx + moveDir * WALK_ACCEL * accMult * FIXED_DT));
   } else {
     const dv = fric * FIXED_DT;
     if (state.playerVx > 0) state.playerVx = Math.max(0, state.playerVx - dv);
     else if (state.playerVx < 0) state.playerVx = Math.min(0, state.playerVx + dv);
   }
-  const plateAx = (state.playerVx - oldVx) / FIXED_DT + (rugPush * 0.42);
-  state.playerX = Math.max(50, Math.min(LOGICAL_W - 70, state.playerX + (state.playerVx + rugPush) * FIXED_DT));
+  const plateAx = (state.playerVx - oldVx) / FIXED_DT + (rugPush * 0.45);
+  state.playerX = Math.max(50, state.playerX + (state.playerVx + rugPush) * FIXED_DT);
 
-  // Floor steps / grass bump vertical jolt + toe-catch check
-  const newFloorY = getFloorY(state.def, state.playerX);
+  // Overshooting off the far edge of the VIP banquet table crashes!
+  if (!state.collapsing && state.playerX > state.def.goalX + TABLE_WIDTH_MARGIN) {
+    state.impactTag = "OVERSHOT TABLE!"; state.impactTagTicks = 30;
+    state.dropReports.push("Overshot right past the VIP banquet table!");
+    for (let k = 0; k < state.tiers.length; k++) {
+      const ft = state.tiers[k];
+      ft.fallen = true;
+      ft.fallX = state.playerX + 12 + ft.xOff;
+      ft.fallY = state.playerY - 46 - k * 19;
+      ft.fallVx = 90 + k * 8; ft.fallVy = -35;
+      ft.fallAng = ft.angle; ft.fallAngVel = 3.8;
+    }
+    state.collapsing = true; state.slowMoTicks = 0;
+    state.soundEvents.push({ name: "gasp", param: 1 }, { name: "drop", param: 1 });
+    return;
+  }
+
+  // Floor steps / grass bump / crumble hole jolt + toe-catch check
+  const newFloorY = getFloorY(state.def, state.playerX, state.hazards);
   const floorStepDy = newFloorY - state.prevFloorY;
   state.prevFloorY = newFloorY;
   state.playerY = newFloorY;
   if (Math.abs(floorStepDy) > 1) {
-    const speedOver = Math.max(0.2, Math.abs(state.playerVx) / 120);
-    state.stepJoltTicks = 5;
-    state.stepJoltDir = Math.sign(state.playerVx || 1) * speedOver * (Math.abs(floorStepDy) * 0.22);
-    state.playerVx *= 0.72;
+    const speedOver = Math.max(0.25, Math.abs(state.playerVx) / 110);
+    state.stepJoltTicks = 6;
+    state.stepJoltDir = Math.sign(state.playerVx || 1) * speedOver * (Math.abs(floorStepDy) * 0.25);
+    state.playerVx *= 0.68;
     if (!state.collapsing) {
-      state.impactTag = speedOver > 1.05 ? "TOO FAST ON STEP!" : "STEP!";
+      state.impactTag = floorStepDy > 4 ? "DROPPED IN GAP!" : (speedOver > 1.05 ? "TOO FAST ON STEP!" : "STEP!");
       state.impactTagTicks = 24;
     }
   }
 
-  if (Math.abs(state.playerVx) > 20) state.walkPhase += Math.abs(state.playerVx) * FIXED_DT * 0.14;
+  if (Math.abs(state.playerVx) > 18) state.walkPhase += Math.abs(state.playerVx) * FIXED_DT * 0.145;
 
   // Footstep sound cadence
   if (Math.abs(state.playerVx) > 25 && !state.collapsing) {
@@ -890,7 +888,7 @@ function stepCake(state, input) {
   }
 
   // Cake Tier Stack Physics (shear-damped inverted pendulum + frosting slide + tip cascade)
-  const steadyMult = state.steadyTicks > 0 ? 0.40 : 1.0;
+  const steadyMult = state.steadyTicks > 0 ? 0.55 : 1.0;
   const leanInput = (input.leanR ? 1 : 0) - (input.leanL ? 1 : 0);
   const speedFrac = Math.min(1.25, Math.abs(state.playerVx) / WALK_MAX);
   const stepTorque = state.stepJoltTicks > 0 ? state.stepJoltDir * steadyMult : 0;
@@ -906,9 +904,9 @@ function stepCake(state, input) {
       continue;
     }
 
-    const heightMult = 1 + i * 0.08;
+    const heightMult = 1 + i * 0.068;
     const accelTorque = -plateAx * PLATE_IMPULSE_MULT * heightMult * steadyMult;
-    const gaitTorque = (Math.abs(state.playerVx) > 22)
+    const gaitTorque = (Math.abs(state.playerVx) > 20)
       ? (Math.sin(state.walkPhase + i * 0.05) * GAIT_SWAY_K + Math.sign(state.playerVx) * GAIT_DRIFT_K * speedFrac) * speedFrac * heightMult * steadyMult
       : 0;
     const extTorque = externalImpulse * heightMult * 0.85 * steadyMult;
@@ -919,21 +917,20 @@ function stepCake(state, input) {
     const relVel = t.angVel - parentVel;
     const gravTip = GRAVITY_TIP_K * Math.sin(t.angle) + t.xOff * OVERHANG_TORQUE_K;
 
-    const alpha = (-TIER_SPRING_K * relAng - SHEAR_DAMPING * relVel + gravTip - TIER_DAMPING * t.angVel + accelTorque + gaitTorque + extTorque + discoTorque * steadyMult + stepTorque + playerCounter) * (state.steadyTicks > 0 ? 1.35 : 1.0);
+    const alpha = (-TIER_SPRING_K * relAng - SHEAR_DAMPING * relVel + gravTip - TIER_DAMPING * t.angVel + accelTorque + gaitTorque + extTorque + discoTorque * steadyMult + stepTorque + playerCounter) * (state.steadyTicks > 0 ? 1.25 : 1.0);
     t.angVel += alpha * FIXED_DT;
     if (state.steadyTicks > 0) {
-      t.angVel *= 0.87; t.vx *= 0.87; t.xOff *= 0.93;
+      t.angVel *= 0.90; t.vx *= 0.90; t.xOff *= 0.96;
     }
     t.angle += t.angVel * FIXED_DT;
 
-    // Horizontal frosting friction limit -> slides laterally if tilted too far!
     if (Math.abs(t.angle) > SLIDE_FRICTION_LIMIT) {
       t.vx += Math.sign(t.angle) * SLIDE_RATE * FIXED_DT * steadyMult;
     } else {
       t.vx *= 0.86;
     }
     if (leanInput !== 0 && Math.sign(leanInput) !== Math.sign(t.xOff)) {
-      t.vx += leanInput * 36 * FIXED_DT;
+      t.vx += leanInput * 32 * FIXED_DT;
     }
     t.xOff += t.vx * FIXED_DT;
 
@@ -945,7 +942,7 @@ function stepCake(state, input) {
     if (ratio >= 1.0 || (i > 0 && state.tiers[i - 1].fallen)) {
       t.fallen = true;
       const plateX = state.playerX + state.facing * 12;
-      const plateY = state.playerY - 46 - i * 22;
+      const plateY = state.playerY - 46 - i * 19;
       t.fallX = plateX + t.xOff; t.fallY = plateY;
       t.fallVx = state.playerVx * 0.6 + (t.xOff >= 0 ? 55 : -55);
       t.fallVy = -35;
@@ -984,8 +981,8 @@ function stepCake(state, input) {
   });
   if (state.history.length > 180) state.history.shift();
 
-  // Check Goal Arrival (at table & calmed for SETTLE_REQUIRED_TICKS consecutive frames)
-  if (!state.collapsing && state.playerX >= state.def.goalX && Math.abs(state.playerVx) < 18 && state.wobblePct < 48) {
+  // Check Goal Arrival (calmly inside [goalX .. goalX + TABLE_WIDTH_MARGIN], <22% wobble!)
+  if (!state.collapsing && state.playerX >= state.def.goalX && state.playerX <= state.def.goalX + TABLE_WIDTH_MARGIN && Math.abs(state.playerVx) < 12 && state.wobblePct < 22) {
     state.settleTicks++;
     if (state.settleTicks >= SETTLE_REQUIRED_TICKS) finalizeWin(state);
   } else {
@@ -1005,7 +1002,7 @@ function finalizeWin(state) {
   const speedBonus = Math.round((state.timeLeft / 60) * 18);
   const styleBonus = Math.min(200, Math.round(state.bestZeroStreak * 1.4));
   const total = integrityScore + speedBonus + styleBonus;
-  const stars = (intact === state.tiers.length && total >= 900) ? 3 : (total >= 650 ? 2 : 1);
+  const stars = (intact === state.tiers.length && total >= 820) ? 3 : (total >= 650 ? 2 : 1);
   state.scoreBreakdown = { intact, totalTiers: state.tiers.length, integrityScore, speedBonus, styleBonus, total, stars };
   state.soundEvents.push({ name: "win", param: 1 });
 }
@@ -1081,6 +1078,7 @@ function getDailyCakeId() {
 const app = {
   screen: "title", // title | play | select | summary
   currentIdx: 0,
+  selectVenue: 0,
   state: null,
   showGhost: false,
   ghostTrace: null,
@@ -1121,6 +1119,7 @@ function pickNarratorLine() {
 
 function startCakeLevel(idx) {
   app.currentIdx = Math.max(0, Math.min(LEVELS.length - 1, idx));
+  app.selectVenue = Math.floor(app.currentIdx / 8);
   app.state = createCakeState(LEVELS[app.currentIdx], progress.styleId);
   app.showGhost = false;
   app.ghostTrace = null;
@@ -1271,6 +1270,41 @@ function drawCakeScene(st, px, py, tiers, facing, wobblePct) {
       ctx.strokeStyle = PAL.GOLD; ctx.strokeRect(h.x, 415 + h.dy, h.w, -h.dy);
     } else if (h.type === "rug") {
       ctx.fillStyle = PAL.CORAL; ctx.fillRect(h.x, 412, h.w, 6);
+    } else if (h.type === "conveyor") {
+      ctx.fillStyle = "#161524"; ctx.fillRect(h.x, 411, h.w, 8);
+      ctx.strokeStyle = PAL.CORAL; ctx.lineWidth = 1.5; ctx.strokeRect(h.x, 411, h.w, 8);
+      ctx.fillStyle = PAL.GOLD; ctx.font = "bold 10px monospace"; ctx.textAlign = "center";
+      const shift = Math.floor(st.tick * 2) % 24;
+      for (let cx = h.x + 18 - shift * 0.5; cx < h.x + h.w - 8; cx += 24) ctx.fillText("<", cx, 419);
+    } else if (h.type === "butter") {
+      ctx.fillStyle = PAL.GOLD; ctx.fillRect(h.x, 413, h.w, 5);
+      ctx.fillStyle = "rgba(255,255,254,0.45)"; ctx.fillRect(h.x + 6, 413, Math.max(8, h.w - 14), 2);
+      ctx.fillStyle = PAL.GOLD; ctx.font = "bold 9px monospace"; ctx.textAlign = "center";
+      ctx.fillText("BUTTER", h.x + h.w / 2, 430);
+    } else if (h.type === "crumble") {
+      const cy = h.collapsed ? 415 + (h.dy || 22) : 413;
+      if (h.collapsed) {
+        ctx.fillStyle = PAL.BG; ctx.fillRect(h.x, 414, h.w, (h.dy || 22) + 2);
+        ctx.fillStyle = PAL.CORAL; ctx.font = "bold 10px monospace"; ctx.textAlign = "center";
+        ctx.fillText("GAP!", h.x + h.w / 2, 432);
+      } else {
+        ctx.fillStyle = h.crackedTicks > 0 ? PAL.CORAL : "#3D3B56";
+        ctx.fillRect(h.x, cy, h.w, 7);
+        ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(h.x + h.w * 0.3, cy); ctx.lineTo(h.x + h.w * 0.45, cy + 7);
+        ctx.moveTo(h.x + h.w * 0.7, cy); ctx.lineTo(h.x + h.w * 0.58, cy + 7); ctx.stroke();
+        if (h.crackedTicks > 0) {
+          ctx.fillStyle = PAL.CORAL; ctx.font = "bold 10px monospace"; ctx.textAlign = "center";
+          ctx.fillText("CRACK!", h.x + h.w / 2, 404);
+        }
+      }
+    } else if (h.type === "seesaw") {
+      const mid = h.x + h.w / 2;
+      const tilt = (st.playerX >= h.x && st.playerX <= h.x + h.w) ? ((st.playerX - h.x) / h.w * 2 - 1) * 5 : -2;
+      ctx.fillStyle = PAL.GOLD;
+      ctx.beginPath(); ctx.moveTo(mid, 415); ctx.lineTo(mid - 10, 427); ctx.lineTo(mid + 10, 427); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(h.x, 414 - tilt); ctx.lineTo(h.x + h.w, 414 + tilt); ctx.stroke();
     } else if (h.type === "disco") {
       ctx.fillStyle = (Math.floor(st.tick / 8) % 2 === 0) ? PAL.GOLD : PAL.CORAL;
       ctx.fillRect(h.x, 412, h.w, 6);
@@ -1285,9 +1319,52 @@ function drawCakeScene(st, px, py, tiers, facing, wobblePct) {
           ctx.beginPath(); ctx.moveTo(h.x, 405); ctx.lineTo(h.x + sx, 250); ctx.stroke();
         }
       }
+    } else if (h.type === "cork") {
+      const shake = h.hissing ? Math.sin(st.tick * 1.1) * 3 : 0;
+      ctx.fillStyle = "#1E3A2B"; ctx.fillRect(h.x - 7 + shake, 392, 14, 23);
+      ctx.fillStyle = PAL.GOLD; ctx.fillRect(h.x - 4 + shake, 387, 8, 5);
+      if (h.hissing) {
+        ctx.fillStyle = PAL.GOLD; ctx.font = "bold 11px monospace"; ctx.textAlign = "center";
+        ctx.fillText("POP!", h.x, 376);
+      }
+      if (h.popping) {
+        ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 2;
+        ctx.strokeRect(h.x - h.w / 2, 290, h.w, 125);
+        ctx.fillStyle = PAL.CORAL; ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
+        ctx.fillText("CORK BLAST!", h.x, 308);
+      }
+    } else if (h.type === "flash") {
+      ctx.fillStyle = PAL.STONE; ctx.fillRect(h.x - 8, 378, 16, 37);
+      ctx.fillStyle = PAL.WHITE; ctx.fillRect(h.x - 10, 366, 20, 13);
+      ctx.fillStyle = PAL.GOLD; ctx.beginPath(); ctx.arc(h.x, 372, 4, 0, Math.PI * 2); ctx.fill();
+      if (h.hissing) {
+        ctx.fillStyle = PAL.GOLD; ctx.font = "bold 10px monospace"; ctx.textAlign = "center";
+        ctx.fillText("SAY CHEESE!", h.x, 355);
+      }
+      if (h.flashing) {
+        if (!progress.streamerSafe) {
+          ctx.fillStyle = "rgba(255,255,254,0.28)";
+          ctx.fillRect(h.x - h.w / 2, 220, h.w, 195);
+        } else {
+          ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 2;
+          ctx.strokeRect(h.x - h.w / 2, 220, h.w, 195);
+        }
+        ctx.fillStyle = PAL.CORAL; ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
+        ctx.fillText("*FLASH!*", h.x, 240);
+      }
     } else if (h.type === "wind" && h.gusting) {
       ctx.fillStyle = "rgba(255,255,254,0.34)";
       for (let i = 0; i < 6; i++) ctx.fillRect(h.x + ((st.tick * 9 + i * 70) % h.w), 230 + i * 28, 22, 2);
+    } else if (h.type === "gustLR" && h.gusting) {
+      ctx.fillStyle = h.curDir < 0 ? "rgba(255,51,102,0.45)" : "rgba(44,232,162,0.45)";
+      const dirSign = h.curDir < 0 ? -1 : 1;
+      for (let i = 0; i < 6; i++) {
+        const off = ((st.tick * 9 * -dirSign + i * 70) % h.w + h.w) % h.w;
+        ctx.fillRect(h.x + off, 230 + i * 28, 24, 2);
+      }
+      ctx.font = "bold 11px monospace"; ctx.textAlign = "center";
+      ctx.fillStyle = PAL.WHITE;
+      ctx.fillText(h.curDir < 0 ? "<< WIND" : "WIND >>", h.x + h.w / 2, 220);
     } else if (h.type === "guest" || h.type === "waiter") {
       const offLane = h.inLane === false;
       ctx.save();
@@ -1312,17 +1389,18 @@ function drawCakeScene(st, px, py, tiers, facing, wobblePct) {
     }
   }
 
-  // Destination Banquet Table
-  ctx.fillStyle = PAL.WHITE; ctx.fillRect(def.goalX - 10, 370, 95, 45);
-  ctx.fillStyle = PAL.CORAL; ctx.fillRect(def.goalX - 10, 370, 95, 10);
-  ctx.fillStyle = PAL.GOLD; ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
-  ctx.fillText("CAKE TABLE", def.goalX + 38, 354);
+  // Destination Banquet Table + Overshoot Danger Edge
+  ctx.fillStyle = PAL.WHITE; ctx.fillRect(def.goalX - 10, 370, TABLE_WIDTH_MARGIN + 10, 45);
+  ctx.fillStyle = PAL.CORAL; ctx.fillRect(def.goalX - 10, 370, TABLE_WIDTH_MARGIN + 10, 10);
+  ctx.fillStyle = PAL.CORAL; ctx.fillRect(def.goalX + TABLE_WIDTH_MARGIN, 340, 4, 75);
+  ctx.fillStyle = PAL.GOLD; ctx.font = "bold 11px monospace"; ctx.textAlign = "center";
+  ctx.fillText("CAKE TABLE", def.goalX + 26, 354);
   if (st.settleTicks > 0 && !st.won) {
     const sp = Math.min(1, st.settleTicks / SETTLE_REQUIRED_TICKS);
-    ctx.fillStyle = PAL.STONE; ctx.fillRect(def.goalX - 2, 328, 80, 7);
-    ctx.fillStyle = PAL.MINT; ctx.fillRect(def.goalX - 2, 328, Math.round(80 * sp), 7);
+    ctx.fillStyle = PAL.STONE; ctx.fillRect(def.goalX - 6, 326, 72, 7);
+    ctx.fillStyle = PAL.MINT; ctx.fillRect(def.goalX - 6, 326, Math.round(72 * sp), 7);
     ctx.fillStyle = PAL.MINT; ctx.font = "bold 10px monospace";
-    ctx.fillText("SETTLING...", def.goalX + 38, 321);
+    ctx.fillText("SETTLING...", def.goalX + 30, 319);
   }
 
   // Optional Ghost Route Silhouette [G]
@@ -1481,7 +1559,7 @@ function renderTitleScreen() {
   ctx.fillText("DON'T DROP THE CAKE", 482, 92);
   ctx.fillStyle = PAL.GOLD; ctx.fillText("DON'T DROP THE CAKE", 478, 88);
   ctx.fillStyle = PAL.WHITE; ctx.font = "bold 16px monospace";
-  ctx.fillText(`STARS: ${totalStars()}/90   |   DROPS: ${progress.totalFalls}`, 480, 140);
+  ctx.fillText(`STARS: ${totalStars()}/${LEVELS.length * 3}   |   9 VENUES   |   DROPS: ${progress.totalFalls}`, 480, 140);
 
   const daily = getDailyCakeId();
   addBtn(310, 184, 340, 50, "PLAY / CONTINUE", () => {
@@ -1489,30 +1567,60 @@ function renderTitleScreen() {
     startCakeLevel(next >= 0 ? next : 0);
   }, PAL.GOLD, PAL.BG);
   addBtn(310, 246, 340, 42, `DAILY CAKE (#${daily})`, () => startCakeLevel(daily - 1), PAL.STONE, PAL.GOLD);
-  addBtn(310, 298, 340, 42, "30 VENUES & CAKE SHOP", () => { app.screen = "select"; }, PAL.STONE, PAL.WHITE);
+  addBtn(310, 298, 340, 42, "72 VENUES & CAKE SHOP", () => { app.screen = "select"; }, PAL.STONE, PAL.WHITE);
   addBtn(310, 350, 340, 40, progress.muted ? "SOUND: MUTED" : "SOUND: ON", () => { progress.muted = !progress.muted; sfx.muted = progress.muted; saveProgress(progress); }, PAL.STONE, PAL.WHITE);
   addBtn(310, 400, 340, 40, "< BACK TO ARCADE HUB", () => { window.location.href = "index.html"; }, PAL.STONE, PAL.CORAL, PAL.CORAL);
 }
 
 function renderSelect() {
   ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
-  ctx.fillStyle = PAL.GOLD; ctx.textAlign = "center"; ctx.font = "bold 22px monospace";
-  ctx.fillText("SELECT VENUE (1-30) & UNLOCK CAKES", 480, 28);
-  for (let i = 0; i < 30; i++) {
-    const col = i % 10, row = Math.floor(i / 10);
-    const st = progress.stars[i + 1] || 0;
-    addBtn(36 + col * 90, 56 + row * 78, 82, 66, `#${i+1} ${"*".repeat(st)||"-"}`, () => startCakeLevel(i), PAL.STONE, st ? PAL.GOLD : PAL.WHITE, st ? PAL.GOLD : PAL.STONE);
+  ctx.fillStyle = PAL.GOLD; ctx.textAlign = "center"; ctx.font = "bold 20px monospace";
+  ctx.fillText(`SELECT VENUE (1-72)  •  STARS: ${totalStars()}/${LEVELS.length * 3}`, 480, 24);
+
+  // 9 Venue Tabs
+  for (let v = 0; v < 9; v++) {
+    let vs = 0;
+    for (let k = 0; k < 8; k++) vs += (progress.stars[v * 8 + k + 1] || 0);
+    const active = app.selectVenue === v;
+    addBtn(24 + v * 102, 42, 96, 34, `V${v + 1} (${vs}/24)`, () => { app.selectVenue = v; },
+      active ? PAL.GOLD : PAL.STONE, active ? PAL.BG : (vs > 0 ? PAL.GOLD : PAL.WHITE), active ? PAL.WHITE : PAL.STONE);
   }
+  ctx.fillStyle = PAL.CORAL; ctx.font = "bold 14px monospace"; ctx.textAlign = "center";
+  ctx.fillText(`VENUE ${app.selectVenue + 1}: ${VENUES[app.selectVenue]}`, 480, 96);
+
+  // 8 Cards inside selected venue
+  const baseIdx = app.selectVenue * 8;
+  for (let i = 0; i < 8; i++) {
+    const def = LEVELS[baseIdx + i];
+    if (!def) continue;
+    const col = i % 4, row = Math.floor(i / 4);
+    const x = 46 + col * 222, y = 114 + row * 102, w = 204, h = 88;
+    const st = progress.stars[def.id] || 0;
+    const hover = app.mouse.x >= x && app.mouse.x <= x + w && app.mouse.y >= y && app.mouse.y <= y + h;
+    ctx.fillStyle = hover ? "#3D3B56" : PAL.STONE;
+    ctx.fillRect(x, y - (hover ? 1 : 0), w, h);
+    ctx.strokeStyle = hover ? PAL.GOLD : (st ? PAL.GOLD : "#464462");
+    ctx.lineWidth = 2; ctx.strokeRect(x, y - (hover ? 1 : 0), w, h);
+    ctx.textAlign = "center";
+    ctx.fillStyle = st ? PAL.GOLD : PAL.WHITE; ctx.font = "bold 13px monospace";
+    ctx.fillText(`#${def.id} ${def.name.slice(0, 15)}`, x + w / 2, y + 24);
+    ctx.fillStyle = PAL.MINT; ctx.font = "11px monospace";
+    ctx.fillText(`${def.tiersCount} TIERS  •  ${def.timeSec}s`, x + w / 2, y + 48);
+    ctx.fillStyle = st ? PAL.GOLD : PAL.CORAL; ctx.font = "bold 13px monospace";
+    ctx.fillText(st ? "*".repeat(st) + "-".repeat(3 - st) : "UNBEATEN", x + w / 2, y + 70);
+    uiButtons.push({ x, y, w, h, onClick: () => startCakeLevel(baseIdx + i) });
+  }
+
   for (let i = 0; i < CAKE_STYLES.length; i++) {
     const s = CAKE_STYLES[i];
     const ok = totalStars() >= s.starsNeed;
     const sel = progress.styleId === s.id;
-    addBtn(90 + i * 200, 330, 180, 46, `${s.name} (${s.starsNeed}*)`, () => {
+    addBtn(90 + i * 200, 352, 180, 44, `${s.name} (${s.starsNeed}*)`, () => {
       if (!ok) showToast(`NEED ${s.starsNeed} STARS!`);
       else { progress.styleId = s.id; saveProgress(progress); }
     }, sel ? PAL.GOLD : PAL.STONE, sel ? PAL.BG : (ok ? PAL.WHITE : PAL.CORAL));
   }
-  addBtn(390, 468, 180, 42, "MAIN MENU", () => { app.screen = "title"; }, PAL.GOLD, PAL.BG);
+  addBtn(390, 464, 180, 42, "MAIN MENU", () => { app.screen = "title"; }, PAL.GOLD, PAL.BG);
 }
 
 function renderSolver() {
@@ -1523,10 +1631,13 @@ function renderSolver() {
   ctx.fillStyle = PAL.GOLD; ctx.textAlign = "center"; ctx.font = "bold 20px monospace";
   ctx.fillText(`F9 SOLVER: ${passed}/${total} PASS | LIE CHECK: ${lieCheck.ok ? "UNIQUE" : "DUP"}`, 480, 62);
   for (let i = 0; i < results.length; i++) {
-    const r = results[i], col = i % 6, row = Math.floor(i / 6);
-    const x = 90 + col * 132, y = 92 + row * 68;
-    ctx.fillStyle = r.pass ? PAL.STONE : PAL.CORAL; ctx.fillRect(x, y, 120, 54);
-    ctx.fillStyle = PAL.WHITE; ctx.font = "bold 12px monospace"; ctx.fillText(`#${r.id}: ${r.pass ? "PASS" : "FAIL"}`, x + 60, y + 30);
+    const r = results[i], col = i % 12, row = Math.floor(i / 12);
+    const x = 58 + col * 71, y = 84 + row * 60;
+    ctx.fillStyle = r.pass ? PAL.STONE : PAL.CORAL; ctx.fillRect(x, y, 64, 48);
+    ctx.fillStyle = PAL.WHITE; ctx.font = "bold 11px monospace";
+    ctx.fillText(`#${String(r.id).padStart(2, "0")}`, x + 32, y + 18);
+    ctx.fillStyle = r.pass ? PAL.MINT : PAL.WHITE;
+    ctx.fillText(r.pass ? "PASS" : "FAIL", x + 32, y + 36);
   }
   addBtn(400, 464, 160, 34, "CLOSE [F9]", () => { app.solverOverlay = null; }, PAL.GOLD, PAL.BG);
 }
