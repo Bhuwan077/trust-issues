@@ -1,0 +1,22 @@
+{
+  "name": "trust-issues",
+  "version": "1.0.0",
+  "description": "Trust Issues game",
+  "main": "main.js",
+  "author": "Bhuwan Adhikari",
+  "license": "ISC",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win portable"
+  },
+  "build": {
+    "appId": "com.bhuwanadhikari.trustissues",
+    "productName": "Trust Issues",
+    "files": ["main.js", "index.html", "cake.html", "parking.html"],
+    "win": { "target": "portable" }
+  },
+  "devDependencies": {
+  "electron": "^45.5.0",
+  "electron-builder": "^26.18.0"
+  }
+}
