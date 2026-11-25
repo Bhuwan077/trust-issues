@@ -48,29 +48,60 @@
 ================================================================================
 -->
 <style>
+  :root {
+    --bg: #0F0E17;
+    --surface: #141320;
+    --surface-alt: #2E2D40;
+    --text: #FFFFFE;
+    --accent: #FFB800;
+    --danger: #FF3366;
+    --mint: #2CE8A2;
+    --border: #2E2D40;
+    --touch-bg: rgba(15,14,23,0.78);
+  }
+  [data-theme="light"] {
+    --bg: #F6F5F0;
+    --surface: #EAE8E1;
+    --surface-alt: #CFCBC0;
+    --text: #14131D;
+    --accent: #B45309;
+    --danger: #C81048;
+    --mint: #0F766E;
+    --border: #B8B4A8;
+    --touch-bg: rgba(246,245,240,0.88);
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
-  html, body { width: 100%; height: 100%; background: #0F0E17; color: #FFFFFE; font-family: ui-monospace, Menlo, Consolas, monospace; overflow: hidden; touch-action: none; }
-  #wrap { position: fixed; inset: 0; overflow: hidden; background: radial-gradient(circle at 50% 45%, #1d1b2d 0%, #0F0E17 78%); }
+  html, body { width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: ui-monospace, Menlo, Consolas, monospace; overflow: hidden; touch-action: none; }
+  #wrap { position: fixed; inset: 0; overflow: hidden; background: var(--bg); }
   #stage { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; }
   #stage.landscape-forced { transform: translate(-50%, -50%) rotate(90deg); transform-origin: center center; }
-  canvas { display: block; border-radius: 6px; box-shadow: 0 0 0 2px #2E2D40, 0 22px 60px rgba(0,0,0,0.75); background: #141320; cursor: pointer; touch-action: none; }
+  canvas { display: block; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; touch-action: none; }
+  #theme-toggle {
+    position: absolute; bottom: 12px; right: 12px; z-index: 40; width: 40px; height: 40px;
+    border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  #theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+  #theme-toggle svg { width: 20px; height: 20px; display: block; }
+  body.touch-device #theme-toggle { top: 50px; left: 12px; bottom: auto; right: auto; }
+  @media (pointer: coarse) { #theme-toggle { top: 50px; left: 12px; bottom: auto; right: auto; } }
   #touch-controls { position: absolute; inset: 0; pointer-events: none; display: none; z-index: 20; }
   #touch-controls.active { display: block; }
   .t-left { position: absolute; left: 14px; bottom: 12px; display: flex; align-items: center; gap: 8px; pointer-events: auto; }
   .t-right { position: absolute; right: 14px; bottom: 12px; display: flex; gap: 8px; pointer-events: auto; align-items: flex-end; }
   .t-top { position: absolute; top: 44px; right: 12px; display: flex; gap: 6px; pointer-events: auto; }
   .tbtn {
-    width: var(--tbtn, 54px); height: var(--tbtn, 54px); border-radius: 14px; border: 2px solid #FFFFFE;
-    background: rgba(15,14,23,0.76); color: #FFFFFE; font-weight: 800; font-size: 14px;
+    width: var(--tbtn, 54px); height: var(--tbtn, 54px); border-radius: 14px; border: 2px solid var(--text);
+    background: var(--touch-bg); color: var(--text); font-weight: 800; font-size: 14px;
     display: flex; align-items: center; justify-content: center; touch-action: none;
   }
-  .tbtn.gas { height: calc(var(--tbtn, 54px) * 1.25); border-color: #FFB800; color: #FFB800; }
-  .tbtn.hb { width: calc(var(--tbtn, 54px) * 0.92); height: calc(var(--tbtn, 54px) * 0.85); border-color: #FF3366; color: #FF3366; font-size: 11px; }
+  .tbtn.gas { height: calc(var(--tbtn, 54px) * 1.25); border-color: var(--accent); color: var(--accent); }
+  .tbtn.hb { width: calc(var(--tbtn, 54px) * 0.92); height: calc(var(--tbtn, 54px) * 0.85); border-color: var(--danger); color: var(--danger); font-size: 11px; }
   .tbtn.small { width: auto; height: 28px; padding: 0 9px; border-radius: 8px; font-size: 11px; }
-  .tbtn.pressed { background: #FFFFFE; color: #0F0E17; }
+  .tbtn.pressed { background: var(--text); color: var(--bg); }
   #toast {
-    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); background: #2E2D40; border: 2px solid #FFB800;
-    color: #FFFFFE; padding: 7px 14px; font-size: 12px; font-weight: 700; opacity: 0; pointer-events: none; transition: opacity 0.15s ease; z-index: 30; white-space: nowrap;
+    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--surface-alt); border: 2px solid var(--accent);
+    color: var(--text); padding: 7px 14px; font-size: 12px; font-weight: 700; opacity: 0; pointer-events: none; transition: opacity 0.15s ease; z-index: 30; white-space: nowrap;
   }
   #toast.show { opacity: 1; }
 </style>
@@ -96,6 +127,7 @@
       </div>
     </div>
     <div id="toast"></div>
+    <button id="theme-toggle" type="button" aria-label="Toggle light or dark theme" title="Toggle theme"></button>
   </div>
 </div>
 
@@ -125,15 +157,40 @@ const DENT_COOLDOWN_TICKS = 14;      // Prevents repeated single-frame collision
 const DENT_PENALTIES = { tap: 35, scrape: 95, crunch: 185, catastrophe: 340 };
 const STORAGE_KEY = "parking_spot_panic_v1";
 
-const PAL = {
-  BG: "#0F0E17",
-  ASPHALT: "#191826",
-  WHITE: "#FFFFFE",
-  STONE: "#2E2D40",
-  CORAL: "#FF3366",
-  GOLD: "#FFB800",
-  MINT: "#2CE8A2"
+const THEME_KEY = "trust_issues_theme";
+const PAL_DARK = {
+  BG: "#0F0E17", ASPHALT: "#191826", WHITE: "#FFFFFE", STONE: "#2E2D40", STONE_HOVER: "#3D3B56",
+  CORAL: "#FF3366", GOLD: "#FFB800", MINT: "#2CE8A2", PANEL: "rgba(15,14,23,0.94)", ACCENT_TEXT: "#0F0E17"
 };
+const PAL_LIGHT = {
+  BG: "#F6F5F0", ASPHALT: "#EAE8E1", WHITE: "#14131D", STONE: "#CFCBC0", STONE_HOVER: "#C0BBB0",
+  CORAL: "#C81048", GOLD: "#B45309", MINT: "#0F766E", PANEL: "rgba(246,245,240,0.95)", ACCENT_TEXT: "#FFFFFE"
+};
+const PAL = { ...PAL_DARK };
+let currentTheme = (() => {
+  try { const s = localStorage.getItem(THEME_KEY); if (s === "light" || s === "dark") return s; } catch (e) {}
+  try { if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) return "light"; } catch (e) {}
+  return "dark";
+})();
+function applyTheme(theme, persist = false) {
+  currentTheme = theme === "light" ? "light" : "dark";
+  if (document.documentElement) {
+    if (currentTheme === "light") document.documentElement.setAttribute("data-theme", "light");
+    else document.documentElement.removeAttribute("data-theme");
+  }
+  Object.assign(PAL, currentTheme === "light" ? PAL_LIGHT : PAL_DARK);
+  const btn = document.getElementById("theme-toggle");
+  if (btn) {
+    btn.innerHTML = currentTheme === "light"
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
+    btn.title = currentTheme === "light" ? "Dark mode" : "Light mode";
+  }
+  if (persist) { try { localStorage.setItem(THEME_KEY, currentTheme); } catch (e) {} }
+}
+applyTheme(currentTheme, false);
+const themeToggleBtn = document.getElementById("theme-toggle");
+if (themeToggleBtn) themeToggleBtn.addEventListener("click", () => applyTheme(currentTheme === "light" ? "dark" : "light", true));
 
 /* ============================================================================
  * 2. 85 UNIQUE COMEDY NPC REACTIONS & DENT NAMES (NO IMMEDIATE REPEATS)
@@ -1466,6 +1523,7 @@ function resizeCanvas() {
   const rawW = window.visualViewport ? window.visualViewport.width : window.innerWidth;
   const rawH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
   const mobile = isTouchCapable();
+  if (document.body && document.body.classList) document.body.classList.toggle("touch-device", mobile);
   const forceRotate = mobile && rawH > rawW;
   app.cssRotated90 = forceRotate;
   stageEl.classList.toggle("landscape-forced", forceRotate);
@@ -1557,11 +1615,11 @@ window.addEventListener("keyup", e => {
 
 function addBtn(x, y, w, h, label, onClick, bg = PAL.STONE, fg = PAL.WHITE, border = PAL.GOLD) {
   const hover = app.mouse.x >= x && app.mouse.x <= x + w && app.mouse.y >= y && app.mouse.y <= y + h;
-  ctx.fillStyle = hover && bg === PAL.STONE ? "#3D3B56" : bg;
+  ctx.fillStyle = hover && bg === PAL.STONE ? PAL.STONE_HOVER : bg;
   ctx.fillRect(x, y - (hover ? 1 : 0), w, h);
   ctx.strokeStyle = hover ? PAL.GOLD : border; ctx.lineWidth = 2;
   ctx.strokeRect(x, y - (hover ? 1 : 0), w, h);
-  ctx.fillStyle = fg; ctx.font = "bold 13px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillStyle = (fg === PAL.BG) ? PAL.ACCENT_TEXT : fg; ctx.font = "bold 13px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
   ctx.fillText(label, x + w / 2, y + h / 2 - (hover ? 1 : 0));
   uiButtons.push({ x, y, w, h, onClick });
 }
@@ -1714,7 +1772,7 @@ function renderWorld(st) {
 }
 
 function renderHUD(st) {
-  ctx.fillStyle = "rgba(15,14,23,0.92)"; ctx.fillRect(0, 0, LOGICAL_W, 42);
+  ctx.fillStyle = PAL.PANEL; ctx.fillRect(0, 0, LOGICAL_W, 42);
   ctx.fillStyle = PAL.GOLD; ctx.fillRect(0, 40, LOGICAL_W, 2);
   ctx.textAlign = "left"; ctx.font = "bold 14px monospace";
   ctx.fillStyle = PAL.GOLD; ctx.fillText(`SPOT #${String(st.def.id).padStart(2,"0")}: ${st.def.name}`, 14, 21);
@@ -1732,7 +1790,7 @@ function renderHUD(st) {
     addBtn(14, 48, 178, 26, app.showGhost ? "GHOST: ON [G]" : "GHOST HELP [G]", () => { app.showGhost = !app.showGhost; }, app.showGhost ? PAL.GOLD : PAL.STONE, app.showGhost ? PAL.BG : PAL.GOLD);
   }
   if (progress.bigObsOverlay) {
-    ctx.fillStyle = "rgba(15,14,23,0.9)"; ctx.fillRect(LOGICAL_W - 180, 50, 166, 68);
+    ctx.fillStyle = PAL.PANEL; ctx.fillRect(LOGICAL_W - 180, 50, 166, 68);
     ctx.strokeStyle = PAL.CORAL; ctx.strokeRect(LOGICAL_W - 180, 50, 166, 68);
     ctx.fillStyle = PAL.WHITE; ctx.textAlign = "center"; ctx.font = "bold 12px monospace"; ctx.fillText("TOTAL FAILS", LOGICAL_W - 97, 68);
     ctx.fillStyle = PAL.CORAL; ctx.font = "bold 28px monospace"; ctx.fillText(String(progress.totalFails), LOGICAL_W - 97, 98);
@@ -1740,7 +1798,7 @@ function renderHUD(st) {
 }
 
 function renderSummary(st) {
-  ctx.fillStyle = "rgba(15,14,23,0.94)"; ctx.fillRect(120, 48, 720, 444);
+  ctx.fillStyle = PAL.PANEL; ctx.fillRect(120, 48, 720, 444);
   ctx.strokeStyle = st.won ? PAL.GOLD : PAL.CORAL; ctx.lineWidth = 3; ctx.strokeRect(120, 48, 720, 444);
   ctx.textAlign = "center"; ctx.font = "bold 28px monospace";
   if (st.won) {
@@ -1827,7 +1885,7 @@ function renderSelect() {
 function renderSolver() {
   if (!app.solverOverlay) return;
   const { results, lieCheck, passed, total } = app.solverOverlay;
-  ctx.fillStyle = "rgba(15,14,23,0.96)"; ctx.fillRect(40, 28, 880, 484);
+  ctx.fillStyle = PAL.PANEL; ctx.fillRect(40, 28, 880, 484);
   ctx.strokeStyle = PAL.GOLD; ctx.strokeRect(40, 28, 880, 484);
   ctx.fillStyle = PAL.GOLD; ctx.textAlign = "center"; ctx.font = "bold 20px monospace";
   ctx.fillText(`F9 SOLVER: ${passed}/${total} PASS | LIE INDEX: ${lieCheck.ok ? "UNIQUE" : "DUP"}`, 480, 62);
