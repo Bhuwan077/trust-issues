@@ -52,12 +52,42 @@
 ================================================================================
 -->
 <style>
+  :root {
+    --bg: #0F0E17;
+    --surface: #1A1926;
+    --surface-alt: #2E2D40;
+    --text: #FFFFFE;
+    --text-muted: #B8B6C8;
+    --accent: #FFB800;
+    --accent-text: #0F0E17;
+    --danger: #FF3366;
+    --border: #2E2D40;
+    --toast-bg: #2E2D40;
+    --toast-text: #FFFFFE;
+    --touch-bg: rgba(15, 14, 23, 0.82);
+    --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  [data-theme="light"] {
+    --bg: #F6F5F0;
+    --surface: #EAE8E1;
+    --surface-alt: #CFCBC0;
+    --text: #14131D;
+    --text-muted: #4A485C;
+    --accent: #B45309;
+    --accent-text: #FFFFFE;
+    --danger: #C81048;
+    --border: #B8B4A8;
+    --toast-bg: #14131D;
+    --toast-text: #FFFFFE;
+    --touch-bg: rgba(246, 245, 240, 0.88);
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
   html, body {
     width: 100%; height: 100%;
-    background: #0F0E17;
-    color: #FFFFFE;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 16px;
     overflow: hidden;
     touch-action: none;
   }
@@ -65,7 +95,7 @@
     position: fixed;
     inset: 0;
     overflow: hidden;
-    background: radial-gradient(circle at 50% 45%, #1c1a2e 0%, #0F0E17 75%);
+    background: var(--bg);
   }
   #stage {
     position: absolute;
@@ -82,13 +112,41 @@
   }
   canvas {
     display: block;
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
-    border-radius: 6px;
-    box-shadow: 0 0 0 2px #2E2D40, 0 22px 60px rgba(0,0,0,0.75);
-    background: #0F0E17;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--bg);
     cursor: pointer;
     touch-action: none;
+  }
+  #theme-toggle {
+    position: fixed;
+    bottom: 12px;
+    right: 12px;
+    z-index: 40;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+  }
+  #theme-toggle:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  #theme-toggle:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  #theme-toggle svg {
+    width: 20px;
+    height: 20px;
+    display: block;
   }
   #touch-controls {
     position: absolute;
@@ -100,7 +158,7 @@
   #touch-controls.active { display: block; }
   .touch-group {
     position: absolute;
-    bottom: 10px;
+    bottom: 12px;
     display: flex;
     gap: 10px;
     pointer-events: auto;
@@ -110,23 +168,27 @@
   .tbtn {
     width: var(--tbtn, 58px);
     height: var(--tbtn, 58px);
-    border-radius: 14px;
-    border: 2px solid #FFFFFE;
-    background: rgba(15, 14, 23, 0.72);
-    backdrop-filter: blur(4px);
-    color: #FFFFFE;
-    font-weight: 800;
-    font-size: 18px;
+    border-radius: 12px;
+    border: 2px solid var(--text);
+    background: var(--touch-bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: clamp(1rem, 2.5vw, 1.25rem);
     display: flex;
     align-items: center;
     justify-content: center;
     touch-action: none;
   }
-  .tbtn.jump { width: calc(var(--tbtn, 58px) * 1.35); border-color: #FFB800; color: #FFB800; }
-  .tbtn.pressed { background: #FFFFFE; color: #0F0E17; }
+  .tbtn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .tbtn.jump { width: calc(var(--tbtn, 58px) * 1.35); border-color: var(--accent); color: var(--accent); }
+  .tbtn.pressed { background: var(--text); color: var(--bg); }
   .touch-top-right {
     position: absolute;
-    top: 46px;
+    top: 48px;
     right: 12px;
     display: flex;
     gap: 8px;
@@ -134,28 +196,30 @@
   }
   .tbtn.small {
     width: auto;
-    height: 30px;
-    padding: 0 10px;
+    min-height: 36px;
+    padding: 0 12px;
     border-radius: 8px;
-    font-size: 11px;
+    font-size: 0.875rem;
     pointer-events: auto;
   }
   #toast {
     position: absolute;
     bottom: 16px; left: 50%;
     transform: translateX(-50%);
-    background: #2E2D40;
-    border: 2px solid #FFB800;
-    color: #FFFFFE;
-    padding: 8px 16px;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
+    background: var(--toast-bg);
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    color: var(--toast-text);
+    padding: 10px 18px;
+    max-width: calc(100vw - 32px);
+    font-size: clamp(0.875rem, 1.5vw, 1rem);
+    font-weight: 600;
+    line-height: 1.35;
+    text-align: center;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.15s ease;
     z-index: 30;
-    white-space: nowrap;
   }
   #toast.show { opacity: 1; }
 </style>
@@ -179,6 +243,7 @@
     </div>
     <div id="toast"></div>
   </div>
+  <button id="theme-toggle" type="button" aria-label="Toggle light or dark theme" title="Toggle theme"></button>
 </div>
 
 <script>
@@ -197,14 +262,95 @@ const COLS = 32;
 const ROWS = 18;
 const FIXED_DT = 1 / 60;
 
-// Strict 5-Color Palette
-const PAL = {
-  BG:     "#0F0E17", // Void Ink
-  WHITE:  "#FFFFFE", // Chalk White
-  STONE:  "#2E2D40", // Slate Stone
-  CORAL:  "#FF3366", // Betrayal Coral
-  GOLD:   "#FFB800"  // Bait Gold
+// Theme-aware 5-Color Core Palette + UI Surface Tokens
+const THEME_KEY = "trust_issues_theme";
+const UI_FONT = '"Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+const PAL_DARK = {
+  BG:          "#0F0E17",
+  SURFACE:     "#1A1926",
+  WHITE:       "#FFFFFE",
+  MUTED:       "#B8B6C8",
+  STONE:       "#2E2D40",
+  STONE_HOVER: "#3A3952",
+  BORDER:      "#2E2D40",
+  CORAL:       "#FF3366",
+  GOLD:        "#FFB800",
+  ACCENT_TEXT: "#0F0E17",
+  PANEL:       "rgba(15, 14, 23, 0.92)",
+  OVERLAY:     "rgba(15, 14, 23, 0.88)",
+  IS_LIGHT:    false
 };
+const PAL_LIGHT = {
+  BG:          "#F6F5F0",
+  SURFACE:     "#EAE8E1",
+  WHITE:       "#14131D",
+  MUTED:       "#4A485C",
+  STONE:       "#CFCBC0",
+  STONE_HOVER: "#C0BBB0",
+  BORDER:      "#B8B4A8",
+  CORAL:       "#C81048",
+  GOLD:        "#B45309",
+  ACCENT_TEXT: "#FFFFFE",
+  PANEL:       "rgba(246, 245, 240, 0.95)",
+  OVERLAY:     "rgba(246, 245, 240, 0.92)",
+  IS_LIGHT:    true
+};
+const PAL = { ...PAL_DARK };
+
+function getInitialTheme() {
+  try {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved === "light" || saved === "dark") return saved;
+  } catch (e) {}
+  try {
+    if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) return "light";
+  } catch (e) {}
+  return "dark";
+}
+
+function updateThemeButtonIcon(theme) {
+  const btn = document.getElementById("theme-toggle");
+  if (!btn) return;
+  if (theme === "light") {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+    btn.setAttribute("aria-label", "Switch to dark mode");
+    btn.title = "Dark mode";
+  } else {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
+    btn.setAttribute("aria-label", "Switch to light mode");
+    btn.title = "Light mode";
+  }
+}
+
+let currentTheme = getInitialTheme();
+function applyTheme(theme, persist = false) {
+  currentTheme = theme === "light" ? "light" : "dark";
+  if (document.documentElement) {
+    if (currentTheme === "light") document.documentElement.setAttribute("data-theme", "light");
+    else document.documentElement.removeAttribute("data-theme");
+  }
+  Object.assign(PAL, currentTheme === "light" ? PAL_LIGHT : PAL_DARK);
+  updateThemeButtonIcon(currentTheme);
+  if (persist) {
+    try { localStorage.setItem(THEME_KEY, currentTheme); } catch (e) {}
+  }
+}
+applyTheme(currentTheme, false);
+const themeToggleBtn = document.getElementById("theme-toggle");
+if (themeToggleBtn) {
+  themeToggleBtn.addEventListener("click", () => {
+    applyTheme(currentTheme === "light" ? "dark" : "light", true);
+  });
+}
+if (window.matchMedia) {
+  const mq = window.matchMedia("(prefers-color-scheme: light)");
+  const onMqChange = e => {
+    let hasSaved = false;
+    try { hasSaved = !!localStorage.getItem(THEME_KEY); } catch (err) {}
+    if (!hasSaved) applyTheme(e.matches ? "light" : "dark", false);
+  };
+  if (mq.addEventListener) mq.addEventListener("change", onMqChange);
+}
 
 // Player Hitbox & Visual Sprite Dimensions (forgiving hitbox < sprite)
 const PLAYER_W = 16;
@@ -282,31 +428,71 @@ const FONT_5X7 = {
   "&": [12,18,20,8,21,18,13],  "*": [0,21,14,31,14,21,0]
 };
 
-function drawPixelText(ctx, text, x, y, scale, color, align = "left", letterOffsetFn = null) {
-  const str = String(text).toUpperCase();
-  const charW = 6 * scale;
-  const totalW = str.length * charW - scale;
-  let startX = x;
-  if (align === "center") startX = Math.round(x - totalW / 2);
-  else if (align === "right") startX = Math.round(x - totalW);
+function getCanvasFontSize(scale) {
+  if (scale <= 1) return 14;
+  if (scale === 2) return 16;
+  if (scale === 3) return 22;
+  if (scale === 4) return 28;
+  if (scale === 5) return 36;
+  return 44;
+}
 
+function drawPixelText(ctx, text, x, y, scale, color, align = "left", letterOffsetFn = null, maxWidth = null) {
+  const str = String(text);
+  const px = getCanvasFontSize(scale);
+  ctx.save();
+  ctx.font = `700 ${px}px ${UI_FONT}`;
   ctx.fillStyle = color;
-  for (let i = 0; i < str.length; i++) {
-    const ch = str[i];
-    const glyph = FONT_5X7[ch] || FONT_5X7[" "];
-    const extra = letterOffsetFn ? letterOffsetFn(i, ch) : { dx: 0, dy: 0 };
-    const gx = startX + i * charW + extra.dx;
-    const gy = Math.round(y + extra.dy);
-    for (let r = 0; r < 7; r++) {
-      const bits = glyph[r];
-      if (!bits) continue;
-      for (let c = 0; c < 5; c++) {
-        if (bits & (16 >> c)) {
-          ctx.fillRect(gx + c * scale, gy + r * scale, scale, scale);
-        }
-      }
+  ctx.textBaseline = "top";
+
+  if (letterOffsetFn) {
+    ctx.textAlign = "left";
+    const widths = Array.from(str, ch => ctx.measureText(ch).width);
+    const totalW = widths.reduce((a, b) => a + b, 0);
+    let curX = x;
+    if (align === "center") curX = x - totalW / 2;
+    else if (align === "right") curX = x - totalW;
+    for (let i = 0; i < str.length; i++) {
+      const extra = letterOffsetFn(i, str[i]) || { dx: 0, dy: 0 };
+      ctx.fillText(str[i], Math.round(curX + extra.dx), Math.round(y + extra.dy));
+      curX += widths[i];
+    }
+    ctx.restore();
+    return;
+  }
+
+  ctx.textAlign = align;
+  if (maxWidth && maxWidth > 0) ctx.fillText(str, Math.round(x), Math.round(y), maxWidth);
+  else ctx.fillText(str, Math.round(x), Math.round(y));
+  ctx.restore();
+}
+
+function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, fontSize, color, align = "left", weight = "700") {
+  const words = String(text).split(/\s+/);
+  ctx.save();
+  ctx.font = `${weight} ${fontSize}px ${UI_FONT}`;
+  ctx.fillStyle = color;
+  ctx.textBaseline = "top";
+  ctx.textAlign = align;
+
+  const lines = [];
+  let line = "";
+  for (const w of words) {
+    const test = line ? `${line} ${w}` : w;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line);
+      line = w;
+    } else {
+      line = test;
     }
   }
+  if (line) lines.push(line);
+
+  for (let i = 0; i < lines.length; i++) {
+    ctx.fillText(lines[i], Math.round(x), Math.round(y + i * lineHeight));
+  }
+  ctx.restore();
+  return lines.length;
 }
 
 /* ============================================================================
@@ -3604,22 +3790,25 @@ resizeCanvas();
  * ============================================================================ */
 function addButton(x, y, w, h, label, onClick, bg = PAL.STONE, fg = PAL.WHITE, border = null, subLabel = null) {
   const hover = app.mouse.x >= x && app.mouse.x <= x + w && app.mouse.y >= y && app.mouse.y <= y + h;
-  const dy = hover ? -2 : 0;
-  ctx.fillStyle = PAL.BG;
-  ctx.fillRect(x + 2, y + 3, w, h);
-  ctx.fillStyle = hover && bg === PAL.STONE ? "#3A3952" : bg;
-  ctx.fillRect(x, y + dy, w, h);
-  ctx.strokeStyle = hover ? PAL.GOLD : (border || PAL.STONE);
-  ctx.lineWidth = hover ? 2.5 : 2;
-  ctx.strokeRect(x, y + dy, w, h);
-  if (hover) {
-    ctx.fillStyle = PAL.GOLD;
-    ctx.fillRect(x, y + dy, 4, h);
-  }
-  const textY = subLabel ? y + dy + Math.floor(h * 0.25) : y + dy + Math.floor((h - 14) / 2) + 1;
-  drawPixelText(ctx, label, x + w / 2, textY, Math.min(2, h >= 30 ? 2 : 1), hover && fg === PAL.WHITE ? PAL.GOLD : fg, "center");
+  const fill = hover && bg === PAL.STONE ? PAL.STONE_HOVER : bg;
+  ctx.save();
+  ctx.fillStyle = fill;
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = hover ? PAL.GOLD : (border || PAL.BORDER);
+  ctx.lineWidth = hover ? 2 : 1.5;
+  ctx.strokeRect(x, y, w, h);
+  ctx.restore();
+
+  const textColor = (fg === PAL.BG) ? PAL.ACCENT_TEXT : (hover && fg === PAL.WHITE ? PAL.GOLD : fg);
+  const subColor = (fg === PAL.BG) ? PAL.ACCENT_TEXT : PAL.MUTED;
   if (subLabel) {
-    drawPixelText(ctx, subLabel, x + w / 2, y + dy + Math.floor(h * 0.62), 1, fg === PAL.BG ? PAL.BG : PAL.WHITE, "center");
+    drawPixelText(ctx, label, x + w / 2, y + Math.floor(h * 0.2), 2, textColor, "center", null, w - 16);
+    drawPixelText(ctx, subLabel, x + w / 2, y + Math.floor(h * 0.58), 1, subColor, "center", null, w - 16);
+  } else {
+    const scale = h >= 32 ? 2 : 1;
+    const px = getCanvasFontSize(scale);
+    const textY = y + Math.floor((h - px) / 2);
+    drawPixelText(ctx, label, x + w / 2, textY, scale, textColor, "center", null, w - 12);
   }
   uiButtons.push({ x, y, w, h, onClick });
 }
@@ -3797,9 +3986,15 @@ function renderEntities(state, alpha) {
   }
 
   for (const s of state.signs) {
-    const sx = s.col * TILE, sy = s.row * TILE, sw = s.w || 88, sh = s.h || 28;
-    ctx.fillStyle = PAL.STONE; ctx.fillRect(sx - 4, sy - 4, sw, sh);
-    ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 2; ctx.strokeRect(sx - 4, sy - 4, sw, sh);
+    const sx = s.col * TILE, sy = s.row * TILE;
+    ctx.save();
+    ctx.font = `700 16px ${UI_FONT}`;
+    const measuredW = ctx.measureText(String(s.text)).width + 20;
+    ctx.restore();
+    const sw = Math.max(s.w || 88, Math.ceil(measuredW));
+    const sh = Math.max(s.h || 28, 30);
+    ctx.fillStyle = PAL.SURFACE; ctx.fillRect(sx - 4, sy - 4, sw, sh);
+    ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 1.5; ctx.strokeRect(sx - 4, sy - 4, sw, sh);
     drawPixelText(ctx, s.text, sx - 4 + sw / 2, sy + 3, 2, PAL.WHITE, "center", (idx) => {
       if (s.crookedLast && idx === s.text.length - 1) return { dx: 0, dy: 2 };
       return { dx: 0, dy: 0 };
@@ -3818,21 +4013,21 @@ function renderEntities(state, alpha) {
     const ry = plat.prevY + (plat.y - plat.prevY) * alpha;
     if (plat.uiStyle === "loading") {
       ctx.fillStyle = PAL.STONE; ctx.fillRect(rx, ry, plat.w, plat.h);
-      ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 2; ctx.strokeRect(rx, ry, plat.w, plat.h);
+      ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 1.5; ctx.strokeRect(rx, ry, plat.w, plat.h);
       ctx.fillStyle = PAL.GOLD; ctx.fillRect(rx, ry, plat.w, 3);
       const pct = Math.min(99, Math.floor((state.tick % 180) / 1.8));
-      drawPixelText(ctx, `LOAD ${pct}%`, rx + plat.w / 2, ry + 5, 1, PAL.WHITE, "center");
+      drawPixelText(ctx, `LOAD ${pct}%`, rx + plat.w / 2, ry + 5, 1, PAL.WHITE, "center", null, plat.w - 8);
     } else if (plat.uiStyle === "paused") {
       ctx.fillStyle = PAL.GOLD; ctx.fillRect(rx, ry, plat.w, plat.h);
-      drawPixelText(ctx, "PAUSED BRIDGE", rx + plat.w / 2, ry + 3, 2, PAL.BG, "center");
+      drawPixelText(ctx, "PAUSED BRIDGE", rx + plat.w / 2, ry + 3, 2, PAL.ACCENT_TEXT, "center", null, plat.w - 8);
     } else if (plat.uiStyle === "trace") {
-      ctx.fillStyle = PAL.BG; ctx.fillRect(rx, ry, plat.w, plat.h);
+      ctx.fillStyle = PAL.SURFACE; ctx.fillRect(rx, ry, plat.w, plat.h);
       ctx.fillStyle = PAL.GOLD; ctx.fillRect(rx, ry, plat.w, 3);
-      drawPixelText(ctx, plat.label || "AT LINE", rx + plat.w / 2, ry + 6, 1, PAL.WHITE, "center");
+      drawPixelText(ctx, plat.label || "AT LINE", rx + plat.w / 2, ry + 4, 1, PAL.WHITE, "center", null, plat.w - 8);
     } else if (plat.uiStyle === "slider") {
       ctx.fillStyle = PAL.GOLD; ctx.fillRect(rx, ry, plat.w, plat.h);
-      ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 2; ctx.strokeRect(rx, ry, plat.w, plat.h);
-      drawPixelText(ctx, "VOL", rx + plat.w / 2, ry + 7, 2, PAL.BG, "center");
+      ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 1.5; ctx.strokeRect(rx, ry, plat.w, plat.h);
+      drawPixelText(ctx, "VOL", rx + plat.w / 2, ry + 6, 2, PAL.ACCENT_TEXT, "center", null, plat.w - 8);
     } else {
       ctx.fillStyle = PAL.STONE; ctx.fillRect(rx, ry, plat.w, plat.h);
       ctx.fillStyle = PAL.GOLD; ctx.fillRect(rx, ry, plat.w, 3);
@@ -3851,22 +4046,23 @@ function renderEntities(state, alpha) {
     const sx = sl.col * TILE + 6, sy = sl.row * TILE + 6 + Math.sin(state.tick * 0.1) * 2;
     ctx.fillStyle = PAL.BG; ctx.fillRect(sx - 2, sy - 2, 22, 22);
     ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 2; ctx.strokeRect(sx - 2, sy - 2, 22, 22);
-    drawPixelText(ctx, sl.char, sx + 9, sy + 2, 2, PAL.GOLD, "center");
+    drawPixelText(ctx, sl.char, sx + 9, sy + 1, 2, PAL.GOLD, "center");
   }
 
   // Riddle UI & Pads
   if (state.riddle) {
     const rid = state.riddle;
-    ctx.fillStyle = "rgba(15,14,23,0.88)"; ctx.fillRect(60, 50, 840, 62);
-    ctx.strokeStyle = rid.solved ? PAL.GOLD : PAL.WHITE; ctx.lineWidth = 2; ctx.strokeRect(60, 50, 840, 62);
-    drawPixelText(ctx, rid.prompt, 480, 60, 2, PAL.GOLD, "center");
+    ctx.fillStyle = PAL.PANEL; ctx.fillRect(50, 48, 860, 74);
+    ctx.strokeStyle = rid.solved ? PAL.GOLD : PAL.BORDER; ctx.lineWidth = 1.5; ctx.strokeRect(50, 48, 860, 74);
+    const promptLines = drawWrappedText(ctx, rid.prompt, 480, 56, 828, 20, 16, PAL.GOLD, "center", "700");
+    const subY = 56 + promptLines * 20 + 6;
 
     if (rid.mode === "typed") {
       const box = rid.solved ? "OPEN!" : (rid.typedText + (Math.floor(state.tick / 20) % 2 ? "_" : ""));
-      drawPixelText(ctx, `TYPE ANSWER: [${box}]`, 480, 88, 2, PAL.WHITE, "center");
+      drawPixelText(ctx, `TYPE ANSWER: [${box}]`, 480, subY, 2, PAL.WHITE, "center", null, 828);
     } else if (rid.mode === "idle") {
       const pct = Math.min(100, Math.floor((rid.idleTicks / (rid.idleTicksRequired || 240)) * 100));
-      drawPixelText(ctx, rid.solved ? "DOOR OPEN!" : `STILLNESS: ${pct}%`, 480, 88, 2, PAL.WHITE, "center");
+      drawPixelText(ctx, rid.solved ? "DOOR OPEN!" : `STILLNESS: ${pct}%`, 480, subY, 2, PAL.WHITE, "center", null, 828);
     } else if (rid.mode === "pads") {
       if (rid.sequence.length === 4 && rid.pads[0].id === "1") {
         // Simon beacons at top
@@ -3876,11 +4072,11 @@ function renderEntities(state, alpha) {
           const id = String(i + 1);
           const bx = 360 + i * 68;
           ctx.fillStyle = activeId === id ? PAL.GOLD : PAL.STONE;
-          ctx.fillRect(bx, 84, 44, 22);
-          drawPixelText(ctx, id, bx + 22, 88, 2, activeId === id ? PAL.BG : PAL.WHITE, "center");
+          ctx.fillRect(bx, subY, 44, 24);
+          drawPixelText(ctx, id, bx + 22, subY + 4, 2, activeId === id ? PAL.ACCENT_TEXT : PAL.WHITE, "center");
         }
       } else {
-        drawPixelText(ctx, `PROGRESS: ${rid.padIndex}/${rid.sequence.length}`, 480, 88, 2, PAL.WHITE, "center");
+        drawPixelText(ctx, `PROGRESS: ${rid.padIndex}/${rid.sequence.length}`, 480, subY, 2, PAL.WHITE, "center");
       }
       for (let i = 0; i < rid.pads.length; i++) {
         const pad = rid.pads[i];
@@ -3889,7 +4085,7 @@ function renderEntities(state, alpha) {
         ctx.fillRect(pad.col * TILE + 2, pad.row * TILE, TILE - 4, 8);
         ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 2;
         ctx.strokeRect(pad.col * TILE + 2, pad.row * TILE - 18, TILE - 4, 18);
-        drawPixelText(ctx, pad.id, pad.col * TILE + TILE / 2, pad.row * TILE - 15, 2, PAL.GOLD, "center");
+        drawPixelText(ctx, pad.id, pad.col * TILE + TILE / 2, pad.row * TILE - 16, 1, PAL.GOLD, "center");
       }
     }
   }
@@ -3906,20 +4102,21 @@ function renderEntities(state, alpha) {
   }
   if (state.levelDef.portals) {
     for (const pt of state.levelDef.portals) {
-      ctx.strokeStyle = pt.color || PAL.GOLD; ctx.lineWidth = 3;
+      const pColor = pt.color === "#FF3366" ? PAL.CORAL : (pt.color === "#FFB800" ? PAL.GOLD : (pt.color || PAL.GOLD));
+      ctx.strokeStyle = pColor; ctx.lineWidth = 3;
       ctx.strokeRect(pt.x, pt.y, 24, 30);
     }
   }
   if (state.levelDef.magnets) {
     for (const mag of state.levelDef.magnets) {
       ctx.fillStyle = PAL.CORAL; ctx.fillRect(mag.x - 12, mag.y - 12, 24, 24);
-      drawPixelText(ctx, "M", mag.x, mag.y - 7, 2, PAL.WHITE, "center");
+      drawPixelText(ctx, "M", mag.x, mag.y - 8, 2, PAL.ACCENT_TEXT, "center");
     }
   }
   if (state.levelDef.rewindPad) {
     const rw = state.levelDef.rewindPad;
     ctx.fillStyle = PAL.GOLD; ctx.fillRect(rw.x, rw.y, rw.w, rw.h);
-    drawPixelText(ctx, "<<", rw.x + rw.w / 2, rw.y + 4, 1, PAL.BG, "center");
+    drawPixelText(ctx, "<<", rw.x + rw.w / 2, rw.y + 7, 1, PAL.ACCENT_TEXT, "center");
   }
   if (state.windForce !== 0) {
     ctx.save(); ctx.globalAlpha = 0.4; ctx.fillStyle = PAL.WHITE;
@@ -3939,7 +4136,7 @@ function renderEntities(state, alpha) {
   for (const h of state.hazards) {
     ctx.fillStyle = h.warning ? PAL.GOLD : (h.solidTop ? PAL.GOLD : PAL.CORAL);
     ctx.fillRect(Math.round(h.x), Math.round(h.y), h.w, h.h);
-    if (h.label) drawPixelText(ctx, h.label, h.x + h.w / 2, h.y + 4, 1, PAL.BG, "center");
+    if (h.label) drawPixelText(ctx, h.label, h.x + h.w / 2, h.y + 4, 1, PAL.ACCENT_TEXT, "center");
   }
   for (const npc of state.npcs) {
     if (!npc.alive) continue;
@@ -4047,20 +4244,20 @@ function renderFakeUI(state) {
   const f = state.fakeUI;
   ctx.save();
   if (f.variant === "complete") {
-    ctx.globalAlpha = 0.88; ctx.fillStyle = PAL.BG; ctx.fillRect(220, 120, 520, 140);
-    ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 4; ctx.strokeRect(220, 120, 520, 140);
-    drawPixelText(ctx, "LEVEL COMPLETE!", 480, 148, 4, PAL.GOLD, "center");
-    drawPixelText(ctx, "TIME: 00.00S   ...OR IS IT?", 480, 198, 2, PAL.WHITE, "center");
+    ctx.globalAlpha = 0.92; ctx.fillStyle = PAL.PANEL; ctx.fillRect(210, 120, 540, 140);
+    ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 3; ctx.strokeRect(210, 120, 540, 140);
+    drawPixelText(ctx, "LEVEL COMPLETE!", 480, 148, 4, PAL.GOLD, "center", null, 500);
+    drawPixelText(ctx, "TIME: 00.00S   ...OR IS IT?", 480, 198, 2, PAL.WHITE, "center", null, 500);
   } else if (f.variant === "fakeDeath") {
-    ctx.globalAlpha = 0.82; ctx.fillStyle = PAL.BG; ctx.fillRect(240, 138, 480, 118);
-    ctx.strokeStyle = PAL.CORAL; ctx.lineWidth = 4; ctx.strokeRect(240, 138, 480, 118);
-    drawPixelText(ctx, "YOU DIED!", 480, 162, 5, PAL.CORAL, "center");
-    drawPixelText(ctx, "RESPAWNING... WAIT WHY ARE YOU STILL MOVING?", 480, 222, 1, PAL.WHITE, "center");
+    ctx.globalAlpha = 0.9; ctx.fillStyle = PAL.PANEL; ctx.fillRect(220, 134, 520, 124);
+    ctx.strokeStyle = PAL.CORAL; ctx.lineWidth = 3; ctx.strokeRect(220, 134, 520, 124);
+    drawPixelText(ctx, "YOU DIED!", 480, 156, 5, PAL.CORAL, "center", null, 480);
+    drawWrappedText(ctx, "RESPAWNING... WAIT WHY ARE YOU STILL MOVING?", 480, 212, 480, 18, 14, PAL.WHITE, "center");
   } else if (f.variant === "crash") {
-    ctx.globalAlpha = 0.92; ctx.fillStyle = PAL.BG; ctx.fillRect(190, 118, 580, 150);
+    ctx.globalAlpha = 0.94; ctx.fillStyle = PAL.PANEL; ctx.fillRect(190, 118, 580, 150);
     ctx.strokeStyle = PAL.CORAL; ctx.lineWidth = 3; ctx.strokeRect(190, 118, 580, 150);
-    drawPixelText(ctx, "FATAL EXCEPTION 0xDEAD", 480, 148, 3, PAL.CORAL, "center");
-    drawPixelText(ctx, "PLAYER_SKILLS.DLL FAILED TO RESPOND", 480, 196, 2, PAL.WHITE, "center");
+    drawPixelText(ctx, "FATAL EXCEPTION 0xDEAD", 480, 148, 3, PAL.CORAL, "center", null, 540);
+    drawWrappedText(ctx, "PLAYER_SKILLS.DLL FAILED TO RESPOND", 480, 196, 540, 20, 16, PAL.WHITE, "center");
   }
   ctx.restore();
 }
@@ -4072,40 +4269,33 @@ function renderHUD(state) {
   const shownTotD = dOverride ? dOverride.value : progress.totalDeaths;
 
   ctx.save();
-  ctx.globalAlpha = (dOverride && Math.floor(state.tick / 4) % 2 === 0) ? 0.35 : 0.94;
-  ctx.fillStyle = PAL.BG; ctx.fillRect(8, 6, 304, 34);
-  ctx.strokeStyle = PAL.STONE; ctx.lineWidth = 2; ctx.strokeRect(8, 6, 304, 34);
-  ctx.fillStyle = PAL.CORAL; ctx.fillRect(8, 6, 4, 34);
-  drawPixelText(ctx, `R${String(def.id).padStart(3,"0")} ${def.name.slice(0,14)}`, 20, 16, 2, PAL.GOLD, "left");
+  ctx.globalAlpha = (dOverride && Math.floor(state.tick / 4) % 2 === 0) ? 0.35 : 0.95;
+  ctx.fillStyle = PAL.SURFACE; ctx.fillRect(8, 6, 304, 34);
+  ctx.strokeStyle = PAL.BORDER; ctx.lineWidth = 1.5; ctx.strokeRect(8, 6, 304, 34);
+  drawPixelText(ctx, `#${String(def.id).padStart(3,"0")} ${def.name}`, 20, 15, 2, PAL.GOLD, "left", null, 282);
   ctx.restore();
 
-  ctx.fillStyle = PAL.BG; ctx.fillRect(320, 6, 632, 34);
-  ctx.strokeStyle = PAL.STONE; ctx.lineWidth = 2; ctx.strokeRect(320, 6, 632, 34);
-  drawPixelText(ctx, `LVL:${shownLvlD}`, 334, 16, 2, PAL.CORAL, "left");
-  drawPixelText(ctx, `TOT:${shownTotD}`, 436, 16, 2, PAL.WHITE, "left");
-  drawPixelText(ctx, `${(state.tick / 60).toFixed(2)}S`, 550, 16, 2, PAL.GOLD, "left");
+  ctx.fillStyle = PAL.SURFACE; ctx.fillRect(320, 6, 632, 34);
+  ctx.strokeStyle = PAL.BORDER; ctx.lineWidth = 1.5; ctx.strokeRect(320, 6, 632, 34);
+  drawPixelText(ctx, `Deaths: ${shownLvlD}`, 352, 15, 2, PAL.CORAL, "left", null, 130);
 
-  addButton(664, 10, 66, 26, "MENU", () => { app.screen = "title"; }, PAL.STONE, PAL.GOLD, PAL.GOLD);
-  addButton(736, 10, 74, 26, "LEVELS", () => { app.screen = "select"; }, PAL.STONE, PAL.WHITE, PAL.STONE);
-  addButton(816, 10, 64, 26, "SHARE", shareCurrentLevelCode, PAL.STONE, PAL.WHITE, PAL.STONE);
-  addButton(886, 10, 60, 26, "PAUSE", () => { app.screen = "pause"; }, PAL.STONE, PAL.CORAL, PAL.CORAL);
+  addButton(754, 10, 96, 26, "Restart [R]", () => startLevel(app.currentLevelIndex, false), PAL.STONE, PAL.WHITE, PAL.BORDER);
+  addButton(856, 10, 88, 26, "Pause [Esc]", () => { app.screen = "pause"; }, PAL.STONE, PAL.WHITE, PAL.BORDER);
 
   if (app.fakeAlertTicks > 0) {
-    ctx.fillStyle = PAL.CORAL; ctx.fillRect(190, 48, 580, 32);
-    ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 2; ctx.strokeRect(190, 48, 580, 32);
-    drawPixelText(ctx, app.fakeAlertText, 480, 57, 2, PAL.WHITE, "center");
+    ctx.fillStyle = PAL.CORAL; ctx.fillRect(180, 48, 600, 36);
+    ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 1.5; ctx.strokeRect(180, 48, 600, 36);
+    drawPixelText(ctx, app.fakeAlertText, 480, 58, 2, PAL.ACCENT_TEXT, "center", null, 576);
   }
 
-  ctx.fillStyle = PAL.BG; ctx.fillRect(0, LOGICAL_H - 30, LOGICAL_W, 30);
-  ctx.fillStyle = PAL.CORAL; ctx.fillRect(0, LOGICAL_H - 30, 8, 30);
-  ctx.fillStyle = PAL.STONE; ctx.fillRect(8, LOGICAL_H - 30, LOGICAL_W - 8, 2);
-  drawPixelText(ctx, state.narratorOverride || app.narratorText, 18, LOGICAL_H - 21, 2, PAL.WHITE, "left");
-  drawPixelText(ctx, "[R] RETRY  [ESC] PAUSE  [O] OBS", LOGICAL_W - 14, LOGICAL_H - 19, 1, PAL.GOLD, "right");
+  ctx.fillStyle = PAL.SURFACE; ctx.fillRect(0, LOGICAL_H - 34, LOGICAL_W, 34);
+  ctx.fillStyle = PAL.BORDER; ctx.fillRect(0, LOGICAL_H - 34, LOGICAL_W, 1);
+  drawPixelText(ctx, state.narratorOverride || app.narratorText, 16, LOGICAL_H - 25, 2, PAL.WHITE, "left", null, LOGICAL_W - 32);
 
   if (progress.bigDeathOverlay) {
-    ctx.fillStyle = "rgba(15,14,23,0.9)"; ctx.fillRect(LOGICAL_W - 220, 48, 206, 84);
-    ctx.strokeStyle = PAL.CORAL; ctx.lineWidth = 3; ctx.strokeRect(LOGICAL_W - 220, 48, 206, 84);
-    drawPixelText(ctx, "DEATHS", LOGICAL_W - 117, 58, 2, PAL.WHITE, "center");
+    ctx.fillStyle = PAL.PANEL; ctx.fillRect(LOGICAL_W - 220, 48, 206, 84);
+    ctx.strokeStyle = PAL.CORAL; ctx.lineWidth = 2; ctx.strokeRect(LOGICAL_W - 220, 48, 206, 84);
+    drawPixelText(ctx, "DEATHS", LOGICAL_W - 117, 56, 2, PAL.WHITE, "center");
     drawPixelText(ctx, String(shownTotD), LOGICAL_W - 117, 84, 5, PAL.CORAL, "center");
   }
 }
@@ -4558,30 +4748,31 @@ function renderMindGame() {
     drawAtmosphereAndEye(app.mouse.x, app.mouse.y, 295);
   }
 
-  // Top HUD Bar
-  ctx.fillStyle = PAL.BG; ctx.fillRect(8, 6, 330, 34);
-  ctx.strokeStyle = PAL.STONE; ctx.lineWidth = 2; ctx.strokeRect(8, 6, 330, 34);
-  ctx.fillStyle = PAL.GOLD; ctx.fillRect(8, 6, 4, 34);
-  drawPixelText(ctx, `M${String(id).padStart(2,"0")} ${g2.def.name}`, 20, 16, 2, PAL.GOLD, "left");
+  // Top HUD Bar (minimal)
+  ctx.fillStyle = PAL.SURFACE; ctx.fillRect(8, 6, 330, 34);
+  ctx.strokeStyle = PAL.BORDER; ctx.lineWidth = 1.5; ctx.strokeRect(8, 6, 330, 34);
+  drawPixelText(ctx, `M${String(id).padStart(2,"0")} ${g2.def.name}`, 20, 15, 2, PAL.GOLD, "left", null, 306);
 
-  ctx.fillStyle = PAL.BG; ctx.fillRect(346, 6, 606, 34);
-  ctx.strokeStyle = PAL.STONE; ctx.lineWidth = 2; ctx.strokeRect(346, 6, 606, 34);
-  drawPixelText(ctx, `FAILS:${progress.g2Fails[id] || 0}`, 360, 16, 2, PAL.CORAL, "left");
-  drawPixelText(ctx, `TRUST:${app.trustScore}%`, 505, 16, 2, app.trustScore > 0 ? PAL.GOLD : PAL.CORAL, "left");
+  ctx.fillStyle = PAL.SURFACE; ctx.fillRect(346, 6, 606, 34);
+  ctx.strokeStyle = PAL.BORDER; ctx.lineWidth = 1.5; ctx.strokeRect(346, 6, 606, 34);
+  drawPixelText(ctx, `Fails: ${progress.g2Fails[id] || 0}`, 362, 15, 2, PAL.CORAL, "left");
 
-  addButton(706, 10, 74, 26, "MENU", () => { app.screen = "title"; }, PAL.STONE, PAL.GOLD, PAL.GOLD);
-  addButton(786, 10, 82, 26, "STAGES", () => { app.screen = "g2select"; }, PAL.STONE, PAL.WHITE, PAL.STONE);
-  addButton(874, 10, 72, 26, "RETRY", () => startMindLevel(app.g2CurrentIdx), PAL.STONE, PAL.CORAL, PAL.CORAL);
+  addButton(754, 10, 92, 26, "Retry [R]", () => startMindLevel(app.g2CurrentIdx), PAL.STONE, PAL.WHITE, PAL.BORDER);
+  addButton(852, 10, 92, 26, "Menu [Esc]", () => { app.screen = "title"; }, PAL.STONE, PAL.WHITE, PAL.BORDER);
 
   // Prompt Banner (M01 embeds clickable "START" inside the sentence itself)
-  ctx.fillStyle = "rgba(46,45,64,0.85)"; ctx.fillRect(70, 58, 820, 42);
-  ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 2; ctx.strokeRect(70, 58, 820, 42);
+  ctx.fillStyle = PAL.SURFACE; ctx.fillRect(60, 56, 840, 46);
+  ctx.strokeStyle = PAL.BORDER; ctx.lineWidth = 1.5; ctx.strokeRect(60, 56, 840, 46);
   if (id === 1) {
-    drawPixelText(ctx, 'CLICK "', 254, 72, 2, PAL.WHITE, "right");
-    drawPixelText(ctx, "START", 258, 72, 2, PAL.GOLD, "left");
-    drawPixelText(ctx, '" TO PROVE YOU ARE HUMAN', 322, 72, 2, PAL.WHITE, "left");
+    ctx.save();
+    ctx.font = `700 16px ${UI_FONT}`;
+    const startW = ctx.measureText("START").width;
+    ctx.restore();
+    drawPixelText(ctx, 'CLICK "', 254, 71, 2, PAL.WHITE, "right");
+    drawPixelText(ctx, "START", 258, 71, 2, PAL.GOLD, "left");
+    drawPixelText(ctx, '" TO PROVE YOU ARE HUMAN', 258 + startW + 4, 71, 2, PAL.WHITE, "left");
   } else {
-    drawPixelText(ctx, g2.def.prompt, 480, 72, 2, PAL.WHITE, "center");
+    drawPixelText(ctx, g2.def.prompt, 480, 71, 2, PAL.WHITE, "center", null, 816);
   }
 
   // Stage-specific rendering
@@ -4590,8 +4781,8 @@ function renderMindGame() {
     const lbl = g2.dodges >= 3 ? "OK FINE, CLICK ME" : (g2.dodges > 0 ? "TOO SLOW LOL" : "START");
     ctx.fillStyle = g2.dodges >= 3 ? PAL.CORAL : PAL.GOLD;
     ctx.fillRect(b.x, b.y, b.w, b.h);
-    ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.w, b.h);
-    drawPixelText(ctx, lbl, b.x + b.w / 2, b.y + 24, 2, PAL.BG, "center");
+    ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 2; ctx.strokeRect(b.x, b.y, b.w, b.h);
+    drawPixelText(ctx, lbl, b.x + b.w / 2, b.y + 26, 2, PAL.ACCENT_TEXT, "center", null, b.w - 16);
   } else if (id === 2) {
     const pct = Math.max(0, 1 - g2.tick / 360);
     ctx.fillStyle = PAL.STONE; ctx.fillRect(220, 126, 520, 14);
@@ -4600,7 +4791,7 @@ function renderMindGame() {
       { word: "WHITE", ink: PAL.GOLD },
       { word: "GOLD",  ink: PAL.CORAL },
       { word: "CORAL", ink: PAL.WHITE },
-      { word: "STONE", ink: "#8C8AA6" }
+      { word: "STONE", ink: PAL.MUTED }
     ];
     const shift = Math.floor(g2.tick / 50) % 4;
     for (let slot = 0; slot < 4; slot++) {
@@ -4608,8 +4799,8 @@ function renderMindGame() {
       const col = slot % 2, row = Math.floor(slot / 2);
       const bx = 220 + col * 270, by = 186 + row * 124;
       ctx.fillStyle = PAL.STONE; ctx.fillRect(bx, by, 240, 98);
-      ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 2; ctx.strokeRect(bx, by, 240, 98);
-      drawPixelText(ctx, c.word, bx + 120, by + 36, 4, c.ink, "center");
+      ctx.strokeStyle = PAL.BORDER; ctx.lineWidth = 2; ctx.strokeRect(bx, by, 240, 98);
+      drawPixelText(ctx, c.word, bx + 120, by + 35, 4, c.ink, "center");
     }
   } else if (id === 3) {
     const pct = Math.min(1, g2.tick / 240);
@@ -4617,22 +4808,22 @@ function renderMindGame() {
     ctx.fillStyle = PAL.GOLD; ctx.fillRect(220, 132, Math.round(520 * pct), 14);
     if (g2.tick >= 45) {
       ctx.fillStyle = PAL.CORAL; ctx.fillRect(290, 210, 380, 96);
-      ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 3; ctx.strokeRect(290, 210, 380, 96);
-      drawPixelText(ctx, "AFK TIMEOUT! CLICK TO ABORT!", 480, 232, 2, PAL.WHITE, "center");
-      drawPixelText(ctx, "[ ABORT WIPE ]", 480, 266, 3, PAL.GOLD, "center");
+      ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 2; ctx.strokeRect(290, 210, 380, 96);
+      drawPixelText(ctx, "AFK TIMEOUT! CLICK TO ABORT!", 480, 232, 2, PAL.ACCENT_TEXT, "center", null, 360);
+      drawPixelText(ctx, "[ ABORT WIPE ]", 480, 264, 3, PAL.ACCENT_TEXT, "center");
     }
     if (g2.tick >= 120) {
       const bx = 120 + ((g2.tick * 4) % 520);
       ctx.fillStyle = PAL.GOLD; ctx.fillRect(bx, 355, 220, 46);
-      drawPixelText(ctx, "FREE SKIP ->", bx + 110, 370, 2, PAL.BG, "center");
+      drawPixelText(ctx, "FREE SKIP ->", bx + 110, 370, 2, PAL.ACCENT_TEXT, "center");
     }
   } else if (id === 4) {
     for (const t of g2.targets) {
       if (t.hit) continue;
       ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2);
       ctx.fillStyle = t.gold ? PAL.GOLD : PAL.CORAL; ctx.fill();
-      ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 3; ctx.stroke();
-      drawPixelText(ctx, t.gold ? "HIT" : "BOMB", t.x, t.y - 6, 1, PAL.BG, "center");
+      ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 2.5; ctx.stroke();
+      drawPixelText(ctx, t.gold ? "HIT" : "BOMB", t.x, t.y - 7, 1, PAL.ACCENT_TEXT, "center");
     }
     const ip = getInvertedMindPt(app.mouse);
     ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 2;
@@ -4671,7 +4862,7 @@ function renderMindGame() {
       ctx.fillStyle = lit ? PAL.GOLD : PAL.STONE;
       ctx.fillRect(bx, by, 145, 135);
       ctx.strokeStyle = lit ? PAL.WHITE : PAL.GOLD; ctx.lineWidth = 3; ctx.strokeRect(bx, by, 145, 135);
-      drawPixelText(ctx, `#${i + 1}`, bx + 72, by + 50, 4, lit ? PAL.BG : PAL.WHITE, "center");
+      drawPixelText(ctx, `#${i + 1}`, bx + 72, by + 50, 4, lit ? PAL.ACCENT_TEXT : PAL.WHITE, "center");
     }
     drawPixelText(ctx, `ENTERED: ${g2.simonInput.length}/4`, 480, 392, 2, PAL.WHITE, "center");
   } else if (id === 7) {
@@ -4690,7 +4881,7 @@ function renderMindGame() {
     }
     ctx.fillStyle = PAL.GOLD; ctx.fillRect(330, 324, 300, 70);
     ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 3; ctx.strokeRect(330, 324, 300, 70);
-    drawPixelText(ctx, "STOP CLOCK", 480, 347, 3, PAL.BG, "center");
+    drawPixelText(ctx, "STOP CLOCK", 480, 347, 3, PAL.ACCENT_TEXT, "center");
   } else if (id === 8) {
     const boxes = [
       { title: "BOX A", line: "SAFE IS A OR C" },
@@ -4702,14 +4893,14 @@ function renderMindGame() {
       ctx.fillStyle = PAL.STONE; ctx.fillRect(bx, by, 230, 185);
       ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 3; ctx.strokeRect(bx, by, 230, 185);
       drawPixelText(ctx, boxes[i].title, bx + 115, by + 32, 3, PAL.GOLD, "center");
-      drawPixelText(ctx, boxes[i].line, bx + 115, by + 102, 2, PAL.WHITE, "center");
+      drawPixelText(ctx, boxes[i].line, bx + 115, by + 102, 2, PAL.WHITE, "center", null, 210);
     }
   } else if (id === 9) {
     // Speaker icon + slider stuck at 1%
     ctx.fillStyle = g2.mutedIcon ? PAL.GOLD : PAL.STONE;
     ctx.fillRect(205, 225, 60, 60);
     ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 2; ctx.strokeRect(205, 225, 60, 60);
-    drawPixelText(ctx, g2.mutedIcon ? "X" : "VOL", 235, 247, 2, g2.mutedIcon ? PAL.BG : PAL.CORAL, "center");
+    drawPixelText(ctx, g2.mutedIcon ? "X" : "VOL", 235, 247, 2, g2.mutedIcon ? PAL.ACCENT_TEXT : PAL.CORAL, "center");
     ctx.fillStyle = PAL.STONE; ctx.fillRect(280, 246, 440, 18);
     ctx.fillStyle = g2.vol === 0 ? PAL.GOLD : PAL.CORAL;
     ctx.fillRect(280, 246, Math.round(440 * (g2.vol / 100)), 18);
@@ -4719,7 +4910,7 @@ function renderMindGame() {
     ctx.fillStyle = g2.mutedIcon ? PAL.GOLD : PAL.STONE;
     ctx.fillRect(335, 346, 290, 64);
     ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 2; ctx.strokeRect(335, 346, 290, 64);
-    drawPixelText(ctx, "CONFIRM MUTE", 480, 368, 2, g2.mutedIcon ? PAL.BG : PAL.WHITE, "center");
+    drawPixelText(ctx, "CONFIRM MUTE", 480, 368, 2, g2.mutedIcon ? PAL.ACCENT_TEXT : PAL.WHITE, "center");
   } else if (id === 10) {
     const pct = Math.max(0, 1 - g2.tick / 360);
     ctx.fillStyle = PAL.STONE; ctx.fillRect(220, 120, 520, 14);
@@ -4732,12 +4923,12 @@ function renderMindGame() {
     ctx.beginPath(); ctx.arc(cur.x, cur.y, 44, 0, Math.PI * 2);
     ctx.fillStyle = PAL.GOLD; ctx.fill();
     ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 3; ctx.stroke();
-    drawPixelText(ctx, `${g2.clicks}/8`, cur.x, cur.y - 8, 3, PAL.BG, "center");
+    drawPixelText(ctx, `${g2.clicks}/8`, cur.x, cur.y - 10, 3, PAL.ACCENT_TEXT, "center");
     if (g2.mashTrapActive) {
       ctx.beginPath(); ctx.arc(g2.mashTrapPos.x, g2.mashTrapPos.y, 46, 0, Math.PI * 2);
       ctx.fillStyle = PAL.CORAL; ctx.fill();
       ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 3; ctx.stroke();
-      drawPixelText(ctx, "8/8 DONE!", g2.mashTrapPos.x, g2.mashTrapPos.y - 8, 2, PAL.WHITE, "center");
+      drawPixelText(ctx, "8/8 DONE!", g2.mashTrapPos.x, g2.mashTrapPos.y - 8, 2, PAL.ACCENT_TEXT, "center");
     }
   } else if (id === 11) {
     const shown = "TRICK".split("").map((ch, idx) => idx < g2.typedIdx ? ch : "_").join(" ");
@@ -4758,13 +4949,13 @@ function renderMindGame() {
     ctx.fillStyle = PAL.STONE; ctx.fillRect(190, 118, 580, 300);
     ctx.strokeStyle = PAL.CORAL; ctx.lineWidth = 4; ctx.strokeRect(190, 118, 580, 300);
     ctx.fillStyle = PAL.CORAL; ctx.fillRect(722, 124, 38, 38);
-    drawPixelText(ctx, "X", 741, 134, 2, PAL.WHITE, "center");
-    drawPixelText(ctx, `WIPING SAVE DATA IN ${Math.max(0, (270 - g2.tick) / 60).toFixed(1)}S`, 480, 196, 3, PAL.CORAL, "center");
+    drawPixelText(ctx, "X", 741, 134, 2, PAL.ACCENT_TEXT, "center");
+    drawPixelText(ctx, `WIPING SAVE DATA IN ${Math.max(0, (270 - g2.tick) / 60).toFixed(1)}S`, 480, 196, 3, PAL.CORAL, "center", null, 540);
     const swapped = g2.tick >= 75;
     ctx.fillStyle = swapped ? PAL.CORAL : PAL.GOLD; ctx.fillRect(220, 336, 240, 58);
-    drawPixelText(ctx, swapped ? "DELETE ALL" : "CANCEL WIPE", 340, 356, 2, PAL.BG, "center");
+    drawPixelText(ctx, swapped ? "DELETE ALL" : "CANCEL WIPE", 340, 356, 2, PAL.ACCENT_TEXT, "center");
     ctx.fillStyle = swapped ? PAL.GOLD : PAL.CORAL; ctx.fillRect(500, 336, 240, 58);
-    drawPixelText(ctx, swapped ? "CANCEL WIPE" : "DELETE ALL", 620, 356, 2, PAL.BG, "center");
+    drawPixelText(ctx, swapped ? "CANCEL WIPE" : "DELETE ALL", 620, 356, 2, PAL.ACCENT_TEXT, "center");
   } else if (id === 13) {
     // Ebbinghaus illusion
     for (let a = 0; a < 6; a++) {
@@ -4812,9 +5003,9 @@ function renderMindGame() {
     ctx.fillStyle = PAL.BG; ctx.beginPath(); ctx.arc(480 + px * 1.15, 210 + py * 1.15, 8, 0, Math.PI * 2); ctx.fill();
 
     ctx.fillStyle = PAL.GOLD; ctx.fillRect(165, 330, 280, 76);
-    drawPixelText(ctx, "SAFE BUTTON (WIN)", 305, 358, 2, PAL.BG, "center");
+    drawPixelText(ctx, "SAFE BUTTON (WIN)", 305, 358, 2, PAL.ACCENT_TEXT, "center", null, 260);
     ctx.fillStyle = PAL.CORAL; ctx.fillRect(515, 330, 280, 76);
-    drawPixelText(ctx, "NO CLICK ME INSTEAD!", 655, 358, 2, PAL.WHITE, "center");
+    drawPixelText(ctx, "NO CLICK ME INSTEAD!", 655, 358, 2, PAL.ACCENT_TEXT, "center", null, 260);
   } else if (id === 16) {
     drawPixelText(ctx, `STAGE ${g2.phase + 1}/4`, 480, 124, 2, PAL.GOLD, "center");
     if (g2.phase === 0) {
@@ -4856,11 +5047,9 @@ function renderMindGame() {
   }
 
   // Narrator footer
-  ctx.fillStyle = PAL.BG; ctx.fillRect(0, LOGICAL_H - 30, LOGICAL_W, 30);
-  ctx.fillStyle = PAL.GOLD; ctx.fillRect(0, LOGICAL_H - 30, 8, 30);
-  ctx.fillStyle = PAL.STONE; ctx.fillRect(8, LOGICAL_H - 30, LOGICAL_W - 8, 2);
-  drawPixelText(ctx, app.narratorText, 18, LOGICAL_H - 21, 2, PAL.WHITE, "left");
-  drawPixelText(ctx, "[R] RETRY  [ESC] ARCADE HUB", LOGICAL_W - 14, LOGICAL_H - 19, 1, PAL.GOLD, "right");
+  ctx.fillStyle = PAL.SURFACE; ctx.fillRect(0, LOGICAL_H - 34, LOGICAL_W, 34);
+  ctx.fillStyle = PAL.BORDER; ctx.fillRect(0, LOGICAL_H - 34, LOGICAL_W, 1);
+  drawPixelText(ctx, app.narratorText, 16, LOGICAL_H - 25, 2, PAL.WHITE, "left", null, LOGICAL_W - 32);
 
   if (g2.failTicks > 0) {
     ctx.save(); ctx.globalAlpha = 0.28; ctx.fillStyle = PAL.CORAL; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H); ctx.restore();
@@ -4870,32 +5059,32 @@ function renderMindGame() {
 function renderMindSelect() {
   ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
   drawAtmosphereAndEye(app.mouse.x, app.mouse.y, 265);
-  drawPixelText(ctx, "GAME 02: DO NOT OBEY — STAGES", 480, 18, 3, PAL.CORAL, "center");
+  drawPixelText(ctx, "DO NOT OBEY — STAGES", 480, 18, 3, PAL.CORAL, "center");
   for (let i = 0; i < MIND_LEVELS.length; i++) {
     const def = MIND_LEVELS[i];
     const col = i % 4, row = Math.floor(i / 4);
     const x = 48 + col * 220, y = 72 + row * 94;
     const cleared = !!progress.g2Cleared[def.id];
     const fails = progress.g2Fails[def.id] || 0;
-    addButton(x, y, 204, 78, `M${String(def.id).padStart(2,"0")} ${cleared ? "[OK]" : ""}`, () => startMindLevel(i),
-      PAL.STONE, cleared ? PAL.GOLD : PAL.WHITE, cleared ? PAL.GOLD : PAL.WHITE,
-      `${def.name.slice(0,16)} (F:${fails})`);
+    addButton(x, y, 204, 78, `M${String(def.id).padStart(2,"0")}${cleared ? " ✓" : ""}`, () => startMindLevel(i),
+      PAL.SURFACE, cleared ? PAL.GOLD : PAL.WHITE, cleared ? PAL.GOLD : PAL.BORDER,
+      `${def.name} (${fails})`);
   }
-  addButton(270, 466, 200, 40, "MAIN MENU", () => { app.screen = "title"; }, PAL.GOLD, PAL.BG, PAL.WHITE);
-  addButton(490, 466, 200, 40, "PLAY NEXT", () => {
+  addButton(270, 466, 200, 40, "Main Menu", () => { app.screen = "title"; }, PAL.GOLD, PAL.BG, PAL.GOLD);
+  addButton(490, 466, 200, 40, "Play Next", () => {
     const next = MIND_LEVELS.findIndex(m => !progress.g2Cleared[m.id]);
     startMindLevel(next >= 0 ? next : 0);
-  }, PAL.STONE, PAL.CORAL, PAL.CORAL);
+  }, PAL.STONE, PAL.CORAL, PAL.BORDER);
 }
 
 function renderMindWin() {
   ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
   drawAtmosphereAndEye(app.mouse.x, app.mouse.y, 185);
-  drawPixelText(ctx, "YOUR BRAIN SURVIVED DO NOT OBEY!", 480, 74, 3, PAL.GOLD, "center");
-  drawPixelText(ctx, `MIND FAILS: ${progress.g2TotalFails || 0}  |  TRUST RATING: ${app.trustScore}%`, 480, 134, 2, PAL.CORAL, "center");
-  addButton(320, 232, 320, 48, "REPLAY DO NOT OBEY [ENTER]", () => startMindLevel(0), PAL.GOLD, PAL.BG, PAL.WHITE);
-  addButton(320, 294, 320, 46, "SWITCH TO GAME 1: PLATFORMER", () => startLevel(0, true), PAL.STONE, PAL.WHITE, PAL.WHITE);
-  addButton(320, 354, 320, 46, "MAIN MENU", () => { app.screen = "title"; }, PAL.STONE, PAL.GOLD, PAL.GOLD);
+  drawPixelText(ctx, "YOU SURVIVED DO NOT OBEY", 480, 74, 3, PAL.GOLD, "center", null, 860);
+  drawPixelText(ctx, `MIND FAILS: ${progress.g2TotalFails || 0}  •  TRUST: ${app.trustScore}%`, 480, 134, 2, PAL.CORAL, "center", null, 860);
+  addButton(320, 232, 320, 48, "Replay [Enter]", () => startMindLevel(0), PAL.GOLD, PAL.BG, PAL.GOLD);
+  addButton(320, 294, 320, 46, "Play Platformer", () => startLevel(0, true), PAL.STONE, PAL.WHITE, PAL.BORDER);
+  addButton(320, 354, 320, 46, "Main Menu", () => { app.screen = "title"; }, PAL.STONE, PAL.WHITE, PAL.BORDER);
 }
 
 function readExtGameStats(key) {
@@ -4910,126 +5099,90 @@ function readExtGameStats(key) {
 
 function renderTitleScreen() {
   ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
-
-  const rad = ctx.createRadialGradient(480, 110, 30, 480, 260, 560);
-  rad.addColorStop(0, "rgba(46,45,64,0.34)");
-  rad.addColorStop(1, "rgba(15,14,23,0)");
-  ctx.fillStyle = rad; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
-
-  if (!progress.streamerSafe) {
-    for (let i = 0; i < 12; i++) {
-      const ex = ((i * 79 + 31) % LOGICAL_W);
-      const ey = ((520 - ((app.uiTick * (0.4 + (i % 3) * 0.2) + i * 47) % 520)));
-      ctx.fillStyle = i % 3 === 0 ? "rgba(255,51,102,0.22)" : "rgba(255,184,0,0.16)";
-      ctx.fillRect(ex, ey, 3, 3);
-    }
-  }
-
-  drawAtmosphereAndEye(app.mouse.x, app.mouse.y, 92);
+  drawAtmosphereAndEye(app.mouse.x, app.mouse.y, 120);
 
   const pStat = readExtGameStats("parking_spot_panic_v1");
   const cStat = readExtGameStats("dont_drop_cake_v1");
   const totalSuffering = progress.totalDeaths + (progress.g2TotalFails || 0) + pStat.fails + cStat.fails;
 
-  ctx.fillStyle = "rgba(46,45,64,0.78)"; ctx.fillRect(26, 12, 198, 26);
-  ctx.fillStyle = app.trustScore > 25 ? PAL.GOLD : PAL.CORAL; ctx.fillRect(26, 12, 4, 26);
-  drawPixelText(ctx, `TRUST: ${app.trustScore}%`, 38, 18, 2, app.trustScore > 25 ? PAL.GOLD : PAL.CORAL, "left");
+  drawPixelText(ctx, `Trust: ${app.trustScore}%  •  Fails: ${totalSuffering}`, 28, 16, 1, PAL.MUTED, "left");
 
-  ctx.fillStyle = "rgba(46,45,64,0.78)"; ctx.fillRect(722, 12, 212, 26);
-  ctx.fillStyle = PAL.CORAL; ctx.fillRect(930, 12, 4, 26);
-  drawPixelText(ctx, `FAILS: ${totalSuffering}`, 920, 18, 2, PAL.WHITE, "right");
+  drawPixelText(ctx, "TRUST ISSUES", 480, 44, 5, PAL.WHITE, "center");
+  drawPixelText(ctx, "Zero hints. Zero mercy.", 480, 90, 2, PAL.GOLD, "center");
 
-  const jitter = progress.streamerSafe ? 0 : Math.round(Math.sin(app.uiTick * 0.14) * 2);
-  drawPixelText(ctx, "TRUST ISSUES ARCADE", 483 + jitter, 22, 5, PAL.CORAL, "center");
-  drawPixelText(ctx, "TRUST ISSUES ARCADE", 477 - jitter, 18, 5, PAL.GOLD, "center");
-  drawPixelText(ctx, "TRUST ISSUES ARCADE", 480, 20, 5, PAL.WHITE, "center");
-  drawPixelText(ctx, "FOUR RAGE GAMES. ZERO HINTS. ZERO MERCY.", 480, 74, 2, PAL.GOLD, "center");
-
-  // ---- CARD 1: PLATFORMER (Top-Left) ----
+  // ---- PRIMARY ACTION: PLATFORMER ----
   const g1Cleared = Object.keys(progress.cleared).filter(id => Number(id) <= 100).length;
   const firstG1 = LEVELS.findIndex((l, idx) => idx < 100 && !progress.cleared[l.id]);
   const playG1Idx = app.state ? app.currentLevelIndex : (firstG1 >= 0 ? firstG1 : 0);
   const playG1Num = LEVELS[playG1Idx] ? LEVELS[playG1Idx].id : 1;
-  ctx.fillStyle = "rgba(15,14,23,0.94)"; ctx.fillRect(46, 108, 424, 152);
-  ctx.strokeStyle = PAL.STONE; ctx.lineWidth = 2; ctx.strokeRect(46, 108, 424, 152);
-  ctx.fillStyle = PAL.GOLD; ctx.fillRect(46, 108, 5, 152);
-  drawPixelText(ctx, "01 // TRUST ISSUES", 64, 122, 2, PAL.GOLD, "left");
-  drawPixelText(ctx, "RIGGED PRECISION PLATFORMER (101 ROUNDS)", 64, 144, 1, PAL.WHITE, "left");
-  drawPixelText(ctx, `CLEARED: ${g1Cleared}/100  |  DEATHS: ${progress.totalDeaths}`, 64, 160, 1, PAL.CORAL, "left");
-  const rT = (app.uiTick % 80) / 80;
-  ctx.fillStyle = "#171625"; ctx.fillRect(344, 118, 112, 46);
-  for (let s = 0; s < 2; s++) drawSpike(384 + s * 18, 134, "^", 0.7);
-  ctx.fillStyle = PAL.WHITE; ctx.fillRect(352 + Math.round(rT * 84), Math.round(140 - Math.sin(rT * Math.PI) * 18), 10, 14);
-  addButton(64, 180, 260, 34, app.state ? `RESUME #${playG1Num}` : "PLAY PLATFORMER", () => {
-    if (app.state) app.screen = "play"; else startLevel(playG1Idx, true);
-  }, PAL.GOLD, PAL.BG, PAL.WHITE);
-  addButton(332, 180, 124, 34, "WORLDS [L]", () => { app.screen = "select"; }, PAL.STONE, PAL.WHITE, PAL.STONE);
-  addButton(64, 220, 392, 28, `DAILY CHALLENGE (#${getDailyRoundId()})`, () => startLevel(Math.min(LEVELS.length - 1, getDailyRoundId() - 1), true), PAL.STONE, PAL.GOLD, PAL.STONE);
 
-  // ---- CARD 2: DO NOT OBEY (Top-Right) ----
+  ctx.fillStyle = PAL.SURFACE; ctx.fillRect(180, 134, 600, 126);
+  ctx.strokeStyle = PAL.BORDER; ctx.lineWidth = 1.5; ctx.strokeRect(180, 134, 600, 126);
+  drawPixelText(ctx, `100 Rounds  •  ${g1Cleared}/100 Cleared  •  ${progress.totalDeaths} Deaths`, 480, 150, 1, PAL.MUTED, "center", null, 560);
+
+  addButton(260, 178, 440, 44, app.state ? `RESUME ROUND #${playG1Num}` : "PLAY", () => {
+    if (app.state) app.screen = "play"; else startLevel(playG1Idx, true);
+  }, PAL.GOLD, PAL.BG, PAL.GOLD);
+  addButton(260, 230, 214, 22, "Worlds [L]", () => { app.screen = "select"; }, PAL.STONE, PAL.WHITE, PAL.BORDER);
+  addButton(486, 230, 214, 22, `Daily #${getDailyRoundId()}`, () => startLevel(Math.min(LEVELS.length - 1, getDailyRoundId() - 1), true), PAL.STONE, PAL.GOLD, PAL.BORDER);
+
+  // ---- OTHER MODES (Clean 3-Column Row) ----
   const g2Cleared = Object.keys(progress.g2Cleared || {}).length;
   const firstG2 = MIND_LEVELS.findIndex(m => !(progress.g2Cleared && progress.g2Cleared[m.id]));
   const playG2Idx = app.g2 ? app.g2CurrentIdx : (firstG2 >= 0 ? firstG2 : 0);
-  ctx.fillStyle = "rgba(15,14,23,0.94)"; ctx.fillRect(490, 108, 424, 152);
-  ctx.strokeStyle = PAL.STONE; ctx.lineWidth = 2; ctx.strokeRect(490, 108, 424, 152);
-  ctx.fillStyle = PAL.CORAL; ctx.fillRect(490, 108, 5, 152);
-  drawPixelText(ctx, "02 // DO NOT OBEY", 508, 122, 2, PAL.CORAL, "left");
-  drawPixelText(ctx, "PSYCHOLOGICAL UI TORTURE (16 STAGES)", 508, 144, 1, PAL.WHITE, "left");
-  drawPixelText(ctx, `CLEARED: ${g2Cleared}/16  |  FAILS: ${progress.g2TotalFails || 0}`, 508, 160, 1, PAL.GOLD, "left");
-  ctx.fillStyle = "#171625"; ctx.fillRect(788, 118, 112, 46);
-  const bx2 = 804 + Math.round(Math.sin(app.uiTick * 0.08) * 20);
-  ctx.fillStyle = PAL.CORAL; ctx.fillRect(bx2, 132, 44, 16);
-  drawPixelText(ctx, "BAIT", bx2 + 22, 136, 1, PAL.WHITE, "center");
-  addButton(508, 180, 260, 34, app.g2 ? `RESUME M${playG2Idx + 1}` : "PLAY MIND GAMES", () => {
-    if (app.g2) app.screen = "g2play"; else startMindLevel(playG2Idx);
-  }, PAL.CORAL, PAL.WHITE, PAL.WHITE);
-  addButton(776, 180, 124, 34, "STAGES", () => { app.screen = "g2select"; }, PAL.STONE, PAL.WHITE, PAL.STONE);
-  addButton(508, 220, 392, 28, "MIND-TRAP STAGE SELECT (M01..M16)", () => { app.screen = "g2select"; }, PAL.STONE, PAL.WHITE, PAL.STONE);
 
-  // ---- CARD 3: PARKING SPOT PANIC (Bottom-Left) ----
-  ctx.fillStyle = "rgba(15,14,23,0.94)"; ctx.fillRect(46, 272, 424, 146);
-  ctx.strokeStyle = PAL.STONE; ctx.lineWidth = 2; ctx.strokeRect(46, 272, 424, 146);
-  ctx.fillStyle = PAL.WHITE; ctx.fillRect(46, 272, 5, 146);
-  drawPixelText(ctx, "03 // PARKING SPOT PANIC", 64, 286, 2, PAL.GOLD, "left");
-  drawPixelText(ctx, "ABSURD VEHICLES & DENT COMEDY (40 SPOTS)", 64, 308, 1, PAL.WHITE, "left");
-  drawPixelText(ctx, `STARS: ${pStat.stars}/120  |  FAILS: ${pStat.fails}`, 64, 324, 1, PAL.GOLD, "left");
-  ctx.fillStyle = "#171625"; ctx.fillRect(344, 282, 112, 46);
-  ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 1.5; ctx.strokeRect(410, 294, 36, 22);
-  ctx.fillStyle = PAL.WHITE; ctx.fillRect(352 + Math.round(((app.uiTick % 70) / 70) * 62), 298, 26, 14);
-  addButton(64, 346, 392, 54, "DRIVE: PARKING SPOT PANIC >", () => { window.location.href = "parking.html"; }, PAL.GOLD, PAL.BG, PAL.WHITE, "10 VEHICLES • F9 SOLVER • SLOW-MO REPLAY");
+  const cards = [
+    {
+      title: "Do Not Obey",
+      meta: `${g2Cleared}/16 Stages • ${progress.g2TotalFails || 0} Fails`,
+      btn: app.g2 ? `Resume M${playG2Idx + 1}` : "Play",
+      onClick: () => { if (app.g2) app.screen = "g2play"; else startMindLevel(playG2Idx); },
+      subBtn: "Stages",
+      onSub: () => { app.screen = "g2select"; }
+    },
+    {
+      title: "Parking Spot Panic",
+      meta: `${pStat.stars}/120 Stars • ${pStat.fails} Fails`,
+      btn: "Play",
+      onClick: () => { window.location.href = "parking.html"; }
+    },
+    {
+      title: "Don't Drop the Cake",
+      meta: `${cStat.stars}/216 Stars • ${cStat.fails} Drops`,
+      btn: "Play",
+      onClick: () => { window.location.href = "cake.html"; }
+    }
+  ];
+  cards.forEach((c, i) => {
+    const cx = 60 + i * 288, cy = 282, cw = 264, ch = 132;
+    ctx.fillStyle = PAL.SURFACE; ctx.fillRect(cx, cy, cw, ch);
+    ctx.strokeStyle = PAL.BORDER; ctx.lineWidth = 1.5; ctx.strokeRect(cx, cy, cw, ch);
+    drawPixelText(ctx, c.title, cx + cw / 2, cy + 16, 2, PAL.WHITE, "center", null, cw - 20);
+    drawPixelText(ctx, c.meta, cx + cw / 2, cy + 44, 1, PAL.MUTED, "center", null, cw - 20);
+    if (c.subBtn) {
+      addButton(cx + 16, cy + 76, 132, 38, c.btn, c.onClick, PAL.STONE, PAL.GOLD, PAL.BORDER);
+      addButton(cx + 156, cy + 76, 92, 38, c.subBtn, c.onSub, PAL.STONE, PAL.WHITE, PAL.BORDER);
+    } else {
+      addButton(cx + 16, cy + 76, cw - 32, 38, c.btn, c.onClick, PAL.STONE, PAL.GOLD, PAL.BORDER);
+    }
+  });
 
-  // ---- CARD 4: DON'T DROP THE CAKE (Bottom-Right) ----
-  ctx.fillStyle = "rgba(15,14,23,0.94)"; ctx.fillRect(490, 272, 424, 146);
-  ctx.strokeStyle = PAL.STONE; ctx.lineWidth = 2; ctx.strokeRect(490, 272, 424, 146);
-  ctx.fillStyle = PAL.CORAL; ctx.fillRect(490, 272, 5, 146);
-  drawPixelText(ctx, "04 // DON'T DROP THE CAKE", 508, 286, 2, PAL.CORAL, "left");
-  drawPixelText(ctx, "TOWERING CAKE BALANCE CHAOS (72 VENUES)", 508, 308, 1, PAL.WHITE, "left");
-  drawPixelText(ctx, `STARS: ${cStat.stars}/216  |  DROPS: ${cStat.fails}`, 508, 324, 1, PAL.CORAL, "left");
-  ctx.fillStyle = "#171625"; ctx.fillRect(788, 282, 112, 46);
-  const sw = Math.round(Math.sin(app.uiTick * 0.1) * 4);
-  ctx.fillStyle = PAL.GOLD; ctx.fillRect(824, 318, 40, 3);
-  ctx.fillStyle = PAL.WHITE; ctx.fillRect(830 + Math.round(sw * 0.4), 309, 28, 8);
-  ctx.fillStyle = PAL.CORAL; ctx.fillRect(833 + sw, 300, 22, 8);
-  ctx.fillStyle = PAL.GOLD; ctx.fillRect(836 + Math.round(sw * 1.4), 291, 16, 8);
-  addButton(508, 346, 392, 54, "CARRY: DON'T DROP THE CAKE >", () => { window.location.href = "cake.html"; }, PAL.CORAL, PAL.WHITE, PAL.WHITE, "10-TIER PHYSICS • 9 VENUES • SLOW-MO DROPS");
-
-  // ---- BOTTOM DOCK & NARRATOR BAR ----
-  addButton(138, 434, 216, 36, "HALL OF SHAME [H]", () => { app.screen = "shame"; }, PAL.STONE, PAL.CORAL, PAL.CORAL);
-  addButton(372, 434, 216, 36, "SETTINGS & KEYS [ESC]", () => { app.screen = "pause"; }, PAL.STONE, PAL.WHITE, PAL.WHITE);
-  addButton(606, 434, 216, 36, progress.muted ? "SOUND: MUTED" : "SOUND: ON", () => {
+  // ---- UTILITY DOCK & NARRATOR BAR ----
+  addButton(150, 434, 210, 38, "Hall of Shame [H]", () => { app.screen = "shame"; }, PAL.SURFACE, PAL.CORAL, PAL.BORDER);
+  addButton(375, 434, 210, 38, "Settings [Esc]", () => { app.screen = "pause"; }, PAL.SURFACE, PAL.WHITE, PAL.BORDER);
+  addButton(600, 434, 210, 38, progress.muted ? "Sound: Muted" : "Sound: On", () => {
     progress.muted = !progress.muted; sfx.muted = progress.muted; saveProgress(progress);
-  }, PAL.STONE, progress.muted ? PAL.CORAL : PAL.GOLD, progress.muted ? PAL.CORAL : PAL.GOLD);
+  }, PAL.SURFACE, progress.muted ? PAL.CORAL : PAL.GOLD, PAL.BORDER);
 
-  ctx.fillStyle = "#161524"; ctx.fillRect(0, LOGICAL_H - 38, LOGICAL_W, 38);
-  ctx.fillStyle = PAL.CORAL; ctx.fillRect(0, LOGICAL_H - 38, 8, 38);
-  ctx.fillStyle = PAL.STONE; ctx.fillRect(8, LOGICAL_H - 38, LOGICAL_W - 8, 2);
-  drawPixelText(ctx, app.narratorText, 480, LOGICAL_H - 25, 2, PAL.WHITE, "center");
+  ctx.fillStyle = PAL.SURFACE; ctx.fillRect(0, LOGICAL_H - 36, LOGICAL_W, 36);
+  ctx.fillStyle = PAL.BORDER; ctx.fillRect(0, LOGICAL_H - 36, LOGICAL_W, 1);
+  drawPixelText(ctx, app.narratorText, 480, LOGICAL_H - 26, 2, PAL.WHITE, "center", null, LOGICAL_W - 40);
 }
 
 function renderLevelSelect() {
   ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
   drawAtmosphereAndEye(app.mouse.x, app.mouse.y, 280);
-  drawPixelText(ctx, "SELECT WORLD & ROUND", 480, 16, 3, PAL.GOLD, "center");
+  drawPixelText(ctx, "SELECT WORLD & ROUND", 480, 14, 3, PAL.GOLD, "center");
 
   // World tabs (2 rows of 6)
   for (let i = 0; i < WORLDS.length; i++) {
@@ -5037,16 +5190,16 @@ function renderLevelSelect() {
     const col = i % 6, row = Math.floor(i / 6);
     const unlocked = isWorldUnlocked(w.id);
     const active = app.selectedWorld === w.id;
-    const x = 30 + col * 152, y = 50 + row * 34;
-    addButton(x, y, 144, 28, `W${w.id}${unlocked ? "" : "*"} ${w.name.slice(0,9)}`, () => {
+    const x = 30 + col * 152, y = 48 + row * 34;
+    addButton(x, y, 144, 28, `W${w.id}${unlocked ? "" : " 🔒"} ${w.name}`, () => {
       if (unlocked) app.selectedWorld = w.id;
       else showToast(`CLEAR ${WORLDS[i-1].unlockNeed} ROUNDS IN W${w.id-1} FIRST`);
-    }, active ? PAL.GOLD : PAL.STONE, active ? PAL.BG : (unlocked ? PAL.WHITE : PAL.CORAL));
+    }, active ? PAL.GOLD : PAL.SURFACE, active ? PAL.BG : (unlocked ? PAL.WHITE : PAL.CORAL), active ? PAL.GOLD : PAL.BORDER);
   }
 
   const wDef = WORLDS.find(w => w.id === app.selectedWorld);
   const dailyId = getDailyRoundId();
-  drawPixelText(ctx, `WORLD ${wDef.id}: ${wDef.name}`, 480, 126, 2, PAL.WHITE, "center");
+  drawPixelText(ctx, `WORLD ${wDef.id}: ${wDef.name}`, 480, 122, 2, PAL.WHITE, "center");
 
   const startId = wDef.rounds[0], endId = Math.min(wDef.rounds[1], LEVELS.length);
   let idx = 0;
@@ -5054,29 +5207,30 @@ function renderLevelSelect() {
     const def = LEVELS.find(l => l.id === id);
     if (!def) continue;
     const col = idx % 5, row = Math.floor(idx / 5);
-    const x = 40 + col * 178, y = 156 + row * 124;
+    const x = 40 + col * 178, y = 152 + row * 126;
     const d = progress.levelDeaths[id] || 0;
     const best = progress.bestTimes[id];
     const isDaily = id === dailyId;
-    const badge = progress.assistedClears[id] ? "[A]" : (progress.cleared[id] ? "[OK]" : "");
-    const hovered = app.mouse.x >= x && app.mouse.x <= x + 166 && app.mouse.y >= y && app.mouse.y <= y + 110;
-    ctx.fillStyle = PAL.STONE; ctx.fillRect(x, y - (hovered ? 2 : 0), 166, 110);
-    ctx.strokeStyle = hovered ? PAL.GOLD : (isDaily ? PAL.GOLD : (progress.cleared[id] ? PAL.GOLD : PAL.WHITE));
-    ctx.lineWidth = hovered ? 3 : 2; ctx.strokeRect(x, y - (hovered ? 2 : 0), 166, 110);
-    drawPixelText(ctx, `#${id} ${isDaily ? "DAILY" : def.type}`, x + 8, y + 10 - (hovered ? 2 : 0), 1, PAL.GOLD, "left");
-    drawPixelText(ctx, badge, x + 158, y + 10 - (hovered ? 2 : 0), 1, PAL.GOLD, "right");
-    drawPixelText(ctx, def.name.slice(0, 13), x + 8, y + 32 - (hovered ? 2 : 0), 2, hovered ? PAL.GOLD : PAL.WHITE, "left");
-    drawPixelText(ctx, `D:${d}`, x + 8, y + 62 - (hovered ? 2 : 0), 2, PAL.CORAL, "left");
-    drawPixelText(ctx, best !== undefined ? `${best.toFixed(2)}S` : "---", x + 8, y + 86 - (hovered ? 2 : 0), 2, PAL.WHITE, "left");
+    const badge = progress.assistedClears[id] ? "[A]" : (progress.cleared[id] ? "✓" : "");
+    const hovered = app.mouse.x >= x && app.mouse.x <= x + 166 && app.mouse.y >= y && app.mouse.y <= y + 112;
+    ctx.fillStyle = hovered ? PAL.STONE_HOVER : PAL.SURFACE;
+    ctx.fillRect(x, y, 166, 112);
+    ctx.strokeStyle = hovered ? PAL.GOLD : (isDaily || progress.cleared[id] ? PAL.GOLD : PAL.BORDER);
+    ctx.lineWidth = hovered ? 2 : 1.5; ctx.strokeRect(x, y, 166, 112);
+    drawPixelText(ctx, `#${id} ${isDaily ? "DAILY" : def.type}`, x + 10, y + 10, 1, PAL.GOLD, "left", null, 118);
+    drawPixelText(ctx, badge, x + 156, y + 10, 1, PAL.GOLD, "right");
+    drawPixelText(ctx, def.name, x + 10, y + 34, 2, hovered ? PAL.GOLD : PAL.WHITE, "left", null, 146);
+    drawPixelText(ctx, `Deaths: ${d}`, x + 10, y + 64, 1, PAL.CORAL, "left");
+    drawPixelText(ctx, best !== undefined ? `${best.toFixed(2)}s` : "—", x + 10, y + 86, 1, PAL.MUTED, "left");
     const lvIndex = LEVELS.indexOf(def);
-    uiButtons.push({ x, y, w: 166, h: 110, onClick: () => startLevel(lvIndex, true) });
+    uiButtons.push({ x, y, w: 166, h: 112, onClick: () => startLevel(lvIndex, true) });
   }
 
-  addButton(40, 480, 210, 38, progress.sandboxUnlock ? "SANDBOX: ALL OPEN" : "UNLOCK ALL WORLDS", () => {
+  addButton(40, 480, 210, 38, progress.sandboxUnlock ? "Sandbox: Open" : "Unlock All Worlds", () => {
     progress.sandboxUnlock = !progress.sandboxUnlock; saveProgress(progress);
-  }, PAL.STONE, PAL.GOLD, PAL.GOLD);
-  addButton(375, 480, 210, 38, "MAIN MENU", () => { app.screen = "title"; }, PAL.GOLD, PAL.BG, PAL.WHITE);
-  addButton(710, 480, 210, 38, app.state ? "RESUME GAME [ESC]" : "BACK [ESC]", () => { app.screen = app.state ? "play" : "title"; }, PAL.STONE, PAL.WHITE, PAL.WHITE);
+  }, PAL.SURFACE, PAL.GOLD, PAL.BORDER);
+  addButton(375, 480, 210, 38, "Main Menu", () => { app.screen = "title"; }, PAL.GOLD, PAL.BG, PAL.GOLD);
+  addButton(710, 480, 210, 38, app.state ? "Resume [Esc]" : "Back [Esc]", () => { app.screen = app.state ? "play" : "title"; }, PAL.SURFACE, PAL.WHITE, PAL.BORDER);
 }
 
 function renderPauseMenu() {
@@ -5084,31 +5238,31 @@ function renderPauseMenu() {
     ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
     drawAtmosphereAndEye(app.mouse.x, app.mouse.y, 260);
   }
-  ctx.fillStyle = "rgba(15,14,23,0.94)"; ctx.fillRect(170, 48, 620, 444);
-  ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 3; ctx.strokeRect(170, 48, 620, 444);
-  ctx.fillStyle = PAL.CORAL; ctx.fillRect(170, 48, 620, 4);
-  drawPixelText(ctx, app.state ? "PAUSED / SETTINGS" : "SETTINGS & CONTROLS", 480, 68, 3, PAL.GOLD, "center");
+  ctx.fillStyle = PAL.PANEL; ctx.fillRect(170, 42, 620, 456);
+  ctx.strokeStyle = PAL.BORDER; ctx.lineWidth = 2; ctx.strokeRect(170, 42, 620, 456);
+  drawPixelText(ctx, app.state ? "Paused" : "Settings & Controls", 480, 62, 3, PAL.GOLD, "center");
 
   if (app.state) {
-    addButton(220, 114, 252, 38, "RESUME [ESC]", () => { app.screen = "play"; }, PAL.GOLD, PAL.BG);
-    addButton(488, 114, 252, 38, "RESTART ROUND [R]", () => { app.screen = "play"; startLevel(app.currentLevelIndex, false); }, PAL.STONE, PAL.CORAL, PAL.CORAL);
+    addButton(220, 108, 252, 38, "Resume [Esc]", () => { app.screen = "play"; }, PAL.GOLD, PAL.BG, PAL.GOLD);
+    addButton(488, 108, 252, 38, "Restart [R]", () => { app.screen = "play"; startLevel(app.currentLevelIndex, false); }, PAL.STONE, PAL.CORAL, PAL.BORDER);
   } else {
-    addButton(220, 114, 520, 38, "BACK TO MAIN MENU [ESC]", () => { app.screen = "title"; }, PAL.GOLD, PAL.BG);
+    addButton(220, 108, 520, 38, "Back to Main Menu [Esc]", () => { app.screen = "title"; }, PAL.GOLD, PAL.BG, PAL.GOLD);
   }
 
-  addButton(220, 164, 520, 34, `STREAMER SAFE (NO FLASH): ${progress.streamerSafe ? "ON" : "OFF"}`, () => { progress.streamerSafe = !progress.streamerSafe; saveProgress(progress); }, PAL.STONE, PAL.WHITE);
-  addButton(220, 206, 520, 34, `COLOR-BLIND SHAPES: ${progress.colorBlind ? "ON" : "OFF"}`, () => { progress.colorBlind = !progress.colorBlind; saveProgress(progress); }, PAL.STONE, PAL.WHITE);
-  addButton(220, 248, 252, 34, `AUDIO: ${progress.muted ? "MUTED" : "ON"}`, () => { progress.muted = !progress.muted; sfx.muted = progress.muted; saveProgress(progress); }, PAL.STONE, PAL.WHITE);
-  addButton(488, 248, 252, 34, `OBS COUNTER [O]: ${progress.bigDeathOverlay ? "ON" : "OFF"}`, () => { progress.bigDeathOverlay = !progress.bigDeathOverlay; saveProgress(progress); }, PAL.STONE, PAL.WHITE);
+  addButton(220, 158, 520, 34, `Streamer Safe (No Flash): ${progress.streamerSafe ? "ON" : "OFF"}`, () => { progress.streamerSafe = !progress.streamerSafe; saveProgress(progress); }, PAL.SURFACE, PAL.WHITE, PAL.BORDER);
+  addButton(220, 200, 520, 34, `Color-Blind Shapes: ${progress.colorBlind ? "ON" : "OFF"}`, () => { progress.colorBlind = !progress.colorBlind; saveProgress(progress); }, PAL.SURFACE, PAL.WHITE, PAL.BORDER);
+  addButton(220, 242, 252, 34, `Audio: ${progress.muted ? "Muted" : "On"}`, () => { progress.muted = !progress.muted; sfx.muted = progress.muted; saveProgress(progress); }, PAL.SURFACE, PAL.WHITE, PAL.BORDER);
+  addButton(488, 242, 252, 34, `OBS Counter [O]: ${progress.bigDeathOverlay ? "ON" : "OFF"}`, () => { progress.bigDeathOverlay = !progress.bigDeathOverlay; saveProgress(progress); }, PAL.SURFACE, PAL.WHITE, PAL.BORDER);
 
-  addButton(220, 294, 252, 32, `LEFT: ${progress.keys.left}`, () => { app.rebindingAction = "left"; showToast("PRESS NEW LEFT KEY"); }, PAL.STONE, PAL.GOLD);
-  addButton(488, 294, 252, 32, `RIGHT: ${progress.keys.right}`, () => { app.rebindingAction = "right"; showToast("PRESS NEW RIGHT KEY"); }, PAL.STONE, PAL.GOLD);
-  addButton(220, 334, 252, 32, `JUMP: ${progress.keys.jump}`, () => { app.rebindingAction = "jump"; showToast("PRESS NEW JUMP KEY"); }, PAL.STONE, PAL.GOLD);
-  addButton(488, 334, 252, 32, `RETRY: ${progress.keys.restart}`, () => { app.rebindingAction = "restart"; showToast("PRESS NEW RETRY KEY"); }, PAL.STONE, PAL.GOLD);
+  addButton(220, 288, 252, 32, `Left: ${progress.keys.left}`, () => { app.rebindingAction = "left"; showToast("PRESS NEW LEFT KEY"); }, PAL.SURFACE, PAL.GOLD, PAL.BORDER);
+  addButton(488, 288, 252, 32, `Right: ${progress.keys.right}`, () => { app.rebindingAction = "right"; showToast("PRESS NEW RIGHT KEY"); }, PAL.SURFACE, PAL.GOLD, PAL.BORDER);
+  addButton(220, 328, 252, 32, `Jump: ${progress.keys.jump}`, () => { app.rebindingAction = "jump"; showToast("PRESS NEW JUMP KEY"); }, PAL.SURFACE, PAL.GOLD, PAL.BORDER);
+  addButton(488, 328, 252, 32, `Retry: ${progress.keys.restart}`, () => { app.rebindingAction = "restart"; showToast("PRESS NEW RETRY KEY"); }, PAL.SURFACE, PAL.GOLD, PAL.BORDER);
 
-  addButton(220, 382, 252, 36, "RAGE CLIPS [C]", () => { app.showClipPanel = !app.showClipPanel; }, PAL.STONE, PAL.CORAL, PAL.CORAL);
-  addButton(488, 382, 252, 36, "LEVEL SELECT [L]", () => { app.screen = "select"; }, PAL.STONE, PAL.WHITE, PAL.WHITE);
-  addButton(320, 432, 320, 42, "MAIN MENU", () => { app.screen = "title"; }, PAL.STONE, PAL.GOLD, PAL.GOLD);
+  addButton(220, 376, 166, 36, "Rage Clips [C]", () => { app.showClipPanel = !app.showClipPanel; }, PAL.SURFACE, PAL.CORAL, PAL.BORDER);
+  addButton(397, 376, 166, 36, "Level Select [L]", () => { app.screen = "select"; }, PAL.SURFACE, PAL.WHITE, PAL.BORDER);
+  addButton(574, 376, 166, 36, "Share Code [S]", () => { if (app.state) shareCurrentLevelCode(); else showToast("START A ROUND TO SHARE"); }, PAL.SURFACE, PAL.WHITE, PAL.BORDER);
+  addButton(320, 428, 320, 42, "Main Menu", () => { app.screen = "title"; }, PAL.SURFACE, PAL.GOLD, PAL.BORDER);
 }
 
 function renderHallOfShame() {
@@ -5120,67 +5274,68 @@ function renderHallOfShame() {
     .filter(x => x.d > 0 && x.def)
     .sort((a, b) => b.d - a.d)
     .slice(0, 8);
-  if (rows.length === 0) drawPixelText(ctx, "ZERO DEATHS RECORDED YET.", 480, 240, 2, PAL.WHITE, "center");
+  if (rows.length === 0) drawPixelText(ctx, "Zero deaths recorded yet.", 480, 240, 2, PAL.MUTED, "center");
   rows.forEach((r, i) => {
     const ry = 104 + i * 40;
-    ctx.fillStyle = "rgba(46,45,64,0.65)"; ctx.fillRect(160, ry - 8, 640, 32);
-    drawPixelText(ctx, `#${String(r.id).padStart(3,"0")} ${r.def.name}`, 180, ry, 2, PAL.WHITE, "left");
-    drawPixelText(ctx, `${r.d} DEATHS`, 780, ry, 2, PAL.CORAL, "right");
+    ctx.fillStyle = PAL.SURFACE; ctx.fillRect(160, ry - 8, 640, 34);
+    ctx.strokeStyle = PAL.BORDER; ctx.lineWidth = 1; ctx.strokeRect(160, ry - 8, 640, 34);
+    drawPixelText(ctx, `#${String(r.id).padStart(3,"0")} ${r.def.name}`, 180, ry, 2, PAL.WHITE, "left", null, 440);
+    drawPixelText(ctx, `${r.d} deaths`, 780, ry, 2, PAL.CORAL, "right");
   });
-  addButton(300, 466, 170, 40, "MAIN MENU", () => { app.screen = "title"; }, PAL.GOLD, PAL.BG, PAL.WHITE);
-  addButton(490, 466, 170, 40, "BACK [ESC]", () => { app.screen = app.state ? "play" : "title"; }, PAL.STONE, PAL.WHITE, PAL.WHITE);
+  addButton(300, 466, 170, 40, "Main Menu", () => { app.screen = "title"; }, PAL.GOLD, PAL.BG, PAL.GOLD);
+  addButton(490, 466, 170, 40, "Back [Esc]", () => { app.screen = app.state ? "play" : "title"; }, PAL.SURFACE, PAL.WHITE, PAL.BORDER);
 }
 
 function renderClipPanel() {
   if (!app.showClipPanel) return;
-  ctx.fillStyle = "rgba(15,14,23,0.95)"; ctx.fillRect(140, 68, 680, 400);
-  ctx.strokeStyle = PAL.CORAL; ctx.lineWidth = 3; ctx.strokeRect(140, 68, 680, 400);
-  drawPixelText(ctx, "RAGE CLIP MARKERS (EVERY 10TH CONSECUTIVE DEATH)", 480, 86, 2, PAL.CORAL, "center");
-  if (progress.rageClips.length === 0) drawPixelText(ctx, "NO RAGE MARKERS YET.", 480, 240, 2, PAL.WHITE, "center");
+  ctx.fillStyle = PAL.PANEL; ctx.fillRect(140, 68, 680, 400);
+  ctx.strokeStyle = PAL.CORAL; ctx.lineWidth = 2; ctx.strokeRect(140, 68, 680, 400);
+  drawPixelText(ctx, "RAGE CLIP MARKERS (EVERY 10TH DEATH)", 480, 86, 2, PAL.CORAL, "center", null, 640);
+  if (progress.rageClips.length === 0) drawPixelText(ctx, "No rage markers yet.", 480, 240, 2, PAL.MUTED, "center");
   for (let i = 0; i < Math.min(10, progress.rageClips.length); i++) {
     const c = progress.rageClips[i];
-    drawPixelText(ctx, `${c.timeStr} | R${c.levelId} (${c.levelName}) | ${c.consecutiveDeaths}X`, 168, 128 + i * 28, 2, i === 0 ? PAL.GOLD : PAL.WHITE, "left");
+    drawPixelText(ctx, `${c.timeStr} | R${c.levelId} (${c.levelName}) | ${c.consecutiveDeaths}x`, 168, 128 + i * 28, 2, i === 0 ? PAL.GOLD : PAL.WHITE, "left", null, 624);
   }
-  addButton(410, 422, 140, 32, "CLOSE [C]", () => { app.showClipPanel = false; }, PAL.STONE, PAL.WHITE, PAL.WHITE);
+  addButton(410, 422, 140, 34, "Close [C]", () => { app.showClipPanel = false; }, PAL.SURFACE, PAL.WHITE, PAL.BORDER);
 }
 
 function renderSolverOverlay() {
   if (!app.solverOverlay) return;
   const { results, lieCheck, passed, total } = app.solverOverlay;
-  ctx.fillStyle = "rgba(15,14,23,0.96)"; ctx.fillRect(50, 28, 860, 484);
-  ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 3; ctx.strokeRect(50, 28, 860, 484);
-  drawPixelText(ctx, `F9 SOLVER: ${passed}/${total} PASS | LIE CHECK: ${lieCheck.ok ? "UNIQUE" : "DUPLICATE"}`, 480, 44, 2, PAL.GOLD, "center");
+  ctx.fillStyle = PAL.PANEL; ctx.fillRect(50, 28, 860, 484);
+  ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 2; ctx.strokeRect(50, 28, 860, 484);
+  drawPixelText(ctx, `F9 SOLVER: ${passed}/${total} PASS | LIE CHECK: ${lieCheck.ok ? "UNIQUE" : "DUPLICATE"}`, 480, 44, 2, PAL.GOLD, "center", null, 820);
   const cols = 10, cw = 78, ch = 26, sx = 86, sy = 76;
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
     const col = i % cols, row = Math.floor(i / cols);
     const x = sx + col * (cw + 2), y = sy + row * (ch + 3);
-    ctx.fillStyle = r.pass ? PAL.STONE : PAL.CORAL;
+    ctx.fillStyle = r.pass ? PAL.SURFACE : PAL.CORAL;
     ctx.fillRect(x, y, cw, ch);
     ctx.strokeStyle = r.pass ? PAL.GOLD : PAL.WHITE; ctx.lineWidth = 1; ctx.strokeRect(x, y, cw, ch);
-    drawPixelText(ctx, `${String(r.id).padStart(3,"0")}:${r.pass?"OK":"NO"}`, x + cw / 2, y + 8, 1, r.pass ? PAL.GOLD : PAL.WHITE, "center");
+    drawPixelText(ctx, `${String(r.id).padStart(3,"0")}:${r.pass?"OK":"NO"}`, x + cw / 2, y + 6, 1, r.pass ? PAL.GOLD : PAL.ACCENT_TEXT, "center", null, cw - 6);
   }
   const fails = results.filter(r => !r.pass);
   if (fails.length > 0) {
-    drawPixelText(ctx, `FIRST FAIL: R${fails[0].id} ${fails[0].reason}`, 480, 422, 1, PAL.CORAL, "center");
+    drawPixelText(ctx, `FIRST FAIL: R${fails[0].id} ${fails[0].reason}`, 480, 422, 1, PAL.CORAL, "center", null, 820);
   } else {
-    drawPixelText(ctx, "ALL ROUNDS VERIFIED DETERMINISTIC PASS!", 480, 422, 2, PAL.GOLD, "center");
+    drawPixelText(ctx, "ALL ROUNDS VERIFIED DETERMINISTIC PASS!", 480, 422, 2, PAL.GOLD, "center", null, 820);
   }
-  addButton(400, 464, 160, 32, "CLOSE [F9]", () => { app.solverOverlay = null; }, PAL.STONE, PAL.WHITE, PAL.WHITE);
+  addButton(400, 464, 160, 34, "Close [F9]", () => { app.solverOverlay = null; }, PAL.SURFACE, PAL.WHITE, PAL.BORDER);
 }
 
 function renderVictoryScreen() {
   ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
   drawAtmosphereAndEye(app.mouse.x, app.mouse.y, 200);
   const secretsFound = Object.keys(progress.foundSecrets || {}).length;
-  drawPixelText(ctx, "100 ROUNDS CONQUERED!", 480, 82, 4, PAL.GOLD, "center");
-  drawPixelText(ctx, `TOTAL DEATHS: ${progress.totalDeaths} | SECRETS: ${secretsFound}/12`, 480, 152, 2, PAL.CORAL, "center");
+  drawPixelText(ctx, "100 ROUNDS CONQUERED!", 480, 82, 4, PAL.GOLD, "center", null, 860);
+  drawPixelText(ctx, `Total Deaths: ${progress.totalDeaths}  •  Secrets: ${secretsFound}/12`, 480, 152, 2, PAL.CORAL, "center", null, 860);
   if (secretsFound >= 12) {
-    addButton(310, 210, 340, 46, "ENTER SECRET SANCTUARY (101)", () => startLevel(LEVELS.length - 1, true), PAL.GOLD, PAL.BG);
+    addButton(310, 210, 340, 46, "Enter Secret Sanctuary (101)", () => startLevel(LEVELS.length - 1, true), PAL.GOLD, PAL.BG, PAL.GOLD);
   }
-  addButton(340, 282, 280, 44, "PLAY AGAIN [ENTER]", () => startLevel(0, true), PAL.STONE, PAL.GOLD, PAL.GOLD);
-  addButton(340, 340, 280, 42, "LEVEL SELECT [L]", () => { app.screen = "select"; }, PAL.STONE, PAL.WHITE, PAL.WHITE);
-  addButton(340, 396, 280, 42, "MAIN MENU", () => { app.screen = "title"; }, PAL.GOLD, PAL.BG, PAL.WHITE);
+  addButton(340, 282, 280, 44, "Play Again [Enter]", () => startLevel(0, true), PAL.SURFACE, PAL.GOLD, PAL.BORDER);
+  addButton(340, 340, 280, 42, "Level Select [L]", () => { app.screen = "select"; }, PAL.SURFACE, PAL.WHITE, PAL.BORDER);
+  addButton(340, 396, 280, 42, "Main Menu", () => { app.screen = "title"; }, PAL.GOLD, PAL.BG, PAL.GOLD);
 }
 
 function render(alpha) {
