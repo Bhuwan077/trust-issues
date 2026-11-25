@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="screen-orientation" content="landscape">
 <title>TRUST ISSUES — 100 Rounds of Fair Betrayal</title>
 <!--
 ================================================================================
@@ -58,30 +62,36 @@
     touch-action: none;
   }
   #wrap {
-    position: relative;
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh;
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: radial-gradient(circle at 50% 45%, #1c1a2e 0%, #0F0E17 75%);
+  }
+  #stage {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: radial-gradient(circle at 50% 45%, #1c1a2e 0%, #0F0E17 75%);
-    padding: 8px;
+  }
+  #stage.landscape-forced {
+    transform: translate(-50%, -50%) rotate(90deg);
+    transform-origin: center center;
   }
   canvas {
     display: block;
-    max-width: 100%;
-    max-height: 100%;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
     border-radius: 6px;
     box-shadow: 0 0 0 2px #2E2D40, 0 22px 60px rgba(0,0,0,0.75);
     background: #0F0E17;
     cursor: pointer;
+    touch-action: none;
   }
   #touch-controls {
-    position: fixed;
+    position: absolute;
     inset: 0;
     pointer-events: none;
     display: none;
@@ -90,16 +100,16 @@
   #touch-controls.active { display: block; }
   .touch-group {
     position: absolute;
-    bottom: max(12px, env(safe-area-inset-bottom));
+    bottom: 10px;
     display: flex;
     gap: 10px;
     pointer-events: auto;
   }
-  .touch-left { left: max(12px, env(safe-area-inset-left)); }
-  .touch-right { right: max(12px, env(safe-area-inset-right)); }
+  .touch-left { left: 12px; }
+  .touch-right { right: 12px; }
   .tbtn {
-    width: clamp(50px, 13vw, 68px);
-    height: clamp(50px, 13vw, 68px);
+    width: var(--tbtn, 58px);
+    height: var(--tbtn, 58px);
     border-radius: 14px;
     border: 2px solid #FFFFFE;
     background: rgba(15, 14, 23, 0.72);
@@ -112,20 +122,27 @@
     justify-content: center;
     touch-action: none;
   }
-  .tbtn.jump { width: clamp(68px, 18vw, 88px); border-color: #FFB800; color: #FFB800; }
+  .tbtn.jump { width: calc(var(--tbtn, 58px) * 1.35); border-color: #FFB800; color: #FFB800; }
   .tbtn.pressed { background: #FFFFFE; color: #0F0E17; }
-  .tbtn.small {
+  .touch-top-right {
     position: absolute;
-    top: max(10px, env(safe-area-inset-top));
-    right: max(10px, env(safe-area-inset-right));
-    width: auto; height: 32px;
+    top: 46px;
+    right: 12px;
+    display: flex;
+    gap: 8px;
+    pointer-events: auto;
+  }
+  .tbtn.small {
+    width: auto;
+    height: 30px;
     padding: 0 10px;
+    border-radius: 8px;
     font-size: 11px;
     pointer-events: auto;
   }
   #toast {
-    position: fixed;
-    bottom: 20px; left: 50%;
+    position: absolute;
+    bottom: 16px; left: 50%;
     transform: translateX(-50%);
     background: #2E2D40;
     border: 2px solid #FFB800;
@@ -138,25 +155,31 @@
     pointer-events: none;
     transition: opacity 0.15s ease;
     z-index: 30;
+    white-space: nowrap;
   }
   #toast.show { opacity: 1; }
 </style>
 </head>
 <body>
 <div id="wrap">
-  <canvas id="game" width="960" height="540"></canvas>
-</div>
-<div id="touch-controls">
-  <button class="tbtn small" id="btn-touch-restart">RETRY</button>
-  <div class="touch-group touch-left">
-    <button class="tbtn" id="btn-left">&lt;</button>
-    <button class="tbtn" id="btn-right">&gt;</button>
+  <div id="stage">
+    <canvas id="game" width="960" height="540"></canvas>
+    <div id="touch-controls">
+      <div class="touch-top-right">
+        <button class="tbtn small" id="btn-touch-fs" style="display:none">FULL</button>
+        <button class="tbtn small" id="btn-touch-restart">RETRY</button>
+      </div>
+      <div class="touch-group touch-left">
+        <button class="tbtn" id="btn-left">&lt;</button>
+        <button class="tbtn" id="btn-right">&gt;</button>
+      </div>
+      <div class="touch-group touch-right">
+        <button class="tbtn jump" id="btn-jump">JUMP</button>
+      </div>
+    </div>
+    <div id="toast"></div>
   </div>
-  <div class="touch-group touch-right">
-    <button class="tbtn jump" id="btn-jump">JUMP</button>
-  </div>
 </div>
-<div id="toast"></div>
 
 <script>
 "use strict";
@@ -3243,6 +3266,8 @@ const app = {
   uiTick: 0,
   eyeMood: "watch",
   eyeMoodTicks: 0,
+  cssRotated90: false,
+  hasTouch: false,
   mouse: { x: 480, y: 270 },
   keys: { left: false, right: false, jump: false },
   touch: { left: false, right: false, jump: false }
@@ -3473,9 +3498,31 @@ window.addEventListener("keyup", e => {
   if (matchesAction(e.code, "jump")) app.keys.jump = false;
 });
 
-// Touch Controls
+// Touch & Mobile Landscape Orientation Engine
+const stageEl = document.getElementById("stage");
 const touchEl = document.getElementById("touch-controls");
-window.addEventListener("touchstart", () => { sfx.unlock(); app.hasTouch = true; }, { passive: true, once: true });
+const touchFsBtn = document.getElementById("btn-touch-fs");
+function isTouchCapable() {
+  return !!(app.hasTouch || (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) || (navigator.maxTouchPoints > 0 && Math.min(window.innerWidth, window.innerHeight) <= 900));
+}
+async function tryLockLandscape(withFullscreen = false) {
+  try {
+    if (withFullscreen && document.documentElement.requestFullscreen && !document.fullscreenElement) {
+      await document.documentElement.requestFullscreen();
+    }
+    if (screen.orientation && screen.orientation.lock) {
+      await screen.orientation.lock("landscape");
+    }
+  } catch (e) {}
+  resizeCanvas();
+}
+window.addEventListener("touchstart", () => {
+  sfx.unlock();
+  app.hasTouch = true;
+  if (touchFsBtn && document.documentElement.requestFullscreen) touchFsBtn.style.display = "flex";
+  tryLockLandscape(false);
+  resizeCanvas();
+}, { passive: true, once: true });
 function bindTouch(id, field) {
   const btn = document.getElementById(id);
   const set = v => { sfx.unlock(); app.touch[field] = v; btn.classList.toggle("pressed", v); };
@@ -3485,13 +3532,23 @@ function bindTouch(id, field) {
 }
 bindTouch("btn-left", "left"); bindTouch("btn-right", "right"); bindTouch("btn-jump", "jump");
 document.getElementById("btn-touch-restart").addEventListener("touchstart", e => { e.preventDefault(); if (app.screen === "play") startLevel(app.currentLevelIndex, false); });
+if (touchFsBtn) {
+  touchFsBtn.addEventListener("touchstart", e => { e.preventDefault(); tryLockLandscape(true); });
+  touchFsBtn.addEventListener("click", () => tryLockLandscape(true));
+}
 
 const uiButtons = [];
 function getCanvasCoords(e) {
   const rect = canvas.getBoundingClientRect();
+  if (app.cssRotated90) {
+    return {
+      x: (e.clientY - rect.top) * (LOGICAL_W / Math.max(1, rect.height)),
+      y: (rect.right - e.clientX) * (LOGICAL_H / Math.max(1, rect.width))
+    };
+  }
   return {
-    x: (e.clientX - rect.left) * (LOGICAL_W / rect.width),
-    y: (e.clientY - rect.top) * (LOGICAL_H / rect.height)
+    x: (e.clientX - rect.left) * (LOGICAL_W / Math.max(1, rect.width)),
+    y: (e.clientY - rect.top) * (LOGICAL_H / Math.max(1, rect.height))
   };
 }
 canvas.addEventListener("pointermove", e => {
@@ -3500,6 +3557,7 @@ canvas.addEventListener("pointermove", e => {
 });
 canvas.addEventListener("pointerdown", e => {
   sfx.unlock();
+  if (e.pointerType === "touch") { app.hasTouch = true; resizeCanvas(); }
   const pt = getCanvasCoords(e);
   app.mouse = pt;
   for (let i = uiButtons.length - 1; i >= 0; i--) {
@@ -3510,13 +3568,35 @@ canvas.addEventListener("pointerdown", e => {
 });
 
 function resizeCanvas() {
-  const vw = Math.max(240, window.innerWidth - 16);
-  const vh = Math.max(160, window.innerHeight - 16);
+  const rawW = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+  const rawH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const mobile = isTouchCapable();
+  const forceRotate = mobile && rawH > rawW;
+  app.cssRotated90 = forceRotate;
+  stageEl.classList.toggle("landscape-forced", forceRotate);
+
+  const landW = forceRotate ? rawH : rawW;
+  const landH = forceRotate ? rawW : rawH;
+  stageEl.style.width = `${Math.floor(landW)}px`;
+  stageEl.style.height = `${Math.floor(landH)}px`;
+
+  const pad = mobile ? 4 : 16;
+  const vw = Math.max(240, landW - pad);
+  const vh = Math.max(160, landH - pad);
   const s = Math.min(vw / LOGICAL_W, vh / LOGICAL_H);
   canvas.style.width = `${Math.floor(LOGICAL_W * s)}px`;
   canvas.style.height = `${Math.floor(LOGICAL_H * s)}px`;
+
+  const tSize = Math.round(Math.max(44, Math.min(68, landH * 0.17)));
+  stageEl.style.setProperty("--tbtn", `${tSize}px`);
+  if (touchFsBtn && mobile && document.documentElement.requestFullscreen) {
+    touchFsBtn.style.display = document.fullscreenElement ? "none" : "flex";
+  }
 }
 window.addEventListener("resize", resizeCanvas);
+window.addEventListener("orientationchange", () => setTimeout(resizeCanvas, 60));
+document.addEventListener("fullscreenchange", () => setTimeout(resizeCanvas, 40));
+if (window.visualViewport) window.visualViewport.addEventListener("resize", resizeCanvas);
 resizeCanvas();
 
 /* ============================================================================
@@ -5094,7 +5174,7 @@ function renderVictoryScreen() {
 
 function render(alpha) {
   uiButtons.length = 0;
-  if (app.hasTouch) touchEl.classList.toggle("active", app.screen === "play");
+  touchEl.classList.toggle("active", app.screen === "play" && isTouchCapable());
   canvas.style.cursor = (app.screen === "g2play" && app.g2 && app.g2.invertedCursor && app.g2.failTicks === 0) ? "none" : "pointer";
 
   if (app.screen === "title") renderTitleScreen();
