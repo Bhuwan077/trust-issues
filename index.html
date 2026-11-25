@@ -437,15 +437,15 @@ const sfx = new SoundEngine();
  */
 const LEVELS = [
   // --------------------------------------------------------------------------
-  // LEVEL 1: TUTORIAL LIE ("SAFE" sign above a falling bridge over spikes)
+  // LEVEL 1: SKIP THE TUTORIAL (Stand ON the sign to reach "OR DON'T")
   // --------------------------------------------------------------------------
   {
     id: 1,
-    name: "WARM WELCOME",
-    family: "Tutorial Lie",
-    trapSummary: "Bridge under the giant SAFE sign collapses into spikes.",
-    tell: "The E in SAFE droops 1px and the 4 bridge tiles have a 1px bottom seam.",
-    solutionSummary: "Run right and jump cleanly over the 4-tile SAFE bridge.",
+    name: "FOLLOW ORDERS",
+    family: "UI / Hologram Lie",
+    trapSummary: "The 'JUST WALK RIGHT' floor is hologram air; the real exit is above the sign.",
+    tell: "Hologram tiles have a 1px scanline gap, fake door has a coral keyhole, and the sign has a gold standable rim.",
+    solutionSummary: "Jump onto the 'JUST WALK RIGHT' sign itself, then hop up to the 'OR DON'T' door.",
     grid: [
       "################################",
       "#..............................#",
@@ -456,45 +456,35 @@ const LEVELS = [
       "#..............................#",
       "#..............................#",
       "#..............................#",
+      "#...........#####..............#",
       "#..............................#",
       "#..............................#",
       "#..............................#",
       "#..............................#",
-      "#..............................#",
-      "############CCCC################",
-      "############....################",
-      "############^^^^################",
+      "#####################NNN########",
+      "#####################...########",
+      "#####################^^^########",
       "################################"
     ],
     start: { col: 3, row: 13 },
-    exit:  { col: 27, row: 13 },
+    exit:  { col: 13, row: 8, label: "OR DON'T" },
+    fakeExit: { col: 28, row: 13 },
     signs: [
-      { id: "s1", col: 13.5, row: 10.6, text: "SAFE", arrowDown: true, crookedLast: true }
+      { id: "s1", col: 9, row: 11.6, w: 228, h: 28, text: "JUST WALK RIGHT ->", solid: true }
     ],
-    triggers: [
-      {
-        id: "l1_fall",
-        once: true,
-        condition: { type: "zoneEnter", rect: { x: 12 * 30 - 4, y: 13 * 30, w: 4 * 30 + 8, h: 34 } },
-        actions: [
-          { type: "fallTile", tiles: [{col:12,row:14},{col:13,row:14},{col:14,row:14},{col:15,row:14}], delayTicks: 2, fallSpeed: 8 },
-          { type: "playSound", sound: "trap" },
-          { type: "shake", intensity: 3, durationTicks: 5 }
-        ]
-      }
-    ]
+    triggers: []
   },
 
   // --------------------------------------------------------------------------
-  // LEVEL 2: FALSE FLOOR (Sequence: stepping stones, 3rd pillar falls)
+  // LEVEL 2: PAINT & HOLOGRAMS (Floor spikes are paint; SAFE bridge is air)
   // --------------------------------------------------------------------------
   {
     id: 2,
-    name: "COUNT TO THREE",
-    family: "False Floor / Order",
-    trapSummary: "The 3rd stepping pillar collapses immediately on contact.",
-    tell: "Pillar #3 has a diagonal hairline crack and sits 1px lower than the rest.",
-    solutionSummary: "Hop pillar 1 -> pillar 2 -> long jump past pillar 3 -> pillar 4 -> exit.",
+    name: "FLOOR IS PAINT",
+    family: "Decoy & Hologram",
+    trapSummary: "The floating bridge is hologram air below ceiling spikes, while the floor spikes are harmless paint.",
+    tell: "Floor spikes are 2px shorter & softer coral; the floating bridge has 1px scanline gaps.",
+    solutionSummary: "Do not jump—just walk straight across all 18 painted spikes to the exit.",
     grid: [
       "################################",
       "#..............................#",
@@ -505,58 +495,34 @@ const LEVELS = [
       "#..............................#",
       "#..............................#",
       "#..............................#",
+      "#........vvvvvvvvvvvvvv........#",
       "#..............................#",
+      "#......NNNNNNNNNNNNNNNNNN......#",
       "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "######..##..##..F..##..##..#####",
-      "#.....^^..^^..^^.^^..^^..^^....#",
+      "#......DDDDDDDDDDDDDDDDDD......#",
+      "################################",
+      "################################",
       "################################",
       "################################"
     ],
     start: { col: 2, row: 13 },
-    exit:  { col: 29, row: 13 },
-    triggers: [
-      {
-        id: "l2_seq3",
-        once: true,
-        condition: {
-          type: "sequence",
-          steps: [
-            { type: "zoneEnter", rect: { x: 8*30-6, y: 13*30, w: 42, h: 34 } },
-            { type: "zoneEnter", rect: { x: 12*30-6, y: 13*30, w: 42, h: 34 } },
-            { type: "zoneEnter", rect: { x: 16*30-6, y: 13*30, w: 42, h: 34 } }
-          ]
-        },
-        actions: [
-          { type: "fallTile", tiles: [{col:16,row:14}], delayTicks: 1, fallSpeed: 9 },
-          { type: "playSound", sound: "trap" }
-        ]
-      },
-      // Fallback: even if player jumps directly onto col 16 from start, it still betrays!
-      {
-        id: "l2_direct3",
-        once: true,
-        condition: { type: "zoneEnter", rect: { x: 16*30-4, y: 13*30, w: 38, h: 34 } },
-        actions: [
-          { type: "fallTile", tiles: [{col:16,row:14}], delayTicks: 1, fallSpeed: 9 },
-          { type: "playSound", sound: "trap" }
-        ]
-      }
-    ]
+    exit:  { col: 28, row: 13 },
+    signs: [
+      { id: "s2", col: 13.5, row: 7, w: 96, h: 26, text: "JUMP!", arrowDown: false }
+    ],
+    triggers: []
   },
 
   // --------------------------------------------------------------------------
-  // LEVEL 3: FLEEING DOOR (Door runs away to upper-left balcony on approach)
+  // LEVEL 3: SHY DOOR (Flees when you look at it, sneaks up when you look away)
   // --------------------------------------------------------------------------
   {
     id: 3,
-    name: "PLAYING HARD TO GET",
-    family: "Reverse Trigger",
-    trapSummary: "Approaching the exit door sends it fleeing to the upper-left balcony.",
-    tell: "Faint gold skid marks trail left from the door; upper-left platforms wait nearby.",
-    solutionSummary: "Trigger the door flee at x>=660, turn left, climb mid ledges to top-left door.",
+    name: "SHY DOOR",
+    family: "Gaze Trap",
+    trapSummary: "The exit door flees whenever you face right toward it, pushing you into the wall spike.",
+    tell: "Eyes on the door go wide (O O) when you look at it and sneaky (><) when you turn away.",
+    solutionSummary: "Walk halfway right, turn around to face Left, and let the door sneak into your back.",
     grid: [
       "################################",
       "#..............................#",
@@ -567,59 +533,55 @@ const LEVELS = [
       "#..............................#",
       "#..............................#",
       "#..............................#",
-      "#..####........................#",
       "#..............................#",
-      "#.........###..................#",
       "#..............................#",
-      "#..............###.............#",
+      "#..............................#",
+      "#..............................#",
+      "#.............................<#",
       "################################",
       "################################",
       "################################",
       "################################"
     ],
     start: { col: 3, row: 13 },
-    exit:  { col: 28, row: 13 },
-    skidMarks: [{ x1: 23*30, x2: 28*30, y: 14*30 - 2 }],
+    exit:  { col: 23, row: 13, shy: true },
     triggers: [
       {
-        id: "l3_flee",
-        once: true,
-        condition: { type: "playerX", x: 19 * 30, op: ">=" },
+        id: "l3_shy",
+        once: false,
+        condition: { type: "always" },
         actions: [
-          { type: "moveEntity", targetId: "exit", toX: 3.2 * 30, toY: 8 * 30, durationTicks: 10 },
-          { type: "spawnSpike", col: 28, row: 13, dir: "^", emergeTicks: 8 },
-          { type: "playSound", sound: "flip" },
-          { type: "shake", intensity: 4, durationTicks: 8 }
+          { type: "shyDoorStep", minX: 4 * 30, maxX: 28.8 * 30, fleeSpeed: 8.5, sneakSpeed: 4.8, alertDist: 360 }
         ]
       }
     ]
   },
 
   // --------------------------------------------------------------------------
-  // LEVEL 4: COIN BAIT (Collecting coin spawns floor spikes ahead and behind)
+  // LEVEL 4: PAY THE TOLL (Subverts coin-fear: skipping coin kills at laser)
   // --------------------------------------------------------------------------
   {
     id: 4,
-    name: "GREED TAX",
-    family: "Delayed Trap",
-    trapSummary: "Grabbing the tempting coin triggers coral spikes across the lower runway.",
-    tell: "Tiny 1px coral spike tips peek at the seam of floor cols 10-11 and 17-19.",
-    solutionSummary: "Take the upper stone bridge (cols 10..21) to bypass the coin entirely.",
+    name: "PAY THE TOLL",
+    family: "Subverted Bait",
+    trapSummary: "Skipping the coin gets you vaporized by the Toll Laser; grabbing it drops a delayed spike.",
+    tell: "Laser gate displays a gold '1' coin toll; a 1px coral tip peeks beneath the coin tile.",
+    solutionSummary: "Grab the coin to disable the laser gate and immediately keep running right before the spike emerges.",
     grid: [
       "################################",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..........############........#",
-      "#..............................#",
-      "#......##......................#",
-      "#..............................#",
+      "#........................#.....#",
+      "#........................#.....#",
+      "#........................#.....#",
+      "#........................#.....#",
+      "#........................#.....#",
+      "#........................#.....#",
+      "#........................#.....#",
+      "#........................#.....#",
+      "#........................#.....#",
+      "#........................#.....#",
+      "#........................#.....#",
+      "#........................L.....#",
+      "#........................L.....#",
       "################################",
       "################################",
       "################################",
@@ -627,70 +589,20 @@ const LEVELS = [
     ],
     start: { col: 2, row: 13 },
     exit:  { col: 29, row: 13 },
-    coins: [{ id: "greed_coin", col: 14.5, row: 13 }],
-    spikeSeamTells: [
-      { col: 10, row: 13 }, { col: 11, row: 13 },
-      { col: 17, row: 13 }, { col: 18, row: 13 }, { col: 19, row: 13 }
+    coins: [{ id: "toll_coin", col: 13, row: 13 }],
+    signs: [
+      { id: "s4", col: 21.8, row: 10.2, w: 140, h: 24, text: "TOLL: 1 COIN" }
     ],
+    spikeSeamTells: [{ col: 13, row: 13 }],
     triggers: [
       {
-        id: "l4_greed",
+        id: "l4_toll",
         once: true,
-        condition: { type: "collectItem", itemId: "greed_coin" },
+        condition: { type: "collectItem", itemId: "toll_coin" },
         actions: [
-          { type: "spawnSpike", col: 10, row: 13, dir: "^", emergeTicks: 6 },
-          { type: "spawnSpike", col: 11, row: 13, dir: "^", emergeTicks: 6 },
-          { type: "spawnSpike", col: 17, row: 13, dir: "^", emergeTicks: 6 },
-          { type: "spawnSpike", col: 18, row: 13, dir: "^", emergeTicks: 6 },
-          { type: "spawnSpike", col: 19, row: 13, dir: "^", emergeTicks: 6 },
+          { type: "toggleTile", tiles: [{col:25,row:12,to:"."},{col:25,row:13,to:"."}] },
+          { type: "spawnSpike", col: 13, row: 13, dir: "^", emergeTicks: 16 },
           { type: "playSound", sound: "trap" },
-          { type: "shake", intensity: 4, durationTicks: 7 }
-        ]
-      }
-    ]
-  },
-
-  // --------------------------------------------------------------------------
-  // LEVEL 5: CONTROL FLIP FLAG (Touching flag swaps Left and Right)
-  // --------------------------------------------------------------------------
-  {
-    id: 5,
-    name: "MIRROR SIGNAL",
-    family: "Control Lie",
-    trapSummary: "The checkpoint flag reverses Left and Right movement inputs.",
-    tell: "The flag pennant points left (backward) with tiny <-> arrows etched at its base.",
-    solutionSummary: "Jump to the flag island, hit the flag, then hold LEFT to jump right to exit.",
-    grid: [
-      "################################",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#######...#####...####...#######",
-      "#......^^^.....^^^....^^^......#",
-      "################################",
-      "################################"
-    ],
-    start: { col: 2, row: 13 },
-    exit:  { col: 29, row: 13 },
-    flags: [{ id: "flip_flag", col: 12, row: 13, dir: -1, arrows: true }],
-    triggers: [
-      {
-        id: "l5_flip",
-        once: true,
-        condition: { type: "zoneEnter", rect: { x: 12*30 - 6, y: 8*30, w: 36, h: 180 } },
-        actions: [
-          { type: "reverseControls", enabled: true },
-          { type: "playSound", sound: "flip" },
           { type: "shake", intensity: 3, durationTicks: 6 }
         ]
       }
@@ -698,15 +610,63 @@ const LEVELS = [
   },
 
   // --------------------------------------------------------------------------
-  // LEVEL 6: FAKE "LEVEL COMPLETE" OVER CONTINUING LEVEL
+  // LEVEL 5: EVERY JUMP FLIPS REALITY (Each jump toggles Left/Right!)
+  // --------------------------------------------------------------------------
+  {
+    id: 5,
+    name: "BRAIN DAMAGE",
+    family: "Dynamic Control Lie",
+    trapSummary: "Every single jump toggles Left and Right controls back and forth.",
+    tell: "You turn Bait Gold when controls are flipped and Chalk White when normal; <FLIP> flashes in HUD.",
+    solutionSummary: "Jump gap 1 (controls flip!), hold LEFT in mid-air & for gap 2 (flips back!), then RIGHT for gap 3.",
+    grid: [
+      "################################",
+      "#..............................#",
+      "#..............................#",
+      "#..............................#",
+      "#..............................#",
+      "#..............................#",
+      "#..............................#",
+      "#..............................#",
+      "#..............................#",
+      "#..............................#",
+      "#..............................#",
+      "#..............................#",
+      "#..............................#",
+      "#..............................#",
+      "######..#####..#####..#####..###",
+      "#.....^^.....^^.....^^.....^^..#",
+      "################################",
+      "################################"
+    ],
+    start: { col: 2, row: 13 },
+    exit:  { col: 29, row: 13 },
+    signs: [
+      { id: "s5", col: 2.2, row: 10.6, w: 150, h: 24, text: "JUMP = FLIP" }
+    ],
+    triggers: [
+      {
+        id: "l5_everyjump",
+        once: false,
+        condition: { type: "everyJump" },
+        actions: [
+          { type: "toggleReverseControls" },
+          { type: "playSound", sound: "flip" }
+        ]
+      }
+    ]
+  },
+
+  // --------------------------------------------------------------------------
+  // LEVEL 6: YOU DIED... PSYCHE! (Fake Death + Fake Victory over live gameplay)
   // --------------------------------------------------------------------------
   {
     id: 6,
-    name: "CONGRATULATIONS!",
-    family: "UI Lie",
-    trapSummary: "A celebratory LEVEL COMPLETE banner pops up while a spike pit awaits ahead.",
-    tell: "The banner stays translucent and reads '0.00s ...OR IS IT?' while gameplay runs.",
-    solutionSummary: "Ignore the fake victory popup, keep holding right, and jump the pit at cols 22-24.",
+    name: "PSYCHOLOGY 101",
+    family: "Double UI Gaslight",
+    trapSummary: "Triggers a Fake 'YOU DIED' explosion mid-run, followed by a Fake 'LEVEL COMPLETE!' banner.",
+    tell: "Your real player sprite stays visible & moving underneath the translucent popups.",
+    solutionSummary: "Ignore both the fake death and fake victory banners; keep moving and jump the final pit.",
     grid: [
       "################################",
       "#..............................#",
@@ -731,11 +691,21 @@ const LEVELS = [
     exit:  { col: 29, row: 13 },
     triggers: [
       {
+        id: "l6_fakedeath",
+        once: true,
+        condition: { type: "playerX", x: 11 * 30, op: ">=" },
+        actions: [
+          { type: "showFakeUI", variant: "fakeDeath", durationTicks: 65, blocksInput: false },
+          { type: "playSound", sound: "death" },
+          { type: "shake", intensity: 5, durationTicks: 7 }
+        ]
+      },
+      {
         id: "l6_fakewin",
         once: true,
-        condition: { type: "playerX", x: 15 * 30, op: ">=" },
+        condition: { type: "playerX", x: 18 * 30, op: ">=" },
         actions: [
-          { type: "showFakeUI", variant: "complete", durationTicks: 165, blocksInput: false },
+          { type: "showFakeUI", variant: "complete", durationTicks: 110, blocksInput: false },
           { type: "playSound", sound: "fakeWin" }
         ]
       }
@@ -743,50 +713,15 @@ const LEVELS = [
   },
 
   // --------------------------------------------------------------------------
-  // LEVEL 7: HIDDEN CEILING BLOCK (Scale / Invisible Ceiling over Pit)
+  // LEVEL 7: INVISIBLE SKYBRIDGE (Visible bridge is air; real path is up high)
   // --------------------------------------------------------------------------
   {
     id: 7,
-    name: "LOW CLEARANCE",
-    family: "Scale Trap",
-    trapSummary: "An invisible solid ceiling block bonks full-height jumps into the spike pit.",
-    tell: "A faint 2px dust shadow hovers at row 10 directly above the takeoff lip.",
-    solutionSummary: "Release Jump quickly for a controlled short hop underneath the hidden ceiling.",
-    grid: [
-      "################################",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#............HHH...............#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "##############...###############",
-      "#.............^^^..............#",
-      "################################",
-      "################################"
-    ],
-    start: { col: 3, row: 13 },
-    exit:  { col: 27, row: 13 },
-    triggers: []
-  },
-
-  // --------------------------------------------------------------------------
-  // LEVEL 8: TWO EARLIER TRAPS CHAINED (False Floor + Control Flip + False Floor)
-  // --------------------------------------------------------------------------
-  {
-    id: 8,
-    name: "DOUBLE CROSSED",
-    family: "Layered Traps",
-    trapSummary: "False floor tiles combined with a mid-room Control Flip flag.",
-    tell: "Cracked tiles sit 1px low with hairline seams; the flag points backward.",
-    solutionSummary: "Skip cracked tile col 9, hit the flag, then hold LEFT to skip cracked tile col 22.",
+    name: "WALK ON AIR",
+    family: "Scale / Illusion",
+    trapSummary: "The lower stone bridge is a non-solid hologram; the real solid bridge is invisible 3 tiles higher.",
+    tell: "Faint 2px white dust motes line row 11; the lower hologram bridge has 1px scanline gaps.",
+    solutionSummary: "Hop onto the left step, then jump up to row 11 and walk across the invisible skybridge.",
     grid: [
       "################################",
       "#..............................#",
@@ -799,44 +734,67 @@ const LEVELS = [
       "#..............................#",
       "#..............................#",
       "#..............................#",
+      "#........HHHHHHHHHHHHHH........#",
       "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "######...F...#####...F...#######",
-      "#.....^^^.^^^.....^^^.^^^......#",
+      "#.....##.......................#",
+      "########NNNNNNNNNNNNNNN#########",
+      "#.......^^^^^^^^^^^^^^^........#",
       "################################",
       "################################"
     ],
     start: { col: 2, row: 13 },
-    exit:  { col: 29, row: 13 },
-    flags: [{ id: "l8_flag", col: 15, row: 13, dir: -1, arrows: true }],
+    exit:  { col: 28, row: 13 },
+    triggers: []
+  },
+
+  // --------------------------------------------------------------------------
+  // LEVEL 8: SHY & FLIPPED (Jump-Flip + Shy Door combined)
+  // --------------------------------------------------------------------------
+  {
+    id: 8,
+    name: "TRUST PARANOIA",
+    family: "Layered Mind-Bends",
+    trapSummary: "Every jump toggles Left/Right controls AND the final door is Shy (flees when looked at).",
+    tell: "Player color (White/Gold) shows control state; door eyes show scared (O O) vs sneaky (><).",
+    solutionSummary: "Jump the two spike gaps tracking your flip color, then turn your back to the Shy Door.",
+    grid: [
+      "################################",
+      "#..............................#",
+      "#..............................#",
+      "#..............................#",
+      "#..............................#",
+      "#..............................#",
+      "#..............................#",
+      "#..............................#",
+      "#..............................#",
+      "#..............................#",
+      "#..............................#",
+      "#..............................#",
+      "#..............................#",
+      "#.............................<#",
+      "######..####..##################",
+      "#.....^^....^^.................#",
+      "################################",
+      "################################"
+    ],
+    start: { col: 2, row: 13 },
+    exit:  { col: 24, row: 13, shy: true },
     triggers: [
       {
-        id: "l8_fall1",
-        once: true,
-        condition: { type: "zoneEnter", rect: { x: 9*30-4, y: 13*30, w: 38, h: 34 } },
+        id: "l8_everyjump",
+        once: false,
+        condition: { type: "everyJump" },
         actions: [
-          { type: "fallTile", tiles: [{col:9,row:14}], delayTicks: 1, fallSpeed: 9 },
-          { type: "playSound", sound: "trap" }
+          { type: "toggleReverseControls" },
+          { type: "playSound", sound: "flip" }
         ]
       },
       {
-        id: "l8_flip",
-        once: true,
-        condition: { type: "zoneEnter", rect: { x: 15*30-6, y: 8*30, w: 36, h: 180 } },
+        id: "l8_shy",
+        once: false,
+        condition: { type: "always" },
         actions: [
-          { type: "reverseControls", enabled: true },
-          { type: "playSound", sound: "flip" },
-          { type: "shake", intensity: 3, durationTicks: 6 }
-        ]
-      },
-      {
-        id: "l8_fall2",
-        once: true,
-        condition: { type: "zoneEnter", rect: { x: 21*30-4, y: 13*30, w: 38, h: 34 } },
-        actions: [
-          { type: "fallTile", tiles: [{col:21,row:14}], delayTicks: 1, fallSpeed: 9 },
-          { type: "playSound", sound: "trap" }
+          { type: "shyDoorStep", minX: 14 * 30, maxX: 28.8 * 30, fleeSpeed: 8.5, sneakSpeed: 4.8, alertDist: 340 }
         ]
       }
     ]
@@ -889,106 +847,89 @@ const LEVELS = [
   },
 
   // --------------------------------------------------------------------------
-  // LEVEL 10: MINI BOSS (All prior traps in sequence + fleeing exit twist)
+  // LEVEL 10: ALL LIES AT ONCE (Painted spikes + Ceiling + Toll + Fake Death + Shy Door)
   // --------------------------------------------------------------------------
   {
     id: 10,
-    name: "TRUST ISSUES: EXAM",
-    family: "Boss Sequence",
-    trapSummary: "SAFE pit -> cracked tile -> coin spikes -> hidden ceiling -> flip + fake win + fleeing door.",
-    tell: "Every single trap carries its signature tell (crooked E, crack, coral tip, shadow, backward flag).",
-    solutionSummary: "Jump SAFE gap, skip cracked tile, jump above coin, short-hop ceiling, hit flag, run left through fake UI to raised door.",
+    name: "ALL LIES AT ONCE",
+    family: "Boss Gauntlet",
+    trapSummary: "Painted spikes under a hidden ceiling -> Coin Toll -> Fake Death -> Jump-Flip Shy Door.",
+    tell: "Every trap preserves its exact tell from Levels 1-9.",
+    solutionSummary: "Walk over painted spikes, grab coin & pass laser, ignore fake death, jump gap (flips controls!), turn back to Shy Door.",
     grid: [
       "################################",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#..............................#",
-      "#................HH............#",
-      "#..............................#",
-      "#...........###.............####",
-      "#..............................#",
-      "####CC##..F.......######..######",
-      "#...^^..^^.^^^^^^^......^^.....#",
+      "#..............#...............#",
+      "#..............#...............#",
+      "#..............#...............#",
+      "#..............#...............#",
+      "#..............#...............#",
+      "#..............#...............#",
+      "#..............#...............#",
+      "#..............#...............#",
+      "#..............#...............#",
+      "#...HHHH.......#...............#",
+      "#..............#...............#",
+      "#..............L...............#",
+      "#...DDDD.......L..............<#",
+      "#################..#############",
+      "#................^^............#",
       "################################",
       "################################"
     ],
     start: { col: 1.5, row: 13 },
-    exit:  { col: 28.5, row: 13 },
-    signs: [
-      { id: "s10", col: 4.5, row: 11.2, text: "SAFE", arrowDown: true, crookedLast: true }
-    ],
-    coins: [{ id: "l10_coin", col: 12.5, row: 11 }],
-    flags: [{ id: "l10_flag", col: 21.5, row: 13, dir: -1, arrows: true }],
-    spikeSeamTells: [{ col: 15, row: 13 }, { col: 16, row: 13 }],
-    skidMarks: [{ x1: 28.5*30+12, x2: 28.5*30+12, y: 11*30 }],
+    exit:  { col: 25, row: 13, shy: true },
+    coins: [{ id: "l10_coin", col: 11, row: 13 }],
+    spikeSeamTells: [{ col: 11, row: 13 }],
     triggers: [
       {
-        id: "l10_safe",
-        once: true,
-        condition: { type: "zoneEnter", rect: { x: 4*30-2, y: 13*30, w: 64, h: 34 } },
-        actions: [
-          { type: "fallTile", tiles: [{col:4,row:14},{col:5,row:14}], delayTicks: 2, fallSpeed: 9 },
-          { type: "playSound", sound: "trap" }
-        ]
-      },
-      {
-        id: "l10_cracked",
-        once: true,
-        condition: { type: "zoneEnter", rect: { x: 10*30-4, y: 13*30, w: 38, h: 34 } },
-        actions: [
-          { type: "fallTile", tiles: [{col:10,row:14}], delayTicks: 1, fallSpeed: 9 },
-          { type: "playSound", sound: "trap" }
-        ]
-      },
-      {
-        id: "l10_greed",
+        id: "l10_toll",
         once: true,
         condition: { type: "collectItem", itemId: "l10_coin" },
         actions: [
-          { type: "spawnSpike", col: 15, row: 13, dir: "^", emergeTicks: 5 },
-          { type: "spawnSpike", col: 16, row: 13, dir: "^", emergeTicks: 5 },
+          { type: "toggleTile", tiles: [{col:15,row:12,to:"."},{col:15,row:13,to:"."}] },
+          { type: "spawnSpike", col: 11, row: 13, dir: "^", emergeTicks: 16 },
           { type: "playSound", sound: "trap" }
         ]
       },
       {
-        id: "l10_flip_and_fake",
+        id: "l10_fakedeath",
         once: true,
-        condition: { type: "zoneEnter", rect: { x: 21.5*30-6, y: 8*30, w: 36, h: 180 } },
+        condition: { type: "playerX", x: 16 * 30, op: ">=" },
         actions: [
-          { type: "reverseControls", enabled: true },
-          { type: "showFakeUI", variant: "complete", durationTicks: 130, blocksInput: false },
-          { type: "playSound", sound: "fakeWin" }
+          { type: "showFakeUI", variant: "fakeDeath", durationTicks: 55, blocksInput: false },
+          { type: "playSound", sound: "death" }
         ]
       },
       {
-        id: "l10_flee",
-        once: true,
-        condition: { type: "playerX", x: 26.5 * 30, op: ">=" },
+        id: "l10_everyjump",
+        once: false,
+        condition: { type: "everyJump" },
         actions: [
-          { type: "moveEntity", targetId: "exit", toX: 28.5 * 30, toY: 11 * 30, durationTicks: 16 },
-          { type: "spawnSpike", col: 28, row: 13, dir: "^", emergeTicks: 6 },
+          { type: "toggleReverseControls" },
           { type: "playSound", sound: "flip" }
+        ]
+      },
+      {
+        id: "l10_shy",
+        once: false,
+        condition: { type: "always" },
+        actions: [
+          { type: "shyDoorStep", minX: 19 * 30, maxX: 28.8 * 30, fleeSpeed: 8.5, sneakSpeed: 4.8, alertDist: 320 }
         ]
       }
     ]
   },
 
   // --------------------------------------------------------------------------
-  // LEVEL 11: MOVING-PLATFORM TIMING + RHYTHMIC SPIKE PILLAR
+  // LEVEL 11: DECOY PLATFORMS + CLOCKWORK SPIKES
   // --------------------------------------------------------------------------
   {
     id: 11,
-    name: "CLOCKWORK BETRAYAL",
-    family: "Timing",
-    trapSummary: "Two moving platforms bridge a chasm split by a timed spike pillar.",
-    tell: "Dotted tracks show platform paths; the mid-pillar flashes coral 20 ticks before spikes pop.",
-    solutionSummary: "Ride Platform 1 across, cross center pillar during its safe window, ride Platform 2 up to exit.",
+    name: "CLOCKWORK DECOY",
+    family: "Timing & Illusion",
+    trapSummary: "Top moving platform is a hologram decoy; center pillar pops rhythmic spikes.",
+    tell: "Decoy platform has a 1px horizontal scanline gap; center pillar pulses coral 20 ticks before spikes pop.",
+    solutionSummary: "Skip the upper hologram platform, ride the lower solid platform, cross the center pillar safely, ride P2 up.",
     grid: [
       "################################",
       "#..............................#",
@@ -1012,8 +953,9 @@ const LEVELS = [
     start: { col: 2, row: 13 },
     exit:  { col: 29, row: 9 },
     platforms: [
-      { id: "p1", col: 6.5, row: 14, wTiles: 3, hTiles: 0.6, moveX: 4.5 * 30, moveY: 0, periodTicks: 140 },
-      { id: "p2", col: 18,  row: 13, wTiles: 3, hTiles: 0.6, moveX: 3.5 * 30, moveY: -3 * 30, periodTicks: 160 }
+      { id: "p1_fake", col: 6.5, row: 11, wTiles: 3, hTiles: 0.6, moveX: 4.5 * 30, moveY: 0, periodTicks: 140, hologram: true },
+      { id: "p1_real", col: 6.5, row: 14, wTiles: 3, hTiles: 0.6, moveX: 4.5 * 30, moveY: 0, periodTicks: 140 },
+      { id: "p2_real", col: 18,  row: 13, wTiles: 3, hTiles: 0.6, moveX: 3.5 * 30, moveY: -3 * 30, periodTicks: 160 }
     ],
     triggers: [
       {
@@ -1046,15 +988,15 @@ const LEVELS = [
   },
 
   // --------------------------------------------------------------------------
-  // LEVEL 12: FINAL ROOM — FAKE CRASH + PHASE SWAP + START BECOMES EXIT
+  // LEVEL 12: ONE LAST LIE (Playable Fatal Error Box + Phase Swap + Inverted Return)
   // --------------------------------------------------------------------------
   {
     id: 12,
     name: "ONE LAST LIE",
-    family: "Phase Swap Twist",
-    trapSummary: "The top-right door triggers a Fake Crash, reverses controls, and swaps Ghost blocks solid!",
-    tell: "Faint dashed ghost blocks line the return path; crash screen says 'PHASE SHIFTED. GOOD LUCK.'",
-    solutionSummary: "Climb the right ledges to the top-right door trigger, then hold LEFT/RIGHT inverted back across the newly solid ghost blocks to the start pedestal!",
+    family: "Playable Error Twist",
+    trapSummary: "The top-right door crashes the game, makes the Error Modal SOLID, turns Ghost blocks solid, and flips controls.",
+    tell: "The Fatal Error window has a gold top ledge & says 'ERROR BOX IS SOLID. GHOST BLOCKS ONLINE.'",
+    solutionSummary: "Climb right to trigger the crash, then walk across the Fatal Error box itself (inverted!) to the ghost ledge & start exit.",
     grid: [
       "################################",
       "#..............................#",
@@ -1063,12 +1005,12 @@ const LEVELS = [
       "#..............................#",
       "#........................#######",
       "#..............................#",
-      "#...........GGG................#",
-      "#..................####........#",
-      "#......GGG.....................#",
       "#..............................#",
-      "#............###.........####..#",
-      "#..GGG.........................#",
+      "#..................####........#",
+      "#..............................#",
+      "#..............................#",
+      "#...GGG.......###........####..#",
+      "#..............................#",
       "#....................###.......#",
       "######...###...................#",
       "#.....^^^...^^^^^^^^^^^^^^^^^^^#",
@@ -1086,15 +1028,14 @@ const LEVELS = [
           { type: "spawnSpike", col: 29, row: 4, dir: "^", emergeTicks: 4 },
           { type: "teleportExit", x: 2 * 30 + 3, y: 13 * 30 },
           { type: "reverseControls", enabled: true },
-          { type: "showFakeUI", variant: "crash", durationTicks: 120, blocksInput: false },
+          { type: "showFakeUI", variant: "crash", durationTicks: 9999, blocksInput: false },
+          { type: "spawnPlatform", id: "err_box", x: 240, y: 240, w: 480, h: 16, hiddenBox: true },
           {
             type: "toggleTile",
             tiles: [
-              // Ghost blocks solidify!
-              {col:12,row:7,to:"#"},{col:13,row:7,to:"#"},{col:14,row:7,to:"#"},
-              {col:7,row:9,to:"#"},{col:8,row:9,to:"#"},{col:9,row:9,to:"#"},
-              {col:3,row:12,to:"#"},{col:4,row:12,to:"#"},{col:5,row:12,to:"#"},
-              // Old climb blocks vanish so you MUST take the ghost route!
+              // Ghost ledge solidifies for final drop!
+              {col:4,row:11,to:"#"},{col:5,row:11,to:"#"},{col:6,row:11,to:"#"},
+              // Old climb blocks vanish!
               {col:21,row:13,to:"."},{col:22,row:13,to:"."},{col:23,row:13,to:"."}
             ]
           },
@@ -1128,18 +1069,18 @@ function expandSolution(segments) {
 }
 
 const LEVEL_SOLUTIONS = {
-  1: [{"ticks":64,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":92,"right":true}],
-  2: [{"ticks":28,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":40,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":16,"right":true,"jump":true},{"ticks":32,"right":true}],
-  3: [{"ticks":28,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":40,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":12,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true},{"ticks":12,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":12,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":8,"left":true,"jump":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":12,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":8,"left":true,"jump":true},{"ticks":24,"left":true}],
-  4: [{"ticks":96,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":20,"right":true}],
-  5: [{"ticks":36,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":8,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":24,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":28,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":28,"left":true}],
-  6: [{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":88,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":40,"right":true}],
-  7: [{"ticks":76,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":80,"right":true}],
-  8: [{"ticks":16,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":28,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":12,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":8,"right":true},{"ticks":12,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":24,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":24,"left":true}],
-  9: [{"ticks":8,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":32,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":8,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true},{"ticks":32,"left":true},{"ticks":12,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true}],
-  10: [{"ticks":16,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":8,"left":true,"jump":true},{"ticks":20,"left":true},{"ticks":8,"left":true,"jump":true},{"ticks":12,"left":true}],
+  1: [{"ticks":24,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":12,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"right":true,"jump":true},{"ticks":8,"right":true}],
+  2: [{"ticks":176,"right":true}],
+  3: [{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true},{"ticks":12},{"ticks":12,"jump":true},{"ticks":20},{"ticks":4,"jump":true},{"ticks":20},{"ticks":4,"left":true}],
+  4: [{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":8,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":8,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":72,"right":true}],
+  5: [{"ticks":32,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":20,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":8,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":16,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":20,"right":true}],
+  6: [{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":28,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":16,"right":true,"jump":true},{"ticks":28,"right":true}],
+  7: [{"ticks":20,"right":true},{"ticks":24,"right":true,"jump":true},{"ticks":132,"right":true}],
+  8: [{"ticks":16,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":12},{"ticks":4,"jump":true},{"ticks":24},{"ticks":8,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":16},{"ticks":4,"left":true}],
+  9: [{"ticks":8,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":32,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":12,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":8,"right":true},{"ticks":4,"left":true},{"ticks":12,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"left":true},{"ticks":4},{"ticks":8,"left":true},{"ticks":16,"left":true,"jump":true},{"ticks":12,"left":true},{"ticks":8,"left":true,"jump":true},{"ticks":4,"left":true}],
+  10: [{"ticks":12,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"right":true},{"ticks":4,"left":true},{"ticks":8,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true},{"ticks":4},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true},{"ticks":8,"left":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true},{"ticks":8},{"ticks":4,"jump":true},{"ticks":20},{"ticks":4,"left":true}],
   11: [{"ticks":24,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":32,"right":true},{"ticks":20,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4},{"ticks":4,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":20,"right":true,"jump":true},{"ticks":24,"right":true}],
-  12: [{"ticks":28,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":20,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":20,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":20,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4},{"ticks":112,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true}]
+  12: [{"ticks":32,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":16,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":4,"jump":true},{"ticks":8,"right":true,"jump":true},{"ticks":4,"jump":true},{"ticks":4,"left":true},{"ticks":116,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":40,"right":true}]
 };
 
 /* ============================================================================
@@ -1172,7 +1113,10 @@ function createLevelState(levelDef, persistentLevelDeaths = 0, persistState = nu
     h: p.hTiles * TILE,
     moveX: p.moveX || 0,
     moveY: p.moveY || 0,
-    periodTicks: p.periodTicks || 120
+    periodTicks: p.periodTicks || 120,
+    solid: p.hologram ? false : (p.solid !== false),
+    hologram: !!p.hologram,
+    hiddenBox: !!p.hiddenBox
   }));
 
   const coins = (levelDef.coins || []).map(c => ({
@@ -1192,6 +1136,29 @@ function createLevelState(levelDef, persistentLevelDeaths = 0, persistState = nu
   }));
 
   const signs = (levelDef.signs || []).map(s => ({ ...s }));
+  for (const s of signs) {
+    if (s.solid) {
+      platforms.push({
+        id: "sign_" + s.id,
+        baseX: s.col * TILE - 4,
+        baseY: s.row * TILE - 4,
+        x: s.col * TILE - 4,
+        y: s.row * TILE - 4,
+        prevX: s.col * TILE - 4,
+        prevY: s.row * TILE - 4,
+        dx: 0,
+        dy: 0,
+        w: s.w || 132,
+        h: s.h || 28,
+        moveX: 0,
+        moveY: 0,
+        periodTicks: 120,
+        solid: true,
+        hologram: false,
+        hiddenBox: true
+      });
+    }
+  }
 
   const exit = {
     id: "exit",
@@ -1199,7 +1166,9 @@ function createLevelState(levelDef, persistentLevelDeaths = 0, persistState = nu
     y: levelDef.exit.row * TILE,
     w: 24,
     h: 30,
+    label: levelDef.exit.label || null,
     hiddenBehindHud: !!levelDef.exit.hiddenBehindHud,
+    shyState: levelDef.exit.shy ? "idle" : null,
     moveAnim: null
   };
 
@@ -1290,6 +1259,10 @@ function evaluateCondition(cond, state) {
     }
     case "jumpCount":
       return cond.op === "==" ? state.jumpCount === cond.count : state.jumpCount >= cond.count;
+    case "everyJump":
+      return !!state.justJumpedThisTick;
+    case "always":
+      return true;
     case "playerX":
       return cond.op === "<=" ? state.player.x <= cond.x : state.player.x >= cond.x;
     case "deathCount":
@@ -1314,6 +1287,42 @@ function executeAction(act, state, persistStore) {
           duration: Math.max(1, act.durationTicks || 20)
         };
       }
+      break;
+    }
+    case "shyDoorStep": {
+      const p = state.player;
+      const dist = state.exit.x - p.x;
+      if (p.facing === 1 && dist > -10 && dist < (act.alertDist || 280)) {
+        state.exit.x = Math.min(act.maxX, state.exit.x + (act.fleeSpeed || 7));
+        state.exit.shyState = "scared";
+      } else if (p.facing === -1 && state.exit.x > p.x) {
+        state.exit.x = Math.max(act.minX, state.exit.x - (act.sneakSpeed || 4.2));
+        state.exit.shyState = "sneak";
+      } else {
+        state.exit.shyState = "idle";
+      }
+      break;
+    }
+    case "spawnPlatform": {
+      state.platforms.push({
+        id: act.id || ("dyn_" + state.platforms.length),
+        baseX: act.x,
+        baseY: act.y,
+        x: act.x,
+        y: act.y,
+        prevX: act.x,
+        prevY: act.y,
+        dx: 0,
+        dy: 0,
+        w: act.w,
+        h: act.h,
+        moveX: 0,
+        moveY: 0,
+        periodTicks: 120,
+        solid: true,
+        hologram: false,
+        hiddenBox: !!act.hiddenBox
+      });
       break;
     }
     case "fallTile": {
@@ -1362,6 +1371,9 @@ function executeAction(act, state, persistStore) {
       state.reversedControls = !!act.enabled;
       for (const f of state.flags) f.activated = true;
       break;
+    case "toggleReverseControls":
+      state.reversedControls = !state.reversedControls;
+      break;
     case "teleportExit":
       state.exit.moveAnim = null;
       state.exit.x = act.x;
@@ -1374,6 +1386,9 @@ function executeAction(act, state, persistStore) {
         totalTicks: act.durationTicks || 120,
         blocksInput: !!act.blocksInput
       };
+      if (act.variant === "fakeDeath") {
+        state.fakeDeathBurst = true;
+      }
       break;
     case "setDeathCounterDisplay":
       state.deathDisplayOverride = {
@@ -1516,6 +1531,8 @@ function stepSimulation(state, rawInput, persistStore = null) {
   }
 
   // 8. Jump execution (coyote + jump buffer)
+  state.justJumpedThisTick = false;
+  state.fakeDeathBurst = false;
   if (p.jumpBufferTicks > 0 && p.coyoteTicks > 0) {
     p.vy = JUMP_VELOCITY;
     p.onGround = false;
@@ -1524,6 +1541,7 @@ function stepSimulation(state, rawInput, persistStore = null) {
     p.squashX = 0.78;
     p.squashY = 1.24;
     state.jumpCount++;
+    state.justJumpedThisTick = true;
     state.soundEvents.push("jump");
   }
 
@@ -1620,6 +1638,12 @@ function stepSimulation(state, rawInput, persistStore = null) {
           killPlayer(state, "spike");
           return;
         }
+      } else if (ch === "L") {
+        const hb = { x: c * TILE + 8, y: r * TILE, w: 14, h: TILE };
+        if (rectsOverlap(pRect, hb)) {
+          killPlayer(state, "laser");
+          return;
+        }
       }
     }
   }
@@ -1664,6 +1688,7 @@ function resolveAxisX(state) {
   }
 
   for (const plat of state.platforms) {
+    if (!plat.solid) continue;
     const pRect = { x: p.x, y: p.y, w: PLAYER_W, h: PLAYER_H };
     if (rectsOverlap(pRect, plat)) {
       if (p.vx > 0) p.x = plat.x - PLAYER_W;
@@ -1709,6 +1734,7 @@ function resolveAxisY(state) {
   }
 
   for (const plat of state.platforms) {
+    if (!plat.solid) continue;
     const pRect = { x: p.x, y: p.y, w: PLAYER_W, h: PLAYER_H };
     if (rectsOverlap(pRect, plat)) {
       if (p.vy >= 0 && (p.y + PLAYER_H - p.vy * FIXED_DT) <= plat.y + 8) {
@@ -2175,6 +2201,43 @@ function renderTiles(state) {
           ctx.fillRect(x + 6, y + TILE - 2, TILE - 12, 2);
           ctx.restore();
         }
+      } else if (ch === "N") {
+        // Non-solid hologram stone: looks like stone with subtle 1px scanline gap tell
+        ctx.fillStyle = PAL.STONE;
+        ctx.fillRect(x, y, TILE, 14);
+        ctx.fillRect(x, y + 15, TILE, 15);
+        ctx.save();
+        ctx.globalAlpha = 0.08;
+        ctx.fillStyle = PAL.WHITE;
+        ctx.fillRect(x, y, TILE, 2);
+        ctx.restore();
+      } else if (ch === "D") {
+        // Painted decal spike: 2px shorter & slightly softer coral tell, completely harmless
+        ctx.save();
+        ctx.globalAlpha = 0.72;
+        ctx.fillStyle = PAL.CORAL;
+        ctx.beginPath();
+        for (let i = 0; i < 2; i++) {
+          const bx = x + i * 15;
+          ctx.moveTo(bx + 1, y + TILE);
+          ctx.lineTo(bx + 7.5, y + TILE - 13);
+          ctx.lineTo(bx + 14, y + TILE);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      } else if (ch === "L") {
+        // Toll laser gate
+        ctx.save();
+        ctx.globalAlpha = 0.25 + 0.15 * Math.sin(state.tick * 0.25);
+        ctx.fillStyle = PAL.CORAL;
+        ctx.fillRect(x + 6, y, 18, TILE);
+        ctx.globalAlpha = 1;
+        ctx.fillRect(x + 12, y, 6, TILE);
+        ctx.fillStyle = PAL.GOLD;
+        ctx.fillRect(x + 10, y + 10, 10, 10);
+        drawPixelText(ctx, "1", x + 15, y + 11, 1, PAL.BG, "center");
+        ctx.restore();
       } else if (ch === "G") {
         // Ghost phase tile tell: dashed outline
         ctx.save();
@@ -2288,45 +2351,67 @@ function renderEntities(state, alpha) {
     ctx.restore();
   }
 
-  // Signs ("SAFE")
+  // Signs ("JUST WALK RIGHT ->", "SAFE", etc.)
   for (const s of state.signs) {
     const sx = s.col * TILE;
     const sy = s.row * TILE;
+    const sw = s.w || 82;
+    const sh = s.h || 28;
     ctx.fillStyle = PAL.STONE;
-    ctx.fillRect(sx - 4, sy - 4, 82, 28);
+    ctx.fillRect(sx - 4, sy - 4, sw, sh);
     ctx.strokeStyle = PAL.WHITE;
     ctx.lineWidth = 2;
-    ctx.strokeRect(sx - 4, sy - 4, 82, 28);
-    drawPixelText(ctx, s.text, sx + 37, sy + 3, 2, PAL.WHITE, "center", (idx) => {
+    ctx.strokeRect(sx - 4, sy - 4, sw, sh);
+    if (s.solid) {
+      // Subtle gold platform rim tell showing the sign is standable
+      ctx.fillStyle = PAL.GOLD;
+      ctx.fillRect(sx - 4, sy - 4, sw, 3);
+    }
+    drawPixelText(ctx, s.text, sx - 4 + sw / 2, sy + 3, 2, PAL.WHITE, "center", (idx) => {
       if (s.crookedLast && idx === s.text.length - 1) return { dx: 0, dy: 2 };
       return { dx: 0, dy: 0 };
     });
     if (s.arrowDown) {
       ctx.fillStyle = PAL.WHITE;
-      ctx.fillRect(sx + 35, sy + 28, 4, 12);
-      ctx.fillRect(sx + 31, sy + 36, 12, 3);
-      ctx.fillRect(sx + 33, sy + 39, 8, 3);
+      ctx.fillRect(sx + sw / 2 - 6, sy + sh - 2, 4, 12);
+      ctx.fillRect(sx + sw / 2 - 10, sy + sh + 6, 12, 3);
+      ctx.fillRect(sx + sw / 2 - 8, sy + sh + 9, 8, 3);
     }
   }
 
   // Moving platform tracks (Level 11 tell) + platforms
   for (const plat of state.platforms) {
-    ctx.save();
-    ctx.globalAlpha = 0.25;
-    ctx.strokeStyle = PAL.WHITE;
-    ctx.setLineDash([4, 6]);
-    ctx.beginPath();
-    ctx.moveTo(plat.baseX + plat.w / 2, plat.baseY + plat.h / 2);
-    ctx.lineTo(plat.baseX + plat.moveX + plat.w / 2, plat.baseY + plat.moveY + plat.h / 2);
-    ctx.stroke();
-    ctx.restore();
+    if (plat.hiddenBox) continue;
+    if (plat.moveX !== 0 || plat.moveY !== 0) {
+      ctx.save();
+      ctx.globalAlpha = 0.25;
+      ctx.strokeStyle = PAL.WHITE;
+      ctx.setLineDash([4, 6]);
+      ctx.beginPath();
+      ctx.moveTo(plat.baseX + plat.w / 2, plat.baseY + plat.h / 2);
+      ctx.lineTo(plat.baseX + plat.moveX + plat.w / 2, plat.baseY + plat.moveY + plat.h / 2);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     const rx = plat.prevX + (plat.x - plat.prevX) * alpha;
     const ry = plat.prevY + (plat.y - plat.prevY) * alpha;
-    ctx.fillStyle = PAL.STONE;
-    ctx.fillRect(rx, ry, plat.w, plat.h);
-    ctx.fillStyle = PAL.GOLD;
-    ctx.fillRect(rx, ry, plat.w, 3);
+    if (plat.hologram) {
+      // Subtle scanline gap tell for hologram decoy platforms
+      ctx.fillStyle = PAL.STONE;
+      ctx.fillRect(rx, ry, plat.w, Math.floor(plat.h / 2) - 1);
+      ctx.fillRect(rx, ry + Math.floor(plat.h / 2) + 1, plat.w, Math.ceil(plat.h / 2) - 1);
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = PAL.GOLD;
+      ctx.fillRect(rx, ry, plat.w, 2);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = PAL.STONE;
+      ctx.fillRect(rx, ry, plat.w, plat.h);
+      ctx.fillStyle = PAL.GOLD;
+      ctx.fillRect(rx, ry, plat.w, 3);
+    }
   }
 
   // Coins
@@ -2357,13 +2442,32 @@ function renderEntities(state, alpha) {
     }
   }
 
-  // Fake Exit (Level 9)
+  // Fake Exit (Level 1 / 9)
   if (state.levelDef.fakeExit) {
     drawDoor(state.levelDef.fakeExit.col * TILE + 3, state.levelDef.fakeExit.row * TILE, 24, 30, true);
   }
 
   // Real Exit Door
   drawDoor(state.exit.x, state.exit.y, state.exit.w, state.exit.h, false);
+  if (state.exit.label) {
+    drawPixelText(ctx, state.exit.label, state.exit.x + 12, state.exit.y - 12, 1, PAL.GOLD, "center");
+  }
+  if (state.exit.shyState) {
+    // Expressive eyes on Shy Door: O O when scared, > < when sneaking
+    ctx.fillStyle = PAL.WHITE;
+    if (state.exit.shyState === "scared") {
+      ctx.fillRect(state.exit.x + 5, state.exit.y + 8, 5, 5);
+      ctx.fillRect(state.exit.x + 14, state.exit.y + 8, 5, 5);
+      ctx.fillStyle = PAL.CORAL;
+      ctx.fillRect(state.exit.x + 7, state.exit.y + 10, 2, 2);
+      ctx.fillRect(state.exit.x + 16, state.exit.y + 10, 2, 2);
+    } else if (state.exit.shyState === "sneak") {
+      drawPixelText(ctx, "><", state.exit.x + 12, state.exit.y + 8, 1, PAL.GOLD, "center");
+    } else {
+      ctx.fillRect(state.exit.x + 6, state.exit.y + 10, 3, 3);
+      ctx.fillRect(state.exit.x + 15, state.exit.y + 10, 3, 3);
+    }
+  }
   // Subtle gleam below HUD for Level 9 hidden exit tell
   if (state.exit.hiddenBehindHud) {
     ctx.save();
@@ -2417,17 +2521,27 @@ function renderFakeUI(state) {
     drawPixelText(ctx, "LEVEL COMPLETE!", 480, 148, 4, PAL.GOLD, "center");
     drawPixelText(ctx, "TIME: 00.00S   ...OR IS IT?", 480, 198, 2, PAL.WHITE, "center");
     drawPixelText(ctx, "LOADING NEXT STAGE...", 480, 232, 2, PAL.CORAL, "center");
-  } else if (f.variant === "crash") {
-    ctx.globalAlpha = 0.84;
-    ctx.fillStyle = PAL.STONE;
-    ctx.fillRect(160, 100, 640, 210);
+  } else if (f.variant === "fakeDeath") {
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = PAL.BG;
+    ctx.fillRect(240, 120, 480, 130);
     ctx.strokeStyle = PAL.CORAL;
     ctx.lineWidth = 4;
-    ctx.strokeRect(160, 100, 640, 210);
-    drawPixelText(ctx, "FATAL ERROR: TRUST_OVERFLOW", 480, 130, 3, PAL.CORAL, "center");
-    drawPixelText(ctx, "CONTROLS INVERTED. PHASE SHIFTED.", 480, 185, 2, PAL.WHITE, "center");
-    drawPixelText(ctx, "RETURN TO START PEDESTAL TO RECOVER.", 480, 222, 2, PAL.GOLD, "center");
-    drawPixelText(ctx, "(PRESS NOTHING TO CONTINUE)", 480, 268, 1, PAL.WHITE, "center");
+    ctx.strokeRect(240, 120, 480, 130);
+    drawPixelText(ctx, "YOU DIED", 480, 144, 4, PAL.CORAL, "center");
+    drawPixelText(ctx, "RESPAWNING... WAIT NO YOU DIDN'T", 480, 206, 2, PAL.WHITE, "center");
+  } else if (f.variant === "crash") {
+    ctx.globalAlpha = 0.86;
+    ctx.fillStyle = PAL.STONE;
+    ctx.fillRect(240, 240, 480, 110);
+    ctx.strokeStyle = PAL.CORAL;
+    ctx.lineWidth = 4;
+    ctx.strokeRect(240, 240, 480, 110);
+    ctx.fillStyle = PAL.GOLD;
+    ctx.fillRect(240, 240, 480, 4);
+    drawPixelText(ctx, "FATAL ERROR: TRUST_OVERFLOW", 480, 256, 2, PAL.CORAL, "center");
+    drawPixelText(ctx, "ERROR BOX IS SOLID. GHOST BLOCKS ONLINE.", 480, 290, 1, PAL.GOLD, "center");
+    drawPixelText(ctx, "CONTROLS INVERTED — RETURN TO START.", 480, 316, 1, PAL.WHITE, "center");
   }
   ctx.restore();
 }
@@ -2719,6 +2833,11 @@ function tickGame() {
     }
   }
 
+  if (app.state.fakeDeathBurst) {
+    spawnDeathParticles(app.state.player.x, app.state.player.y);
+    if (!progress.streamerSafe) app.deathFlashTicks = 4;
+    app.narratorText = "WAIT... DID YOU ACTUALLY STOP MOVING?";
+  }
   if (!wasDead && app.state.dead) {
     handleDeathTransition();
   }
