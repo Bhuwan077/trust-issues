@@ -17,7 +17,7 @@
     Lean Counter    : Q / E or Up / Down Arrow (+ Touch LEAN L / LEAN R)
     Steady Plate    : Space or W (+ Touch STEADY — bursts stability on cooldown)
     Instant Retry   : R (< 200 ms instant respawn, same deterministic schedule)
-    Ghost Route     : G (available after 8 failed attempts on a venue)
+    Ghost Route     : G (available after 5 failed attempts on a venue)
     OBS Overlay     : O (clean top-right Fall Counter for stream capture)
     Streamer-Safe   : V (disables screen shake and crash flashes)
     Share Venue     : C (copies #code=DDC-XX URL hash)
@@ -40,7 +40,7 @@
     [x] 30/30 levels verified PASS in `runAllSolvers()`.
     [x] Every hazard provides an unmistakable pre-hit tell (warning ring, hiss,
         turning guest head, rustling leaves, chevron step outline).
-    [x] Ghost route unlocks cleanly after 8 failures (`[G]`).
+    [x] Ghost route unlocks cleanly after 5 failures (`[G]`).
     [x] Unique obstacle documented in `LIE_INDEX` (`assertUniqueLies()`).
     [x] Zero external network calls or libraries; safe localStorage try/catch.
 ================================================================================
@@ -105,20 +105,26 @@
 const LOGICAL_W = 960;               // Standard 16:9 side-view stage width
 const LOGICAL_H = 540;               // Standard 16:9 side-view stage height
 const FIXED_DT = 1 / 60;             // Strictly deterministic 60 Hz physics simulation
-const WALK_ACCEL = 780;              // Player horizontal start acceleration (px/s^2) -> imparts tilt torque
-const WALK_MAX = 158;                // Top carrying walk speed so hazards stay readable
-const GROUND_FRICTION = 740;         // Stopping sharpness on normal floor (tight, responsive)
-const WAX_FRICTION = 220;            // Low friction on waxed dance floor causing scary slides
-const TIER_SPRING_K = 48;            // Spring constant pulling each cake tier back upright
-const TIER_DAMPING = 5.4;            // Angular & slide damping so tiers teeter smoothly without buzzing
-const PLATE_IMPULSE_MULT = 0.0046;   // Horizontal acceleration -> rotational lean transfer factor
-const SLIDE_FRICTION_LIMIT = 0.24;   // Tilt angle threshold before a tier visibly begins sliding sideways
-const SLIDE_RATE = 46;               // Horizontal drift rate (px/s) once tier slips past frosting grip
-const COM_FALL_MARGIN = 0.68;        // Collapse happens when tier center exits 68% of supporting tier width
-const MAX_TILT_COLLAPSE = 0.54;      // Extreme lean threshold (radians ~31 deg) triggering cascade fall
-const LEAN_COUNTER_FORCE = 1.9;      // Player Q/E lean stabilization force applied to stack base
-const STEADY_DURATION_TICKS = 22;    // Duration of Space/W active STEADY grip burst
-const STEADY_COOLDOWN_TICKS = 95;    // Cooldown between STEADY bursts so timing stays tactical
+const WALK_ACCEL = 800;              // Sharp start acceleration -> abrupt walking kicks stack lean
+const WALK_MAX = 180;                // Brisk carrying walk speed; rushing builds gait instability
+const GROUND_FRICTION = 780;         // Stopping grip on normal carpet / kitchen tile
+const WAX_FRICTION = 165;            // Low friction on waxed dance floor causing dangerous skids
+const TIER_SPRING_K = 36;            // Soft base restoring torque — cannot save uncountered lean
+const GRAVITY_TIP_K = 13.0;          // Inverted-pendulum gravity pulls tilted layers further over
+const OVERHANG_TORQUE_K = 0.14;      // Lateral icing overhang torque once tiers slide off center
+const GAIT_SWAY_K = 4.0;             // Rhythmic footstep wobble injection while walking fast
+const GAIT_DRIFT_K = 3.45;           // Sustained sprint forward lean forcing active Q/E balancing
+const TIER_DAMPING = 4.2;            // Overall angular damping of cake stack motion
+const SHEAR_DAMPING = 6.2;           // Inter-tier shear damping preventing unphysical S-bends
+const PLATE_IMPULSE_MULT = 0.0052;   // Horizontal acceleration -> rotational lean transfer factor
+const SLIDE_FRICTION_LIMIT = 0.155;  // Tilt threshold (~8.9 deg) before frosting begins slipping
+const SLIDE_RATE = 66;               // Lateral slide buildup rate (px/s^2) past icing grip
+const COM_FALL_MARGIN = 0.58;        // Strict edge overhang margin before tier topples off
+const MAX_TILT_COLLAPSE = 0.44;      // Extreme lean threshold (radians ~25 deg) triggering drop
+const LEAN_COUNTER_FORCE = 9.0;      // Responsive Q/E counter-lean torque + slide recentering
+const STEADY_DURATION_TICKS = 18;    // Duration of Space/W active STEADY grip burst (0.30s)
+const STEADY_COOLDOWN_TICKS = 105;   // Tactical cooldown between STEADY bursts (1.75s)
+const SETTLE_REQUIRED_TICKS = 14;    // Consecutive calm ticks at VIP table needed to score win
 const SLOWMO_DROP_FACTOR = 0.28;     // Cinematic slow-motion time scale on cake collapse
 const STORAGE_KEY = "dont_drop_cake_v1";
 
@@ -302,218 +308,218 @@ function assertUniqueLies() {
 
 // ---------------- TIER 1: KITCHEN (1..6) ----------------
 addCakeLevel({
-  id: 1, tier: 1, name: "FIRST SERVING", floor: "kitchen", tiersCount: 3, goalX: 830, timeSec: 22,
+  id: 1, tier: 1, name: "FIRST SERVING", floor: "kitchen", tiersCount: 4, goalX: 830, timeSec: 17,
   lieKey: "t1_flat_momentum",
-  obstacle: "Sudden stops send the top tier flying forward onto the tile.",
-  tell: "Three-tier stack visibly sways whenever speed changes abruptly.",
-  intendedRoute: "Accelerate gently right, release Walk early, and feather to a soft stop at x=830.",
+  obstacle: "A 4-tier tower sways with every stride—holding Walk blindly drops it within 1 second!",
+  tell: "Watch upper tiers lean forward smoothly past vertical as walking pace builds.",
+  intendedRoute: "Counter-lean with Q/E as stride wobble climbs, pace smoothly, and settle gently at x=830.",
   hazards: []
 });
 addCakeLevel({
-  id: 2, tier: 1, name: "KITCHEN THRESHOLD", floor: "kitchen", tiersCount: 4, goalX: 830, timeSec: 24,
+  id: 2, tier: 1, name: "KITCHEN THRESHOLD", floor: "kitchen", tiersCount: 5, goalX: 830, timeSec: 19,
   lieKey: "t1_single_step",
-  obstacle: "A raised tile step at x=470 jolts the plate vertically on contact.",
-  tell: "Gold trim marks the 14px raised kitchen threshold.",
-  intendedRoute: "Trigger STEADY just before crossing x=470 and hold smooth pace to the table.",
-  hazards: [{ type: "step", x: 470, w: 300, dy: -14 }]
+  obstacle: "Five tall tiers hit a raised 19px kitchen step that launches the icing if rushed!",
+  tell: "Gold trim marks the 19px raised kitchen threshold at x=450.",
+  intendedRoute: "Slow pace or trigger STEADY before crossing x=450, counter-lean the step bump, and settle calmly.",
+  hazards: [{ type: "step", x: 450, w: 320, dy: -19 }]
 });
 addCakeLevel({
-  id: 3, tier: 1, name: "SLIPPERY RUNNER", floor: "kitchen", tiersCount: 4, goalX: 830, timeSec: 24,
+  id: 3, tier: 1, name: "SLIPPERY RUNNER", floor: "kitchen", tiersCount: 5, goalX: 830, timeSec: 19,
   lieKey: "t1_sliding_rug",
-  obstacle: "A decorative kitchen rug slides horizontally underneath your shoes.",
-  tell: "Coral-striped runner rug glistens between x=330 and x=610.",
-  intendedRoute: "Tap Q/E lean or hit STEADY right as the rug nudges your feet forward.",
-  hazards: [{ type: "rug", x: 330, w: 280, pushSpeed: 42 }]
+  obstacle: "Fast-moving kitchen runner shoves you 90 px/s while yanking your ankles at both rug edges!",
+  tell: "Coral-striped runner rug snaps beneath shoes between x=320 and x=600.",
+  intendedRoute: "Brake slightly onto the carpet edge, lean against the slide with Q/E, and feather off the exit lip.",
+  hazards: [{ type: "rug", x: 320, w: 280, pushSpeed: 90 }]
 });
 addCakeLevel({
-  id: 4, tier: 1, name: "TWIN THRESHOLDS", floor: "kitchen", tiersCount: 4, goalX: 840, timeSec: 25,
+  id: 4, tier: 1, name: "TWIN THRESHOLDS", floor: "kitchen", tiersCount: 5, goalX: 840, timeSec: 21,
   lieKey: "t1_double_steps",
-  obstacle: "Two consecutive raised tiles create a double-jolt oscillation.",
-  tell: "Two stepped platforms at x=340 and x=580.",
-  intendedRoute: "Space STEADY across step 1 and softly counter-lean over step 2.",
-  hazards: [{ type: "step", x: 340, w: 120, dy: -14 }, { type: "step", x: 580, w: 140, dy: -16 }]
+  obstacle: "Two steep tile thresholds bounce the 5-tier stack into opposite resonance!",
+  tell: "Stepped kitchen risers sit at x=330 (-18px) and x=560 (-22px).",
+  intendedRoute: "Feather pace onto step 1, stabilize with Q/E in the middle bay, and STEADY across step 2.",
+  hazards: [{ type: "step", x: 330, w: 120, dy: -18 }, { type: "step", x: 560, w: 145, dy: -22 }]
 });
 addCakeLevel({
-  id: 5, tier: 1, name: "STEAM VENT", floor: "kitchen", tiersCount: 5, goalX: 840, timeSec: 26,
+  id: 5, tier: 1, name: "STEAM VENT", floor: "kitchen", tiersCount: 5, goalX: 840, timeSec: 22,
   lieKey: "t1_kitchen_steam",
-  obstacle: "Rhythmic soup steam vents lift & push the tall 5-tier stack at x=490.",
-  tell: "Rising steam lines cycle visibly every 2.0 seconds.",
-  intendedRoute: "Cross x=490 smoothly right after a steam burst fades or press STEADY through it.",
-  hazards: [{ type: "wind", x: 450, w: 130, period: 120, onFrom: 50, onTo: 110, force: -1.4 }]
+  obstacle: "High-pressure kitchen soup steam erupts with brutal leftward torque every 2.5s!",
+  tell: "Rising steam jet blasts across x=430..575 right when a sprinter reaches mid-kitchen.",
+  intendedRoute: "Pause before x=430 until the steam cycle clears or power through with STEADY + counter-lean E.",
+  hazards: [{ type: "wind", x: 430, w: 145, period: 150, onFrom: 110, onTo: 149, force: -14.0 }]
 });
 addCakeLevel({
-  id: 6, tier: 1, name: "SOUS-CHEF EXAM", floor: "kitchen", tiersCount: 6, goalX: 845, timeSec: 28,
+  id: 6, tier: 1, name: "SOUS-CHEF EXAM", floor: "kitchen", tiersCount: 6, goalX: 845, timeSec: 23,
   lieKey: "t1_kitchen_boss",
-  obstacle: "Six towering tiers across both a sliding rug AND a raised threshold step.",
-  tell: "Striped runner leads straight onto a gold-edged kitchen step.",
-  intendedRoute: "Walk evenly, steady on the step transition, and cushion the stop.",
-  hazards: [{ type: "rug", x: 280, w: 200, pushSpeed: 38 }, { type: "step", x: 560, w: 180, dy: -15 }]
+  obstacle: "Six unstable tiers slung off a sliding runner straight onto a 19px kitchen threshold!",
+  tell: "Crimson runner feeds directly into the raised kitchen stone floor at x=545.",
+  intendedRoute: "Control rug momentum with Q, tap STEADY at the threshold transition, and settle softly.",
+  hazards: [{ type: "rug", x: 270, w: 220, pushSpeed: 90 }, { type: "step", x: 545, w: 195, dy: -19 }]
 });
 
 // ---------------- TIER 2: BANQUET HALL (7..12) ----------------
 addCakeLevel({
-  id: 7, tier: 2, name: "UNCLE GARY", floor: "hall", tiersCount: 4, goalX: 840, timeSec: 26,
+  id: 7, tier: 2, name: "UNCLE GARY", floor: "hall", tiersCount: 5, goalX: 840, timeSec: 23,
   lieKey: "t2_pacing_guest",
-  obstacle: "A pacing wedding guest walks back and forth on a fixed 4s schedule.",
-  tell: "Uncle Gary turns his head toward you 0.5s before reversing stride.",
-  intendedRoute: "Walk smoothly after he turns away and avoid brushing shoulders.",
-  hazards: [{ type: "guest", x: 470, minX: 350, maxX: 600, vx: 65, push: 1.5 }]
+  obstacle: "Solid shoulder collisions from Uncle Gary shove you back and flatten your cake!",
+  tell: "Gary paces in foreground; wait until he steps back ('CLEAR!') off the red carpet.",
+  intendedRoute: "Wait at x=310 until Gary steps to the sideboard, then walk briskly past with clean Q/E balance.",
+  hazards: [{ type: "guest", x: 470, minX: 330, maxX: 620, vx: 92, push: 14.0, lanePeriod: 175, clearFrom: 110 }]
 });
 addCakeLevel({
-  id: 8, tier: 2, name: "TRAFFIC WAITER", floor: "hall", tiersCount: 5, goalX: 840, timeSec: 26,
+  id: 8, tier: 2, name: "TRAFFIC WAITER", floor: "hall", tiersCount: 5, goalX: 840, timeSec: 23,
   lieKey: "t2_waiter_tray",
-  obstacle: "A frantic waiter dashes across the central hall on a fixed rhythm.",
-  tell: "Clattering tray icon warns along the waiter's patrol lane.",
-  intendedRoute: "Pause briefly before his lane or steady through after he passes.",
-  hazards: [{ type: "waiter", x: 520, minX: 320, maxX: 700, vx: -115, push: 2.1 }]
+  obstacle: "A frantic waiter dashes 145 px/s across the aisle—one collision launches every tier!",
+  tell: "Waiter flashes '!' before stepping back off the carpet runner.",
+  intendedRoute: "Stop cleanly outside his lane, time his sideboard step-back, and cross cleanly.",
+  hazards: [{ type: "waiter", x: 520, minX: 300, maxX: 720, vx: -145, push: 16.0, lanePeriod: 165, clearFrom: 105 }]
 });
 addCakeLevel({
-  id: 9, tier: 2, name: "CRUMB HOUND", floor: "hall", tiersCount: 5, goalX: 840, timeSec: 26,
+  id: 9, tier: 2, name: "CRUMB HOUND", floor: "hall", tiersCount: 6, goalX: 840, timeSec: 24,
   lieKey: "t2_dog_sniff",
-  obstacle: "A wedding dog chases crumbs from x=260 to x=680, stopping to sniff every 2s.",
-  tell: "Small brown dog hops along the carpet and lowers nose before barking impulse.",
-  intendedRoute: "Time your stride cleanly while the dog pauses to sniff or steady past him.",
-  hazards: [{ type: "dog", x: 340, minX: 280, maxX: 670, vx: 95, pausePeriod: 120, pauseLen: 45 }]
+  obstacle: "Six tiers above an excited dog—he only clears the aisle while sitting down to sniff!",
+  tell: "Crumb Hound dashes in-lane until 'SNIFF (SAFE)' pauses him beside the carpet.",
+  intendedRoute: "Wait until SNIFF pauses the hound off-aisle, stride cleanly past, and settle carefully.",
+  hazards: [{ type: "dog", x: 340, minX: 260, maxX: 690, vx: 122, pausePeriod: 140, pauseLen: 55, push: 15.0 }]
 });
 addCakeLevel({
-  id: 10, tier: 2, name: "CHATTERBOX DUO", floor: "hall", tiersCount: 5, goalX: 845, timeSec: 28,
+  id: 10, tier: 2, name: "CHATTERBOX DUO", floor: "hall", tiersCount: 6, goalX: 845, timeSec: 25,
   lieKey: "t2_twin_guests",
-  obstacle: "Two staggered guests pace out-of-phase in the banquet hall.",
-  tell: "Both guests patrol fixed clear intervals at x=370 and x=610.",
-  intendedRoute: "Cross guest 1 on the beat, pause gently in the middle gap, then pass guest 2.",
+  obstacle: "Two out-of-phase hall guests ambush anyone who doesn't respect the center gap!",
+  tell: "Each guest alternates foreground blocking with sideboard 'CLEAR!' breaks.",
+  intendedRoute: "Pass guest 1 during the clear beat, settle calmly at x=495, then pass guest 2.",
   hazards: [
-    { type: "guest", x: 370, minX: 290, maxX: 460, vx: 72, push: 1.5 },
-    { type: "guest", x: 610, minX: 520, maxX: 720, vx: -72, push: 1.5 }
+    { type: "guest", x: 370, minX: 280, maxX: 475, vx: 96, push: 14.0, lanePeriod: 170, clearFrom: 105 },
+    { type: "guest", x: 615, minX: 515, maxX: 730, vx: -96, push: 14.0, lanePeriod: 170, clearFrom: 105 }
   ]
 });
 addCakeLevel({
-  id: 11, tier: 2, name: "RUG & TRAY", floor: "hall", tiersCount: 5, goalX: 845, timeSec: 28,
+  id: 11, tier: 2, name: "RUG & TRAY", floor: "hall", tiersCount: 6, goalX: 845, timeSec: 25,
   lieKey: "t2_rug_plus_waiter",
-  obstacle: "Hall runner rug slides you directly toward a crossing waiter's path.",
-  tell: "Crimson carpet rug stops at x=500 where the waiter zips past.",
-  intendedRoute: "Counter-lean across the rug and steady right past the waiter.",
-  hazards: [{ type: "rug", x: 290, w: 210, pushSpeed: 40 }, { type: "waiter", x: 630, minX: 500, maxX: 740, vx: -98, push: 1.8 }]
+  obstacle: "Fast sliding carpet throws you directly into a charging espresso waiter!",
+  tell: "Rug ends at x=500 straight at the waiter's left turnaround post.",
+  intendedRoute: "Counter-lean across the rug, brake sharply before x=500 if waiter is in-lane, then clear safely.",
+  hazards: [{ type: "rug", x: 280, w: 220, pushSpeed: 92 }, { type: "waiter", x: 650, minX: 505, maxX: 755, vx: -135, push: 16.0, lanePeriod: 165, clearFrom: 105 }]
 });
 addCakeLevel({
-  id: 12, tier: 2, name: "AISLE CRASHERS", floor: "hall", tiersCount: 6, goalX: 850, timeSec: 30,
+  id: 12, tier: 2, name: "AISLE CRASHERS", floor: "hall", tiersCount: 6, goalX: 850, timeSec: 26,
   lieKey: "t2_hall_boss",
-  obstacle: "A six-tier cake past the sniffing hound, pacing guest, and threshold step.",
-  tell: "All hall schedules loop cleanly with visible turns.",
-  intendedRoute: "Steady through the threshold step and pace cleanly past the dog and guest.",
+  obstacle: "6 tiers across an 18px step, dashing crumb hound, AND pacing banquet guest!",
+  tell: "Gold step edge leads into alternating SNIFF and CLEAR cycles.",
+  intendedRoute: "Ease smoothly up x=300, thread the hound while sitting, wait for guest clear, and settle softly.",
   hazards: [
-    { type: "step", x: 310, w: 130, dy: -12 },
-    { type: "dog", x: 460, minX: 380, maxX: 600, vx: 88, pausePeriod: 120, pauseLen: 40 },
-    { type: "guest", x: 690, minX: 620, maxX: 770, vx: -68, push: 1.5 }
+    { type: "step", x: 300, w: 130, dy: -18 },
+    { type: "dog", x: 470, minX: 370, maxX: 615, vx: 118, pausePeriod: 135, pauseLen: 52, push: 14.5 },
+    { type: "guest", x: 700, minX: 615, maxX: 775, vx: -92, push: 14.0, lanePeriod: 170, clearFrom: 105 }
   ]
 });
 
 // ---------------- TIER 3: DANCE FLOOR (13..18) ----------------
 addCakeLevel({
-  id: 13, tier: 3, name: "WAXED PARQUET", floor: "dance", tiersCount: 5, goalX: 840, timeSec: 26,
+  id: 13, tier: 3, name: "WAXED PARQUET", floor: "dance", tiersCount: 6, goalX: 840, timeSec: 23,
   lieKey: "t3_low_friction",
-  obstacle: "Freshly polished dance floor cuts shoe grip—stopping takes twice the room!",
-  tell: "Glossy diagonal floor highlights mark the low-friction zone.",
-  intendedRoute: "Release walk well before the table and let the gentle floor friction carry you flush.",
-  hazards: [{ type: "polish", x: 240, w: 540 }]
+  obstacle: "Butter-slick dance wax ruins stopping distance—late braking skids past the VIP table!",
+  tell: "Mirror-polished parquet streaks reflect spotlight across the entire ballroom floor.",
+  intendedRoute: "Counter-lean steadily across x=200..800, release Walk far early, and brake gently before x=840.",
+  hazards: [{ type: "polish", x: 200, w: 600 }]
 });
 addCakeLevel({
-  id: 14, tier: 3, name: "DISCO SPIN", floor: "dance", tiersCount: 5, goalX: 840, timeSec: 26,
+  id: 14, tier: 3, name: "DISCO SPIN", floor: "dance", tiersCount: 6, goalX: 840, timeSec: 23,
   lieKey: "t3_spinning_disco",
-  obstacle: "Spinning gold disco patch swaps horizontal lean torque as you walk over it.",
-  tell: "Bright gold rotating tiles flash under the disco ball beam.",
-  intendedRoute: "Hit STEADY before entering x=420..600 to keep the stack rigid.",
-  hazards: [{ type: "disco", x: 420, w: 180 }]
+  obstacle: "High-torque gold disco tiles thrash your 6-tier stack wildly left and right!",
+  tell: "Flashing gold-coral disco floor strip whips rotational oscillation across x=400..600.",
+  intendedRoute: "Activate STEADY entering x=400, stabilize counter-lean swiftly, and settle smoothly on wax.",
+  hazards: [{ type: "disco", x: 400, w: 200, torque: 12.5 }]
 });
 addCakeLevel({
-  id: 15, tier: 3, name: "CONGA CHAOS", floor: "dance", tiersCount: 5, goalX: 845, timeSec: 28,
+  id: 15, tier: 3, name: "CONGA CHAOS", floor: "dance", tiersCount: 6, goalX: 845, timeSec: 25,
   lieKey: "t3_conga_line",
-  obstacle: "A 3-person Conga Line marches rhythmically across the dance floor.",
-  tell: "Linked dancers step to a predictable 1-2-3 beat.",
-  intendedRoute: "Slip cleanly behind the conga train on the rebound beat.",
+  obstacle: "Tightly spaced Conga partners on slippery wax wreck anyone who rushes into them!",
+  tell: "Synced dancers step aside in unison when CLEAR lights up off the dance lane.",
+  intendedRoute: "Stop early on low-grip wax outside x=290, stride smoothly through the CLEAR window, and brake early.",
   hazards: [
-    { type: "guest", x: 420, minX: 310, maxX: 660, vx: 82, push: 1.4 },
-    { type: "guest", x: 455, minX: 345, maxX: 695, vx: 82, push: 1.4 }
+    { type: "guest", x: 400, minX: 290, maxX: 560, vx: 84, push: 14.0, lanePeriod: 165, clearFrom: 105 },
+    { type: "guest", x: 446, minX: 336, maxX: 606, vx: 84, push: 14.0, lanePeriod: 165, clearFrom: 105 }
   ]
 });
 addCakeLevel({
-  id: 16, tier: 3, name: "POLISHED GUESTS", floor: "dance", tiersCount: 6, goalX: 845, timeSec: 28,
+  id: 16, tier: 3, name: "POLISHED GUESTS", floor: "dance", tiersCount: 6, goalX: 845, timeSec: 25,
   lieKey: "t3_wax_plus_guest",
-  obstacle: "Waxed dance floor meets a wandering guest where abrupt braking slides you out.",
-  tell: "Shiny floor gleams right under the wandering guest.",
-  intendedRoute: "Walk smoothly at steady speed rather than stopping abruptly on wax.",
-  hazards: [{ type: "polish", x: 250, w: 520 }, { type: "guest", x: 540, minX: 430, maxX: 680, vx: -72, push: 1.5 }]
+  obstacle: "Low-friction braking forces you to predict a pacing dancer BEFORE sliding into range!",
+  tell: "Gleaming floor strip doubles stopping distance straight toward the dancer patrol.",
+  intendedRoute: "Feather speed early, cross cleanly when CLEAR, and glide to a soft stop.",
+  hazards: [{ type: "polish", x: 220, w: 560 }, { type: "guest", x: 540, minX: 420, maxX: 650, vx: -82, push: 14.0, lanePeriod: 170, clearFrom: 105 }]
 });
 addCakeLevel({
-  id: 17, tier: 3, name: "FEVER NIGHT", floor: "dance", tiersCount: 6, goalX: 845, timeSec: 29,
+  id: 17, tier: 3, name: "FEVER NIGHT", floor: "dance", tiersCount: 7, goalX: 845, timeSec: 26,
   lieKey: "t3_disco_plus_conga",
-  obstacle: "Rotating disco patch sits straight in front of an approaching dancer.",
-  tell: "Disco spotlight highlights the spin tiles ahead of the dancer.",
-  intendedRoute: "Trigger STEADY on the spin tile and coast smoothly past the dancer.",
-  hazards: [{ type: "disco", x: 350, w: 160 }, { type: "waiter", x: 640, minX: 520, maxX: 740, vx: -92, push: 1.7 }]
+  obstacle: "Seven tiers hit violent disco spin straight ahead of a 135 px/s dashing waiter!",
+  tell: "Spinning gold mat sits just ahead of the waiter's clearing cycle.",
+  intendedRoute: "STEADY over disco spin, stabilize before x=515, wait for waiter CLEAR, then glide home.",
+  hazards: [{ type: "disco", x: 330, w: 175, torque: 13.0 }, { type: "waiter", x: 660, minX: 515, maxX: 755, vx: -135, push: 16.0, lanePeriod: 165, clearFrom: 105 }]
 });
 addCakeLevel({
-  id: 18, tier: 3, name: "RECEPTION CLIMAX", floor: "dance", tiersCount: 7, goalX: 850, timeSec: 30,
+  id: 18, tier: 3, name: "RECEPTION CLIMAX", floor: "dance", tiersCount: 7, goalX: 850, timeSec: 27,
   lieKey: "t3_dance_boss",
-  obstacle: "Seven tiers crossing waxed wood, spinning disco floor, and the dance rug!",
-  tell: "Shimmering parquet, spinning gold patch, and striped mat in sequence.",
-  intendedRoute: "Steady through disco twist and glide carefully over waxed exit.",
-  hazards: [{ type: "polish", x: 220, w: 560 }, { type: "disco", x: 360, w: 140 }, { type: "rug", x: 570, w: 140, pushSpeed: 34 }]
+  obstacle: "7 tiers over mirror wax, spinning disco tiles, AND an accelerating reception carpet!",
+  tell: "Three sequential ballroom surfaces leave near-zero braking room before the VIP table.",
+  intendedRoute: "Steady the disco whip, counter-lean the carpet push at x=565, and brake early on exit.",
+  hazards: [{ type: "polish", x: 200, w: 590 }, { type: "disco", x: 340, w: 150, torque: 13.0 }, { type: "rug", x: 565, w: 155, pushSpeed: 88 }]
 });
 
 // ---------------- TIER 4: GARDEN (19..24) ----------------
 addCakeLevel({
-  id: 19, tier: 4, name: "UNEVEN LAWN", floor: "grass", tiersCount: 5, goalX: 840, timeSec: 26,
+  id: 19, tier: 4, name: "UNEVEN LAWN", floor: "grass", tiersCount: 6, goalX: 840, timeSec: 23,
   lieKey: "t4_grass_bumps",
-  obstacle: "Spongy uneven lawn bumps shake the plate unpredictably if walked over fast.",
-  tell: "Rounded turf mounds sit visibly along the garden path.",
-  intendedRoute: "Steady over each bump or walk cleanly at controlled pace.",
-  hazards: [{ type: "bump", x: 360, w: 70, dy: -10 }, { type: "bump", x: 570, w: 80, dy: -12 }]
+  obstacle: "Deep turf mounds launch speedrunners' 6-tier cakes right off their trays!",
+  tell: "Two tall mound silhouettes jut 16px and 19px above the garden walkway.",
+  intendedRoute: "Slow before each mound edge, steady up over bump 1, and counter-lean bump 2.",
+  hazards: [{ type: "bump", x: 350, w: 75, dy: -16 }, { type: "bump", x: 560, w: 85, dy: -19 }]
 });
 addCakeLevel({
-  id: 20, tier: 4, name: "SPRINKLER AMBUSH", floor: "grass", tiersCount: 5, goalX: 845, timeSec: 27,
+  id: 20, tier: 4, name: "SPRINKLER AMBUSH", floor: "grass", tiersCount: 6, goalX: 845, timeSec: 24,
   lieKey: "t4_timed_sprinkler",
-  obstacle: "Garden sprinkler hisses for 0.6s, then blasts water jets tilting the stack sideways!",
-  tell: "White mist & warning hiss pulse right before the water jet erupts.",
-  intendedRoute: "Step across x=480 cleanly between water cycles.",
-  hazards: [{ type: "sprinkler", x: 480, w: 120, period: 160, hissAt: 65, blastAt: 100, endAt: 140, push: 2.0 }]
+  obstacle: "Garden sprinkler hisses right before high-pressure water jets shred your stack!",
+  tell: "White HISS! mist bursts loudly 0.5s before lethal green spray jets fill x=420..540.",
+  intendedRoute: "Wait cleanly dry beside x=410 through the water blast, then stride cleanly across.",
+  hazards: [{ type: "sprinkler", x: 480, w: 125, period: 175, hissAt: 100, blastAt: 130, endAt: 174, push: 17.0 }]
 });
 addCakeLevel({
-  id: 21, tier: 4, name: "GUSTY VOWS", floor: "grass", tiersCount: 6, goalX: 845, timeSec: 28,
+  id: 21, tier: 4, name: "GUSTY VOWS", floor: "grass", tiersCount: 6, goalX: 845, timeSec: 25,
   lieKey: "t4_wind_rhythm",
-  obstacle: "Periodic lateral wind gusts blow leftward across the rose arch on a 3s beat.",
-  tell: "Leaves flutter leftward for 0.5s right before the gust peaks.",
-  intendedRoute: "Counter-lean right (E) during wind gusts and steady smoothly.",
-  hazards: [{ type: "wind", x: 280, w: 480, period: 180, onFrom: 80, onTo: 150, force: -1.6 }]
+  obstacle: "Fierce crosswinds tear leftward across 500px of exposed rose-arch turf!",
+  tell: "Leaves streak fast leftward every 2.75s along the garden aisle.",
+  intendedRoute: "Lean E sharply into every wind wave or hold steady during peak gust ticks.",
+  hazards: [{ type: "wind", x: 260, w: 500, period: 165, onFrom: 80, onTo: 155, force: -12.5 }]
 });
 addCakeLevel({
-  id: 22, tier: 4, name: "PATIO STAIRS", floor: "grass", tiersCount: 6, goalX: 850, timeSec: 28,
+  id: 22, tier: 4, name: "PATIO STAIRS", floor: "grass", tiersCount: 7, goalX: 850, timeSec: 25,
   lieKey: "t4_garden_stairs",
-  obstacle: "Three climbing stone garden stairs bounce the entire 6-tier stack!",
-  tell: "Visible stone step risers climb cleanly toward the gazebo table.",
-  intendedRoute: "Press STEADY as you ascend steps 1-2, wait for grip, and climb step 3 smoothly.",
-  hazards: [{ type: "step", x: 380, w: 90, dy: -12 }, { type: "step", x: 470, w: 90, dy: -24 }, { type: "step", x: 560, w: 220, dy: -36 }]
+  obstacle: "Three steep 16px stone risers stack relentless cumulative wobble across 7 tiers!",
+  tell: "Triple stone stair steps climb 48px high toward the garden pavilion.",
+  intendedRoute: "Ascend gently at controlled speed, use STEADY across stairs 1-2, and counter-lean step 3.",
+  hazards: [{ type: "step", x: 370, w: 90, dy: -16 }, { type: "step", x: 460, w: 90, dy: -32 }, { type: "step", x: 550, w: 230, dy: -48 }]
 });
 addCakeLevel({
-  id: 23, tier: 4, name: "STORM LAWN", floor: "grass", tiersCount: 6, goalX: 850, timeSec: 29,
+  id: 23, tier: 4, name: "STORM LAWN", floor: "grass", tiersCount: 7, goalX: 850, timeSec: 26,
   lieKey: "t4_sprinkler_wind",
-  obstacle: "Timed garden sprinkler pairs with periodic gusting breeze across rough turf.",
-  tell: "Sprinkler hiss cues + fluttering wind streaks signal each wave.",
-  intendedRoute: "Time crossing through the sprinkler between gusts while counter-leaning.",
+  obstacle: "High-pressure sprinkler blasts straight into sustained leftward gale winds!",
+  tell: "Sprinkler hiss warns at x=410 while swirling leaf streaks whip behind it.",
+  intendedRoute: "Skip the water spray cleanly, then brace right (E) through the wind tunnel.",
   hazards: [
-    { type: "sprinkler", x: 420, w: 110, period: 150, hissAt: 60, blastAt: 95, endAt: 135, push: 1.9 },
-    { type: "wind", x: 550, w: 210, period: 160, onFrom: 75, onTo: 140, force: -1.5 }
+    { type: "sprinkler", x: 410, w: 115, period: 165, hissAt: 90, blastAt: 120, endAt: 164, push: 17.0 },
+    { type: "wind", x: 540, w: 230, period: 155, onFrom: 75, onTo: 145, force: -12.5 }
   ]
 });
 addCakeLevel({
-  id: 24, tier: 4, name: "GAZEBO FINALE", floor: "grass", tiersCount: 7, goalX: 850, timeSec: 30,
+  id: 24, tier: 4, name: "GAZEBO FINALE", floor: "grass", tiersCount: 7, goalX: 850, timeSec: 27,
   lieKey: "t4_garden_boss",
-  obstacle: "Seven tiers through grass bumps, sprinkler mist, and final stone patio steps.",
-  tell: "Clear bump, hiss, and stone step silhouettes across the lawn.",
-  intendedRoute: "Steady over bumps, skip sprinkler burst, and glide gently up the steps.",
+  obstacle: "Seven tiers through grass mound bounce, sprinkler eruption, AND tall stone threshold!",
+  tell: "Turf mound -> mist warning hiss -> final 20px stone step.",
+  intendedRoute: "Slow over the mound, wait out sprinkler jet cleanly, and trigger STEADY onto the gazebo stone.",
   hazards: [
-    { type: "bump", x: 310, w: 65, dy: -11 },
-    { type: "sprinkler", x: 470, w: 100, period: 160, hissAt: 60, blastAt: 96, endAt: 135, push: 1.9 },
-    { type: "step", x: 640, w: 160, dy: -18 }
+    { type: "bump", x: 300, w: 70, dy: -16 },
+    { type: "sprinkler", x: 470, w: 108, period: 165, hissAt: 95, blastAt: 125, endAt: 164, push: 17.0 },
+    { type: "step", x: 635, w: 175, dy: -20 }
   ]
 });
 
@@ -521,108 +527,119 @@ addCakeLevel({
 addCakeLevel({
   id: 25, tier: 5, name: "BEST MAN SPEECH", floor: "hall", tiersCount: 7, goalX: 855, timeSec: 18,
   lieKey: "t5_speech_rush",
-  obstacle: "Tight 18-second ticking speech clock forces bold pace past a pacing guest & step!",
-  tell: "Coral countdown clock ticks loud above the tall 7-tier wedding masterpiece.",
-  intendedRoute: "Walk smoothly at steady brisk pace, steady over the step, and coast softly to halt.",
-  hazards: [{ type: "step", x: 400, w: 120, dy: -14 }, { type: "guest", x: 620, minX: 540, maxX: 720, vx: -78, push: 1.6 }]
+  obstacle: "Brutal 18-second clock forces aggressive pacing over an 18px step & clearing guest!",
+  tell: "Countdown burns fast above 7 towering layers.",
+  intendedRoute: "Keep brisk rhythm with tight Q/E corrections, STEADY step 1, slip behind guest, settle!",
+  hazards: [{ type: "step", x: 390, w: 120, dy: -18 }, { type: "guest", x: 630, minX: 530, maxX: 735, vx: -100, push: 14.0, lanePeriod: 165, clearFrom: 105 }]
 });
 addCakeLevel({
-  id: 26, tier: 5, name: "HOUND ON DISCO", floor: "dance", tiersCount: 7, goalX: 855, timeSec: 27,
+  id: 26, tier: 5, name: "HOUND ON DISCO", floor: "dance", tiersCount: 7, goalX: 855, timeSec: 25,
   lieKey: "t5_dog_rug_disco",
-  obstacle: "Crumb-hunting hound meets a spinning disco tile and waxed parquet floor!",
-  tell: "Shiny gold disco mat precedes the dog's sniffing point.",
-  intendedRoute: "Steady over disco patch and wait a beat past the sniffing hound.",
-  hazards: [{ type: "polish", x: 240, w: 550 }, { type: "disco", x: 350, w: 140 }, { type: "dog", x: 580, minX: 480, maxX: 730, vx: -86, pausePeriod: 120, pauseLen: 45 }]
+  obstacle: "Waxed parquet + violent disco tiles directly ahead of a sprinting Crumb Hound!",
+  tell: "Flashing gold disco zone ends moments before the dog's patrol turf.",
+  intendedRoute: "STEADY cleanly over disco spin, coast while dog enters SNIFF, and finish softly.",
+  hazards: [{ type: "polish", x: 220, w: 580 }, { type: "disco", x: 330, w: 135, torque: 13.0 }, { type: "dog", x: 590, minX: 495, maxX: 710, vx: -96, pausePeriod: 135, pauseLen: 52, push: 15.0 }]
 });
 addCakeLevel({
-  id: 27, tier: 5, name: "WINDY STAIRS", floor: "grass", tiersCount: 7, goalX: 855, timeSec: 28,
+  id: 27, tier: 5, name: "WINDY STAIRS", floor: "grass", tiersCount: 7, goalX: 855, timeSec: 26,
   lieKey: "t5_stairs_wind_waiter",
-  obstacle: "Wind gusts push against you right while ascending two tall garden steps.",
-  tell: "Swirling leaf gusts hit every 2.5 seconds along the staircase.",
-  intendedRoute: "Time each step climb cleanly between gusts and tap STEADY at top.",
+  obstacle: "Gale-force crosswinds hammer your 7 tiers mid-climb up twin 18px garden stairs!",
+  tell: "Leaf gusts blow hard right as steps climb to -36px.",
+  intendedRoute: "Climb stairs between gust waves or counter-lean E strongly while tapping STEADY.",
   hazards: [
-    { type: "wind", x: 300, w: 460, period: 150, onFrom: 65, onTo: 120, force: -1.5 },
-    { type: "step", x: 450, w: 110, dy: -14 },
-    { type: "step", x: 560, w: 220, dy: -26 }
+    { type: "wind", x: 280, w: 490, period: 145, onFrom: 65, onTo: 130, force: -12.5 },
+    { type: "step", x: 440, w: 110, dy: -18 },
+    { type: "step", x: 550, w: 230, dy: -36 }
   ]
 });
 addCakeLevel({
-  id: 28, tier: 5, name: "WAITER IN MONSOON", floor: "grass", tiersCount: 8, goalX: 855, timeSec: 29,
+  id: 28, tier: 5, name: "WAITER IN MONSOON", floor: "grass", tiersCount: 8, goalX: 855, timeSec: 26,
   lieKey: "t5_sprinkler_waiter",
-  obstacle: "Eight towering tiers past a timed garden sprinkler AND dashing catering waiter!",
-  tell: "Hissing water warning pairs with dashing white waiter uniform.",
-  intendedRoute: "Thread calmly between sprinkler sprays and use STEADY past the waiter.",
+  obstacle: "An EIGHT-TIER skyscraper faces monsoon sprinklers AND a 138 px/s waiter ambush!",
+  tell: "Sprinkler jet precedes the waiter's fast banquet corridor.",
+  intendedRoute: "Cross dry between sprinkler cycles, wait for waiter CLEAR, and settle smoothly on top.",
   hazards: [
-    { type: "sprinkler", x: 390, w: 105, period: 155, hissAt: 60, blastAt: 95, endAt: 135, push: 1.9 },
-    { type: "waiter", x: 640, minX: 520, maxX: 750, vx: -102, push: 1.8 }
+    { type: "sprinkler", x: 380, w: 110, period: 160, hissAt: 80, blastAt: 110, endAt: 155, push: 17.0 },
+    { type: "waiter", x: 660, minX: 520, maxX: 765, vx: -138, push: 16.0, lanePeriod: 165, clearFrom: 105 }
   ]
 });
 addCakeLevel({
-  id: 29, tier: 5, name: "EIGHT-TIER FEVER", floor: "dance", tiersCount: 8, goalX: 860, timeSec: 29,
+  id: 29, tier: 5, name: "EIGHT-TIER FEVER", floor: "dance", tiersCount: 8, goalX: 860, timeSec: 27,
   lieKey: "t5_eight_tier_nightmare",
-  obstacle: "8-tier colossus across polished dance wax, sliding rug, and twin dancing guests!",
-  tell: "Sliding carpet leads straight through two out-of-phase dancers.",
-  intendedRoute: "Walk evenly—do not jerk speed on wax—and steady through dancer turns.",
+  obstacle: "Eight top-heavy layers slung from a carpet runner onto mirror wax and twin dancers!",
+  tell: "Runner pushes you straight toward dancer 1; bay [605..640] rests cleanly between dancers.",
+  intendedRoute: "Counter-lean off the runner early, brake before x=450, and thread CLEAR beats gracefully.",
   hazards: [
-    { type: "polish", x: 220, w: 580 },
-    { type: "rug", x: 280, w: 160, pushSpeed: 36 },
-    { type: "guest", x: 530, minX: 450, maxX: 640, vx: 78, push: 1.5 },
-    { type: "guest", x: 690, minX: 620, maxX: 770, vx: -78, push: 1.5 }
+    { type: "polish", x: 200, w: 600 },
+    { type: "rug", x: 230, w: 130, pushSpeed: 84 },
+    { type: "guest", x: 520, minX: 455, maxX: 605, vx: 82, push: 14.0, lanePeriod: 165, clearFrom: 100 },
+    { type: "guest", x: 710, minX: 640, maxX: 780, vx: -82, push: 14.0, lanePeriod: 165, clearFrom: 100 }
   ]
 });
 addCakeLevel({
-  id: 30, tier: 5, name: "THE WEDDING DAY", floor: "hall", tiersCount: 8, goalX: 865, timeSec: 26,
+  id: 30, tier: 5, name: "THE WEDDING DAY", floor: "hall", tiersCount: 8, goalX: 865, timeSec: 24,
   lieKey: "t5_grand_wedding_boss",
-  obstacle: "Every hazard combined: sliding rug, disco spin, sprinkler spray, step, and ticking speech clock!",
-  tell: "Sequential kitchen-to-garden landmarks mark every single hazard clearly.",
-  intendedRoute: "Stay calm, trigger STEADY on step & disco transitions, avoid the sprinkler jet, and place gently on the VIP table.",
+  obstacle: "Eight tiers vs sliding runner, violent disco spin, lethal sprinkler, step lip, and 24s timer!",
+  tell: "Every trap strikes back-to-back with unmistakable visual cues before the final VIP table.",
+  intendedRoute: "Ride the rug balanced, STEADY across disco, skip sprinkler spray, ease up the step, and settle!",
   hazards: [
-    { type: "rug", x: 230, w: 130, pushSpeed: 36 },
-    { type: "disco", x: 390, w: 110 },
-    { type: "sprinkler", x: 530, w: 95, period: 150, hissAt: 55, blastAt: 90, endAt: 130, push: 1.9 },
-    { type: "step", x: 660, w: 180, dy: -16 }
+    { type: "rug", x: 220, w: 135, pushSpeed: 90 },
+    { type: "disco", x: 385, w: 115, torque: 13.0 },
+    { type: "sprinkler", x: 535, w: 100, period: 160, hissAt: 85, blastAt: 115, endAt: 159, push: 17.0 },
+    { type: "step", x: 665, w: 185, dy: -19 }
   ]
 });
 
 /* ============================================================================
- * 6. DETERMINISTIC SOLUTIONS REGISTRY (VERIFIED 30/30 VIA F9)
+ * 6. DETERMINISTIC SOLUTIONS REGISTRY (VERIFIED 30/30 VIA F9, 0/30 BLIND)
  * ============================================================================ */
 const LEVEL_SOLUTIONS = {
-  1:  [{"ticks":10,"right":true,"steady":true},{"ticks":260,"right":true},{"ticks":10,"steady":true},{"ticks":10,"left":true},{"ticks":10,"steady":true},{"ticks":10,"right":true},{"ticks":8,"left":true}],
-  2:  [{"ticks":10,"right":true,"steady":true},{"ticks":120,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":120,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":20,"left":true},{"ticks":20,"right":true},{"ticks":10,"left":true}],
-  3:  [{"ticks":10,"right":true,"steady":true},{"ticks":90,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":20,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":10,"left":true}],
-  4:  [{"ticks":10,"right":true,"steady":true},{"ticks":90,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":80,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":80,"right":true},{"ticks":10,"left":true}],
-  5:  [{"ticks":10,"right":true,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":60,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":70,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true,"leanR":true},{"ticks":10,"left":true},{"ticks":20,"right":true},{"ticks":20,"left":true},{"ticks":10,"right":true,"steady":true},{"ticks":10,"steady":true},{"ticks":10,"right":true},{"ticks":8,"left":true}],
-  6:  [{"ticks":10,"right":true,"steady":true},{"ticks":90,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":110,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":40,"right":true},{"ticks":10,"left":true}],
-  7:  [{"ticks":10,"right":true,"steady":true},{"ticks":120,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":90,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":40,"right":true},{"ticks":10,"left":true}],
-  8:  [{"ticks":10,"right":true,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":90,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":60,"right":true},{"ticks":10,"left":true}],
-  9:  [{"ticks":10,"right":true,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":70,"right":true},{"ticks":10,"right":true,"leanR":true},{"ticks":10,"right":true,"steady":true},{"ticks":70,"right":true},{"ticks":10,"left":true}],
-  10: [{"ticks":10,"right":true,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":50,"right":true},{"ticks":10,"left":true}],
-  11: [{"ticks":10,"right":true,"steady":true},{"ticks":90,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":30,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":20,"left":true},{"ticks":10,"leanL":true},{"ticks":10,"right":true,"steady":true},{"ticks":8,"left":true}],
-  12: [{"ticks":10,"right":true,"steady":true},{"ticks":130,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":40,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true,"leanR":true},{"ticks":50,"right":true},{"ticks":10,"left":true}],
-  13: [{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":140,"right":true},{"ticks":14,"left":true}],
-  14: [{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":110,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":110,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":14,"left":true}],
-  15: [{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":60,"right":true},{"ticks":10,"steady":true},{"ticks":30,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":30,"right":true},{"ticks":10,"steady":true},{"ticks":10,"left":true}],
-  16: [{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":110,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":80,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":40,"right":true},{"ticks":10,"steady":true},{"ticks":10,"left":true}],
-  17: [{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":80,"right":true},{"ticks":10,"right":true,"leanL":true},{"ticks":10,"right":true,"steady":true},{"ticks":130,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":10,"left":true}],
-  18: [{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":40,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":60,"right":true},{"ticks":10,"right":true,"leanR":true},{"ticks":10,"right":true},{"ticks":10,"right":true,"leanL":true},{"ticks":10,"right":true,"steady":true},{"ticks":70,"right":true},{"ticks":10,"leanL":true},{"ticks":10,"left":true}],
-  19: [{"ticks":10,"right":true,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":130,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":20,"right":true},{"ticks":10,"left":true}],
-  20: [{"ticks":10,"right":true,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":80,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":70,"right":true},{"ticks":10,"left":true}],
-  21: [{"ticks":10,"right":true,"steady":true},{"ticks":80,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":10,"left":true},{"ticks":10,"steady":true},{"ticks":10,"right":true},{"ticks":10,"left":true},{"ticks":10,"leanL":true},{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true,"leanR":true},{"ticks":60,"right":true},{"ticks":10,"left":true},{"ticks":10,"steady":true},{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"right":true,"leanR":true},{"ticks":10,"leanL":true},{"ticks":10,"right":true,"leanR":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":10,"right":true},{"ticks":10,"leanL":true},{"ticks":10,"left":true},{"ticks":10,"leanL":true},{"ticks":10,"right":true},{"ticks":8,"left":true}],
-  22: [{"ticks":10,"right":true,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":110,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":30,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":10,"left":true}],
-  23: [{"ticks":10,"right":true,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":90,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":30,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true,"leanR":true},{"ticks":20,"right":true},{"ticks":10,"left":true}],
-  24: [{"ticks":10,"right":true,"steady":true},{"ticks":120,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":90,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":30,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":10,"left":true}],
-  25: [{"ticks":10,"right":true,"steady":true},{"ticks":80,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":120,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":30,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":10,"leanR":true},{"ticks":10,"right":true},{"ticks":10,"left":true}],
-  26: [{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":40,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":120,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":30,"right":true},{"ticks":20,"steady":true},{"ticks":6,"left":true}],
-  27: [{"ticks":10,"right":true,"steady":true},{"ticks":80,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true,"steady":true},{"ticks":20,"right":true},{"ticks":10,"right":true,"leanR":true},{"ticks":10,"right":true,"leanL":true},{"ticks":50,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"right":true,"leanR":true},{"ticks":10,"leanL":true},{"ticks":10,"right":true},{"ticks":10,"left":true},{"ticks":10,"steady":true},{"ticks":10,"right":true},{"ticks":10,"left":true},{"ticks":10,"leanR":true},{"ticks":10,"right":true,"steady":true},{"ticks":20,"right":true},{"ticks":10,"left":true},{"ticks":10,"right":true},{"ticks":10,"left":true}],
-  28: [{"ticks":10,"right":true,"steady":true},{"ticks":80,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":100,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":60,"right":true},{"ticks":10,"steady":true},{"ticks":10,"right":true},{"ticks":20,"steady":true},{"ticks":2,"right":true}],
-  29: [{"ticks":10,"right":true,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":10,"right":true},{"ticks":10,"steady":true},{"ticks":40,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":90,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":20,"right":true},{"ticks":10,"steady":true},{"ticks":50,"right":true},{"ticks":14,"left":true}],
-  30: [{"ticks":10,"right":true,"steady":true},{"ticks":80,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":60,"right":true},{"ticks":10,"right":true,"leanL":true},{"ticks":10,"right":true,"leanR":true},{"ticks":20,"right":true},{"ticks":10,"right":true,"steady":true},{"ticks":70,"right":true},{"ticks":10,"left":true}]
+   1: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,6r,1rq,1r,3rq,1r,1rq,1r,2s,1qs,2s,5r,1,1q,2,1q,4r,1re,5r,1rq,1r,3rq,1r,1rq,2r,1rq,3,1q,1,1rq,5r,1rq,1r,1rq,2r,1rq,6r,3rq,1r,2rq,7r,1rq,1r,2rq,1r,2rq,1r,1rq,7r,1rq,1r,3rq,1r,1rq,1r,1,1q,1,1q,1,5r,2s,1qs,2s,1rq,3r,1re,6r,1rq,2r,2rq,1r,1rq,7r,1rq,1r,3rq,1r,1rq,1r,1rq,1r,3,1q,1,1rq,5r,1rq,1r,1rq,1r,1rq,7r,3rq,1r,2rq,7r,1rq,1r,2rq,1r,2rq,1r,1rq,7r,1rq,1r,1rq,5q,3r,1re,1r,1es,1qs,3s,1q,3,1q,4l,1lq,10,1r",
+   2: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,13r,1rq,5q,1rq,1r,1re,2r,1re,4r,1rq,1r,3rq,1r,1rq,1r,1rq,7r,3rq,1r,2rq,7r,1rq,1r,2rq,1r,1rq,3q,1,1q,2r,2re,4r,4rq,1r,1rq,1r,1q,1rq,1,1rq,1,2r,1re,3r,2rq,1r,2rq,2r,1rq,1r,4s,1qs,6r,1rq,3r,4,1q,6r,2rq,1r,1rq,1,1q,1,1q,1,3r,1re,2r,2rq,1r,2rq,2r,1rq,6r,1rq,1r,3rq,1r,1rq,7r,1rq,1r,4rq,1,2q,1,1q,2r,2re,3r,2rq,1r,2rq,1r,1rq,3r,1rq,3r,1rq,1r,2rq,1r,2rq,1r,1rq,3s,1qs,1s,3,1q,4,1q,11,1r",
+   3: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,13r,1rq,5q,1rq,1r,1re,2r,1re,4r,1rq,1r,3rq,1r,1rq,1r,1rq,2r,1re,3r,1rq,1r,3rq,1r,1rq,7r,1rq,1r,1rq,1r,3rq,1r,1rq,2r,3,1q,1,1rq,5r,1rq,1r,1rq,7r,1rq,1r,2rq,1r,2rq,1r,1rq,5r,1s,1qs,2s,1qs,1r,1,1r,1,1rq,4r,1re,1,1q,3,1rq,5r,2rq,1r,1rq,3,1q,1,1rq,1re,4r,2rq,1r,1rq,1r,1rq,7r,3rq,1r,2rq,7r,1rq,1r,2rq,1r,2rq,1r,1q,1,1q,1,1q,2,1q,2,1lq,1l,1lq,1l,1lq,7,1e,2,1r",
+   4: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,13r,1rq,5q,1rq,1r,1re,2r,1re,4r,1rq,1r,3rq,1r,1rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,7r,5q,2r,1rq,5r,1re,2r,1rq,1r,1rq,1r,3rq,1r,1rq,1r,1rq,6r,2rq,1r,3rq,1r,1rq,7r,1rq,1r,3rq,1r,1rq,1r,1rq,6r,1rq,1r,5rq,1r,1rq,7r,1rq,1qs,1s,1qs,2s,1rq,4r,1re,4r,1q,2,2q,1rq,4r,1re,5r,1rq,1r,4rq,1r,2rq,1r,1rq,6r,1rq,1r,3rq,1r,1rq,6r,1rq,1r,1rq,1r,3rq,1r,1rq,1,1q,2,1q,1r,1,1r,1,1r,2,3q,1,1q,1,1q,1,1q,11",
+   5: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,13r,1rq,5q,1rq,1r,1re,2r,1re,4r,1rq,1r,3rq,1r,1rq,1r,1rq,7r,3rq,1r,2rq,7r,1rq,1r,2rq,1r,1rq,3q,1,1q,2r,2re,4r,2rq,1r,2re,1r,16re,1es,1s,1es,1s,1es,1r,2re,1r,1re,2r,1rq,10r,1rq,1r,3rq,1r,1rq,1r,1rq,6r,1rq,1r,3rq,1r,1rq,1r,1rq,7r,1rq,5q,1rq,1r,1re,2r,1re,4r,1rq,1r,3rq,1r,1rq,1r,1rq,1r,3,1q,1,1rq,5r,2rq,2r,1rq,6r,1rq,1r,3rq,1r,1rq,6r,1s,1qs,2s,1qs,2,1q,3,1q,13,1r",
+   6: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,9r,2rq,1r,3rq,1,1q,2,1q,2r,1re,1r,1re,1r,2rq,1r,1rq,3q,1,1q,2r,2re,4r,3rq,1r,1rq,1r,1rq,5r,1,4q,1rq,1,1rq,1,1rq,1r,1re,2r,1re,4r,2rq,1r,4rq,1r,1rq,2r,3s,1qs,1s,6r,1rq,3r,2,1q,2,3r,1re,2r,4rq,2r,1rq,7r,4rq,1r,2q,1,1q,1,2r,1re,1r,1re,1r,2rq,1r,4rq,2r,1rq,6r,2rq,1r,3rq,2r,1,1q,1,1q,1,6r,2rq,1r,1rq,1l,1lq,1l,1lq,2l,1lq,1l,1lq,1l,1s,1qs,3s,10,1r",
+   7: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,13r,1rq,5q,1rq,1r,1re,2r,1re,4r,1rq,1r,3rq,1r,1rq,1r,1rq,7r,3rq,1r,2rq,7r,1rq,1r,2rq,1r,1rq,3q,1,1q,2r,2re,4r,4rq,1r,1rq,7r,1rq,1r,2rq,1r,2rq,1r,1rq,5r,2s,1qs,2s,1rq,4r,3,1q,1,1r,1,1r,1,1r,2,2q,1,1rq,4r,2l,5e,1,2e,1,4e,5le,5e,5le,1l,1le,1l,3le,4l,2,1e,1,1e,1r,2re,1r,1re,1,1e,1,1e,11,3r,7re,5le,5es,2re,1r,3re,1r,3re,1r,2re,1r,6re,5e,4re,1r,1re,1r,1re,1r,1re,1r,1re,3r,2rq,1r,3rq,7r,1rq,1r,3rq,1r,2rq,7r,1rq,1r,3rq,1r,1rq,1r,1rq,7r,2rq,1r,3rq,2r,1rq,6r,1rq,1s,1qs,2s,1qs,12r,1rq,1r,1rq,1r,1rq,1r,1rq,1r,3,1q,1,1rq,5r,1rq,1r,1rq,1r,1rq,4r,2,3q,1rq,5r,1rq,3r,2,1q,1,1q,1rq,4r,1l,3lq,1l,1lq,1l,1lq,2l,1q,1,1q,12,1r",
+   8: "5s,4r,1re,1,1q,3,4r,1re,7r,1re,2r,2,1q,1,1q,1,1q,1,2q,5r,1re,1,1rq,1,1rq,1,1r,1,1r,1e,3r,1re,1r,1,4q,1rq,4r,3,1q,1,5r,1,4q,1rq,1,1r,1,1r,1,1r,1,1r,1,1r,1e,1rq,1,4r,1rq,1r,1rq,2r,1rq,1r,4s,1qs,7r,1rq,2r,4,1q,6r,1rq,1r,2rq,1,1q,1,1q,1,2r,1re,4r,3rq,1r,1rq,1r,1rq,7r,3rq,1r,2rq,7r,1rq,1r,2rq,1r,2rq,1r,1rq,7r,1rq,1r,3rq,1q,1,2q,1,3r,1re,1r,1re,1r,3rq,1r,2rq,1r,1rq,5r,2s,1qs,2s,1rq,13r,2rq,1r,3rq,1,1q,2,1q,2r,1re,4r,3rq,1r,1rq,3r,1,1q,1,1q,1,1rq,1r,1re,1r,1rq,1r,1rq,1r,1rq,1r,1,1q,1,1q,1,5r,1l,5lq,1l,1lq,1l,1lq,1,1q,1,1q,11,1r",
+   9: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,1,1q,1,1q,1,2r,1re,4r,3rq,1r,1rq,1r,1rq,7r,3rq,1r,2rq,7r,1rq,1r,2rq,1r,1rq,3q,1,1q,2r,2re,4r,4rq,1r,1rq,7r,1rq,1r,3rq,1r,1rq,1r,1rq,5r,2s,1qs,2s,1rq,9r,2,1q,2,1rq,1,1rq,1,1rq,12r,2rq,1r,3rq,2r,1,1q,1,1q,1,6r,2rq,1r,1rq,2r,1rq,6r,3rq,1r,2rq,1,1q,2,1q,2r,1re,2r,1,4q,1rq,3r,1re,7r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1q,3,1q,4,1q,10,1r",
+  10: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,1,1q,1,1q,1,2r,1re,4r,3rq,1r,1rq,1r,1rq,7r,3rq,1r,2rq,7r,1rq,1,4q,1rq,7r,1re,1r,1rq,2r,4rq,1r,1rq,7r,1rq,1r,2rq,1r,2rq,1r,1rq,3s,1qs,1s,5r,2,1q,1,1q,3l,1lq,1l,3r,1re,1r,1re,1e,1r,1,1r,1,1q,1,1q,1,1rq,4r,2,2q,1,1rq,1r,1re,1r,1re,1,1r,1e,1rq,1e,1q,1,1q,1,1q,5r,2,2q,1,1rq,1r,1re,2r,1e,1q,2,1q,2r,1re,1r,1re,3,2q,5r,1,1r,1,1rq,1,1q,1,1q,1,1q,2r,2re,1r,1re,1,1r,1,1r,1,1r,1,1rq,1,1rq,2re,2r,1es,4s,1re,1r,2re,2r,1re,3r,1re,5r,1rq,1r,3rq,1r,1rq,7r,5q,1rq,4r,1le,1lq,1l,1lq,1l,3r,1re,2r,3rq,1r,2q,1,1q,1,1l,1lq,2l,1lq,1,1q,1,1q,11,1r",
+  11: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,9r,3rq,1r,2rq,1,1q,2,1q,2r,1re,1r,1re,1r,3rq,1r,1rq,1r,1rq,7r,1rq,1r,3rq,1,3q,1,1r,1,1r,1,1r,1re,4r,3rq,1r,1rq,1r,1rq,7r,3rq,1r,2rq,2s,1qs,2s,8r,1rq,3r,1rq,1re,1r,1,1q,1,1q,1,1rq,5r,2rq,2r,1l,1lq,1l,1lq,1l,5r,1,4q,1rq,1r,1re,2r,1re,4r,2rq,1r,3rq,1r,1rq,7r,5q,1rq,2r,1re,8r,2rq,1r,6q,2,1q,1,1lq,2l,1lq,1l,1qs,1es,1qs,2s,5,1r",
+  12: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,1,1q,1,1q,1,2r,1re,4r,3rq,2q,1rq,1q,3r,1re,1r,1re,2r,1rq,1r,4rq,1r,1rq,7r,1rq,1r,3rq,1r,1rq,1r,1rq,7r,3rq,1r,3rq,1,1q,2,1q,2r,1re,2r,1,4q,1rq,3r,1re,4s,1qs,7r,1rq,10r,2rq,1r,3rq,1r,1rq,7r,1rq,1r,4rq,2r,1rq,3r,2,1q,1,3q,1,2q,5r,1re,3r,1re,2,1q,2,1rq,4r,1,5q,1,1q,2,1lq,1l,1lq,1l,1lq,2r,1re,1r,1re,5e,5es,5e,13re,1r,3rq,1r,1rq,6r,4rq,1r,2rq,7r,1rq,1r,4rq,1r,1rq,3r,2,1q,1,1q,1rq,1,1r,1,1rq,1l,3lq,1l,1q,1,1q,1,1q,12",
+  13: "5s,20r,1e,4,1rq,3r,1rq,4lq,1l,1,1q,3,1r,1re,5r,3rq,1l,2lq,2l,4r,1re,1r,2rq,1r,3rq,2r,1rq,5r,1l,4lq,1r,1rq,10r,2rq,1r,3rq,2r,1rq,4r,3s,1qs,1s,2r,1rq,7r,2l,1lq,1l,1lq,1r,1rq,2r,1rq,3l,1lq,1l,6r,1rq,1r,2rq,1lq,1l,1lq,2l,7r,3rq,1r,1rq,2r,1rq,5r,1,4q,1l,2lq,1l,1lq,1r,3,1r,1re,5r,3rq,1r,1rq,7r,1rq,1r,3rq,1r,1rq,1r,1rq,3r,5s,1rq,3r,1rq,9r,2rq,1r,3rq,2,1q,2,5r,5lq,1rq,2r,1re,1r,3l,1lq,2l,2lq,1l,2lq,1l,1lq,1l,1lq,1l,1lq,2l,1lq,1l,12",
+  14: "5s,20r,1e,4,1rq,3r,1rq,4lq,1l,1,1q,3,1r,1re,5r,3rq,1l,2lq,2l,4r,1re,1r,2rq,1r,3rq,2r,1rq,5r,1l,4lq,1r,1rq,10r,2rq,1r,3rq,2r,1rq,4r,3s,1qs,1s,2r,1rq,2r,1l,1le,3l,3,2q,10rq,1re,1r,4re,4r,1l,4lq,9rq,1r,1rq,1r,1re,1r,6re,1,4q,11rq,1r,2rq,1r,2rq,1r,1rq,7r,1rq,1r,3rq,1r,1rq,1r,1rq,5r,3s,1qs,1s,2r,1rq,7r,2,1q,1,1q,1r,1rq,1r,1rq,7r,1rq,1r,2rq,1r,2rq,1r,1rq,4l,1lq,2l,1lq,1l,1lq,1l,1lq,1l,1lq,1l,1lq,1l,1lq,2l,1lq,12",
+  15: "5s,20r,1e,4,1rq,3r,1rq,4lq,1l,1,1q,3,1r,1re,5r,3rq,1l,2lq,2l,4r,1re,1r,2rq,1r,3rq,2r,1rq,5r,1l,4lq,1r,1rq,10r,2rq,1r,3rq,2r,1rq,4r,3s,1qs,1s,2r,1rq,7r,2l,1lq,1l,1lq,1l,3lq,1l,1lq,1l,1lq,2l,1,1q,13,1l,1lq,3l,1q,1,1e,2,3r,1re,1r,4l,1lq,5,5l,1lq,5l,1lq,3l,1q,4,5l,1r,3re,1r,1e,1,1e,5,1e,1,5r,3,1e,6,5s,5l,5,4r,1re,3r,1re,2r,1re,2r,1re,2r,1re,1r,1re,4r,1rq,1r,2rq,1r,1rq,2l,1lq,2l,5r,2rq,1r,2rq,2r,1rq,6r,1rq,3lq,1l,1lq,1rq,3r,1re,5r,5lq,1rq,4r,1le,1l,1lq,2l,1rq,3r,1rq,1s,1qs,3s,8r,1rq,2r,1rq,3r,1rq,7r,2rq,3lq,1l,1lq,4r,1re,3r,1rq,1r,4rq,2r,1rq,7r,4rq,1r,1rq,3,1q,1,4r,1rq,1l,5lq,1l,1lq,4l,1lq,2l,5,2l,1lq,2l,1q,9,1r",
+  16: "5s,20r,1e,4,1rq,3r,1rq,4lq,1l,1,1q,3,1r,1re,5r,3rq,1l,2lq,2l,4r,1re,1r,2rq,1r,3rq,2r,1rq,5r,1l,4lq,1r,1rq,10r,2rq,1r,3rq,2r,1rq,4r,3s,1qs,1s,2r,1rq,7r,2l,1lq,1l,1lq,1r,1rq,2r,1rq,3l,1lq,1l,6r,1rq,1r,2rq,1lq,1l,1lq,2l,7r,3rq,1r,1rq,2r,1rq,5r,1,4q,1l,2lq,1l,1lq,1r,3,1r,1re,5r,3rq,1r,1rq,7r,1rq,1r,3rq,1r,1rq,1r,1rq,3r,5s,1rq,3r,1rq,9r,2rq,1r,3rq,2,1q,2,5r,5lq,1rq,2r,1re,1r,3l,1lq,1l,1,1q,1,2q,1l,2lq,1l,1lq,2l,1lq,2l,1lq,2l,1lq,1l,10,1r",
+  17: "2r,1re,4r,1re,8r,1rq,2r,1re,2r,1re,2r,1qs,2s,1qs,1s,2,1q,2,9r,4rq,2r,1rq,6r,1rq,1r,1rq,3q,1,1q,2r,1re,3r,1rq,1r,3rq,1r,2rq,6r,1,1q,1,2q,2r,1re,1r,1re,3le,1l,1le,1l,4lq,9rq,1r,1re,1r,6re,2r,5rq,1qs,1s,1qs,1s,1qs,2r,1rq,7r,1e,2,1e,1,3r,2rq,1l,4lq,3r,1re,5r,1rq,4lq,1l,1rq,3r,1re,3l,1lq,1l,1lq,1l,3lq,1,1q,2,1q,2l,1lq,2l,1rq,1re,2r,1re,5,3l,1lq,3l,1lq,2l,4r,1re,2l,1lq,2l,4r,1re,5,1l,1lq,2l,1lq,4,1e,3r,1re,1r,5s,5l,9r,1re,14r,1re,3r,1rq,1r,2rq,1r,2rq,1l,1lq,1l,1lq,1l,3r,1re,1r,1rq,1r,3rq,1l,2lq,2l,1rq,1re,3r,2,2q,1,2rq,2r,1rq,5r,1l,1lq,1l,5lq,1l,1lq,1l,1lq,3l,1lq,3l,1lq,13",
+  18: "2r,1re,4r,1re,8r,1rq,2r,1re,2r,1re,2r,1qs,2s,1qs,1s,2,1q,2,9r,4rq,2r,1rq,6r,1rq,1r,1rq,3q,1,1q,2r,1re,3r,1rq,1r,3rq,1r,2rq,6r,1,1q,1,2q,2r,1re,1r,1re,3le,1l,1le,1l,4lq,9rq,1r,1re,1r,6re,2r,5rq,1qs,1s,1qs,1s,1qs,2r,1rq,7r,5l,1rq,1re,2r,1rq,1r,3rq,2r,1rq,3r,3,1q,1,1rq,2r,2rq,1l,1lq,3l,5r,1l,4lq,1r,1rq,2r,1re,5r,1,3q,1,2rq,1r,1rq,7r,3rq,1r,2rq,1r,1rq,7r,1rq,1r,2rq,1qs,3s,1qs,7l,1lq,4l,1lq,2l,1,1q,5,1q,12,2r",
+  19: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,1,1q,1,1q,1,2r,1re,4r,3rq,1r,1rq,1r,1rq,7r,3rq,1r,2rq,1r,1rq,1r,2,1q,2,1rq,5r,2rq,1r,1rq,7r,1rq,1r,2rq,1r,3rq,1,1q,1,1q,1,2r,1re,2r,1,4q,1rq,4r,1es,1qs,3s,7r,1rq,9r,1rq,1r,2rq,1r,4rq,4r,2,2q,1,1rq,1,1rq,1,1r,1rq,10r,1rq,1r,2rq,1r,3rq,1r,1rq,4r,2,3q,3r,1rq,2r,1rq,7r,1rq,1r,3rq,1r,1rq,1r,1rq,7r,1qs,1s,1qs,2s,1rq,4r,1re,1rq,1re,1rq,1re,1lq,2l,3lq,1l,2lq,1l,2q,2,1q,10,1r",
+  20: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,1,1q,1,1q,1,2r,1re,4r,3rq,1r,1rq,1r,1rq,7r,3rq,1r,2rq,7r,1rq,1r,2rq,1r,1rq,3q,1,1q,2r,2re,4r,4rq,1r,1rq,6r,1rq,1r,7rq,1r,1qs,1s,1qs,1s,1qs,1re,1q,1r,1,1r,1rq,1re,1rq,1r,1rq,1re,1rq,2r,1re,1,1q,2,1q,1rq,4r,1,4q,2r,1re,1r,1re,3r,1rq,1r,3rq,1r,1rq,2r,1rq,6r,2rq,1r,3rq,1,1q,2,1q,1r,1,1r,1,6r,2rq,1r,1rq,7r,1rq,1r,3rq,1r,1rq,2r,1rq,6r,3rq,1r,2rq,7r,1qs,2s,1qs,1s,1,1q,2,1q,4,1q,1e,1q,8,1r",
+  21: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,1,1q,1,1q,1,2r,1re,4r,3rq,1r,1rq,1r,1rq,1r,8re,2r,1re,1r,11re,2r,2re,1r,10re,2r,2re,1r,9re,1r,1re,1r,1re,1r,3re,2es,2s,1es,1r,1re,1r,1re,2r,1re,3r,1re,5r,1rq,1r,4rq,1r,1rq,1r,1,1q,2,1q,3r,1re,1r,2rq,1r,2rq,1,1q,1,1q,1,3r,1re,3r,4rq,2r,1rq,6r,5q,1r,1,1rq,1,1rq,1r,1re,1r,1re,5r,3rq,1r,2rq,1l,1lq,1l,1lq,1l,2r,1re,2r,2s,1qs,2s,1rq,13r,1rq,5lq,1l,1lq,1l,1lq,1l,1,1q,1,1q,11,1r",
+  22: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,1,1q,1,1q,1,2r,1re,4r,4rq,2r,1rq,7r,4rq,1,3q,1,2r,1re,5r,1rq,1r,2rq,1r,2rq,7r,1rq,1r,3rq,1r,1rq,1r,1rq,7r,2rq,1r,3rq,1r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,9r,1rq,1re,1r,2rq,1r,2rq,3q,1,1q,1r,1,1r,1,1r,1re,5r,3rq,1r,2q,1,1q,1,2r,1re,4r,2rq,1r,4q,1,1r,1,1r,1,2r,1re,3r,1rq,1r,3rq,7r,1rq,1r,2rq,1r,2rq,1r,1q,1,1q,1,1q,2r,1re,5rq,1r,3rq,1r,1rq,1r,3s,1qs,1s,5r,1l,1lq,1l,1lq,3l,1lq,2l,1q,2,1q,11,1r",
+  23: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,1,1q,1,1q,1,2r,1re,4r,4rq,2r,1rq,7r,4rq,1,3q,1,1r,1,1r,1,2r,1re,3r,2rq,1r,2rq,1,1q,2,1q,1r,1,1r,1,1r,1rq,1re,1rq,1r,1rq,1r,3rq,1r,1rq,1r,1rq,1re,1rq,1r,6rq,2r,1rq,5r,2s,1qs,2s,1rq,13r,4rq,1r,1rq,1,1q,2,1q,2r,1re,2r,1,4q,1rq,2r,1re,6r,1,4q,2r,1rq,10r,1rq,1r,3rq,1r,1rq,2r,1rq,2r,5re,1r,1re,2r,7re,1r,1rq,1r,3rq,1r,2rq,7r,1rq,1r,1rq,1qs,1s,1qs,2s,1q,4,1q,14,1r",
+  24: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,1,1q,1,1q,1,2r,1re,4r,4rq,1r,1rq,7r,1rq,1r,3rq,1r,2rq,7r,1rq,1r,2rq,1r,3rq,2r,1,1q,2,1q,6r,2rq,1r,1rq,1e,3q,1,1rq,1re,1rq,1re,1rq,1re,4rq,1qs,1s,1qs,1s,1qs,2r,1re,1rq,1re,1q,1,1q,1,1q,3r,1rq,9r,1rq,1r,3rq,1r,1rq,2r,1rq,6r,2rq,1r,3rq,3r,1rq,4r,1rq,1r,3rq,1r,2rq,7r,1rq,1r,2rq,1r,2rq,1r,1rq,7r,3rq,1r,2rq,1r,1rq,7r,1rq,1r,4rq,1,1q,1rq,1r,1,1rq,1r,1re,1r,1re,1qs,2s,1qs,1s,1,1q,3,1q,14,1r",
+  25: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,1,1q,1,1q,1,2r,1re,4r,4rq,2r,1rq,7r,4rq,1,3q,1,1r,1,1r,1,2r,1re,3r,3rq,1r,1rq,1r,1rq,6r,1rq,1r,2rq,1r,2rq,1r,1rq,7r,3rq,1r,2rq,1r,1rq,7r,2rq,1r,3rq,1r,1rq,6r,1rq,1r,1qs,1s,1qs,2s,1rq,4r,1e,1q,3,1r,1,1r,1,1rq,1,3q,1,1rq,2r,1re,1r,1,1r,1,1r,3,1q,2,1q,1,1q,1,1q,15,1r,1re,1r,1re,1r,1le,1l,1lq,1l,1lq,1l,1lq,1l,1lq,1l,1rq,1r,1re,1r,1re,2l,1lq,1l,1lq,3,1e,1,1re,1r,1re,2r,1re,4r,1re,2r,1re,5r,2rq,1r,3rq,2s,1qs,2s,8r,1rq,3r,1rq,3r,1re,1r,1rq,2r,3rq,1r,2rq,3r,1l,1lq,1l,1lq,1l,1rq,1re,2r,1rq,1,4q,3r,2re,2l,2lq,1l,2lq,1l,2lq,1,1q,1,1q,11,1r",
+  26: "2r,1re,4r,1re,8r,1rq,2r,1re,2r,1re,2r,1qs,2s,1qs,1s,2,1q,2,9r,4rq,2r,1rq,6r,1rq,1r,1rq,3q,1,1q,2r,1re,3r,1rq,1r,3rq,1r,2rq,6r,1,1q,1,2q,2r,1re,1r,1re,3le,1l,1le,1l,4lq,9rq,1r,1re,1r,6re,2r,5rq,1qs,1s,1qs,1s,1qs,3r,1rq,1r,1l,1lq,2l,1lq,3r,1re,4r,1rq,1r,3rq,1r,1rq,1,1q,3,4r,1rq,1r,3rq,1r,1lq,1l,1lq,2l,6r,2rq,1r,1rq,1lq,1l,1lq,2l,1rq,1re,5r,3rq,1r,1rq,1r,1rq,7r,3rq,1r,2rq,2r,1rq,6r,1rq,1r,2rq,2q,2,1q,5s,3r,1rq,3r,1rq,7r,1l,4lq,1l,3lq,1l,1q,4,3l,1lq,3l,1lq,2l,10,1r",
+  27: "2r,1re,1r,1re,17r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,2rq,1r,3rq,6r,2re,1r,1re,1r,1re,2r,12re,2r,1re,1r,11re,2r,2re,1r,9re,1e,3,1r,12re,1r,3rq,1r,1rq,6r,1rq,1r,3rq,1r,2rq,1r,1rq,6r,1rq,1r,4rq,1r,1rq,2r,1s,1qs,3s,1rq,1re,2r,1rq,3r,1rq,1r,2,1q,2,2r,1re,3r,2rq,1r,2rq,7r,1rq,2r,1re,1r,1re,1r,1re,1r,11re,2r,6re,2r,8rq,1r,1rq,6r,1rq,1r,3rq,1r,4lq,2l,1lq,1l,1lq,1l,1,1q,1,1q,11,1r",
+  28: "2r,1re,1r,1re,4r,1re,1r,1rq,10r,2rq,1r,3rq,2r,1rq,4r,2s,1qs,2s,1rq,1re,1rq,11r,3rq,1r,2rq,1,1q,1,1q,1,2r,1re,4r,4rq,2r,1rq,6r,1rq,1r,3rq,1r,1rq,3r,1,1q,1,1q,1,1rq,4r,1,4q,1rq,1r,1rq,1re,1r,1e,1q,1,1q,1,3rq,1re,3rq,1r,1rq,7r,3rq,1r,1qs,1s,1qs,2s,9r,1rq,3r,1rq,6r,1,4q,2r,1rq,2r,1l,1lq,1l,1lq,1l,1,1q,2,1q,2,1q,1,1q,3l,1lq,1l,1q,1e,1,1e,1,1re,1r,1re,2r,1re,3r,1re,1r,1rq,3r,2l,1lq,1l,1lq,2r,1re,3r,2rq,1r,2rq,7r,1rq,1r,3rq,1r,1rq,1qs,3es,1s,3re,1r,3re,1r,2re,1rq,2r,7rq,1r,1rq,7r,1rq,1r,4rq,2r,1rq,7r,4rq,1r,2q,1,1q,1,1r,1,1r,1,1r,1,1r,1,1rq,2,3q,1,1q,1,1q,1,1q,10,1r",
+  29: "2r,1re,4r,1re,8r,1rq,1r,1re,3r,1re,2r,1qs,2s,1qs,1s,2,1q,2,8r,1rq,1r,3rq,2r,1rq,2r,1re,3r,2rq,1r,3rq,2r,1,1q,3,3r,2rq,1r,2rq,1r,1rq,3,1q,1,3r,2rq,1r,2rq,1r,1rq,5r,2,3q,1r,1rq,1r,1rq,1r,1lq,3l,1lq,6r,3rq,1r,1rq,4r,4s,1qs,3r,1rq,10r,2rq,1r,3rq,2r,1rq,2r,3l,1lq,1l,3lq,1l,1lq,1q,2,1q,1,2l,1lq,2l,1rq,1re,2r,1re,1r,1re,2r,1re,1r,3,1rq,1l,1lq,1l,2lq,1,1q,3,1lq,3l,1lq,3l,1lq,2l,1lq,3l,1rq,1re,2r,1re,5,4l,1lq,2r,1re,2r,1re,2r,1re,1r,4l,1q,1r,1re,2r,1re,2r,1re,10r,1rq,1r,5s,5r,1rq,3r,1rq,8r,1rq,1r,2rq,1r,2rq,1r,1rq,7r,2rq,1r,3rq,1l,1lq,2l,1lq,4l,1lq,1l,1lq,2l,1lq,1l,1lq,2l,1lq,13",
+  30: "2r,1re,1r,1re,4r,1re,1r,1rq,10r,2rq,1r,3rq,2r,1rq,6r,2rq,1r,3rq,7r,2s,1qs,2s,1rq,1re,1rq,1re,1rq,1re,1rq,7r,1rq,1r,3rq,1r,3lq,2l,1rq,1re,1r,1re,2r,3rq,3r,3re,2e,3,1r,1,1rq,1q,6rq,5q,1r,7re,2r,1re,4rq,1q,1,1q,1,1q,1r,1q,1r,1q,1rq,1q,1r,1q,1r,1q,1r,1rq,1re,1rq,1re,1rq,1re,1rq,1re,1rq,1r,5rq,1r,1rq,7r,1qs,2s,1qs,1s,1rq,1re,1rq,1re,1r,2,1q,2,6r,3rq,1r,4q,1,2r,1re,1,2r,1re,2r,1rq,1r,3rq,7r,1rq,1r,2rq,1r,3rq,7r,1rq,1r,2rq,1r,3rq,7r,1rq,1r,1rq,1r,3rq,1r,1rq,1,4q,2l,1lq,1l,1lq,4,1q,7,1e"
 };
 
 function expandSolution(seq) {
+  if (!seq) return [];
   const out = [];
-  for (const s of (seq || [])) {
+  if (typeof seq === "string") {
+    for (const tok of seq.split(",")) {
+      const m = tok.match(/^(\d+)([lrqes]*)$/);
+      if (!m) continue;
+      const n = parseInt(m[1], 10), f = m[2];
+      const frame = { left: f.includes("l"), right: f.includes("r"), leanL: f.includes("q"), leanR: f.includes("e"), steady: f.includes("s") };
+      for (let i = 0; i < n; i++) out.push(frame);
+    }
+    return out;
+  }
+  for (const s of seq) {
     for (let i = 0; i < s.ticks; i++) out.push({ left: !!s.left, right: !!s.right, leanL: !!s.leanL, leanR: !!s.leanR, steady: !!s.steady });
   }
   return out;
@@ -674,16 +691,24 @@ function createCakeState(def, styleId = "classic") {
     prevFloorY: getFloorY(def, 110),
     playerVx: 0,
     facing: 1,
+    walkPhase: 0,
     stepPhase: 0,
     steadyTicks: 0,
     steadyCooldown: 0,
+    stepJoltTicks: 0,
+    stepJoltDir: 0,
+    settleTicks: 0,
+    bumpCooldown: 0,
+    onRug: false,
+    impactTag: "",
+    impactTagTicks: 0,
     wobblePct: 0,
     peakWobblePct: 0,
     closestSaveDelta: 0,
     zeroWobbleStreak: 0,
     bestZeroStreak: 0,
     tiers,
-    hazards: def.hazards.map(h => ({ ...h, curX: h.x || 0, curVx: h.vx || 0, headTurn: false, activeSpray: false, hissing: false, gusting: false })),
+    hazards: def.hazards.map(h => ({ ...h, curX: h.x || 0, curVx: h.vx || 0, headTurn: false, inLane: true, activeSpray: false, hissing: false, gusting: false })),
     bubbles: [],
     soundEvents: [],
     dropReports: [],
@@ -704,7 +729,6 @@ function stepCake(state, input) {
   const stepMult = state.collapsing ? SLOWMO_DROP_FACTOR : 1.0;
   state.simAccum += stepMult;
   if (state.simAccum < 0.999) {
-    // Still render smooth falling tiers in slow-mo ticks
     for (const t of state.tiers) {
       if (t.fallen) {
         t.fallX += t.fallVx * FIXED_DT * stepMult;
@@ -725,54 +749,101 @@ function stepCake(state, input) {
 
   if (state.steadyTicks > 0) state.steadyTicks--;
   if (state.steadyCooldown > 0) state.steadyCooldown--;
+  if (state.stepJoltTicks > 0) state.stepJoltTicks--;
+  if (state.bumpCooldown > 0) state.bumpCooldown--;
+  if (state.impactTagTicks > 0) state.impactTagTicks--;
   if (input.steady && state.steadyCooldown === 0 && !state.collapsing) {
     state.steadyTicks = STEADY_DURATION_TICKS;
     state.steadyCooldown = STEADY_COOLDOWN_TICKS;
     state.soundEvents.push({ name: "steady", param: 1 });
   }
 
-  // Determine floor zone friction, rug push, disco spin, wind, sprinkler
+  // Determine floor zone friction, rug push, disco spin, wind, sprinkler, and solid aisle NPCs
   let onPolish = state.def.floor === "dance";
-  let onDisco = false;
+  let discoTorque = 0;
   let rugPush = 0;
   let externalImpulse = 0;
+  let nowOnRug = false;
   for (const h of state.hazards) {
     if (h.type === "polish" && state.playerX >= h.x && state.playerX <= h.x + h.w) onPolish = true;
-    if (h.type === "disco" && state.playerX >= h.x && state.playerX <= h.x + h.w) onDisco = true;
-    if (h.type === "rug" && state.playerX >= h.x && state.playerX <= h.x + h.w) rugPush += h.pushSpeed;
+    if (h.type === "disco" && state.playerX >= h.x && state.playerX <= h.x + h.w) {
+      discoTorque += Math.sin(state.tick * 0.25) * (h.torque || 12.5);
+    }
+    if (h.type === "rug" && state.playerX >= h.x && state.playerX <= h.x + h.w) {
+      nowOnRug = true;
+      rugPush += h.pushSpeed;
+    }
     if (h.type === "wind") {
       const ph = state.tick % h.period;
       h.gusting = (ph >= h.onFrom && ph <= h.onTo);
-      if (h.gusting && state.playerX >= h.x && state.playerX <= h.x + h.w) externalImpulse += h.force;
+      if (h.gusting && state.playerX >= h.x && state.playerX <= h.x + h.w) {
+        externalImpulse += h.force;
+        if (!state.collapsing && state.tick % 16 === 0 && !state.impactTagTicks) {
+          state.impactTag = h.force < -13 ? "STEAM BLAST!" : "GUST WIND!";
+          state.impactTagTicks = 20;
+        }
+      }
     }
     if (h.type === "sprinkler") {
       const ph = state.tick % h.period;
       h.hissing = (ph >= h.hissAt && ph < h.blastAt);
       h.activeSpray = (ph >= h.blastAt && ph <= h.endAt);
       if (h.hissing && ph === h.hissAt) state.soundEvents.push({ name: "sprinkler", param: 1 });
-      if (h.activeSpray && Math.abs(state.playerX - h.x) <= h.w / 2) externalImpulse += h.push * (state.tick % 2 === 0 ? 1 : -0.6);
+      if (h.activeSpray && Math.abs(state.playerX - h.x) <= h.w / 2) {
+        externalImpulse += (h.push || 16.5) * (state.tick % 2 === 0 ? 1 : -0.75);
+        if (!state.collapsing) { state.impactTag = "SPRAYED!"; state.impactTagTicks = 22; }
+      }
     }
     if (h.type === "guest" || h.type === "waiter") {
-      h.curX += h.curVx * FIXED_DT;
-      h.headTurn = (h.curX <= h.minX + 26 && h.curVx < 0) || (h.curX >= h.maxX - 26 && h.curVx > 0);
-      if (h.curX < h.minX) { h.curX = h.minX; h.curVx = Math.abs(h.curVx); }
-      if (h.curX > h.maxX) { h.curX = h.maxX; h.curVx = -Math.abs(h.curVx); }
-      if (!state.collapsing && Math.abs(state.playerX - h.curX) < 24) {
-        externalImpulse += Math.sign(state.playerX - h.curX || 1) * (h.push || 1.5);
+      const lp = h.lanePeriod || 170, cf = h.clearFrom || 105;
+      const ph = state.tick % lp;
+      h.inLane = (ph < cf);
+      h.headTurn = (ph >= cf - 24 && ph < cf);
+      if (h.inLane) {
+        h.curX += h.curVx * FIXED_DT;
+        if (h.curX < h.minX) { h.curX = h.minX; h.curVx = Math.abs(h.curVx); }
+        if (h.curX > h.maxX) { h.curX = h.maxX; h.curVx = -Math.abs(h.curVx); }
+      }
+      if (!state.collapsing && h.inLane && Math.abs(state.playerX - h.curX) < 25) {
+        const shoveDir = Math.sign(state.playerX - h.curX || h.curVx || -1);
+        externalImpulse += shoveDir * (h.push || 14.0);
+        if (state.bumpCooldown === 0) {
+          state.playerVx = shoveDir * 135;
+          state.bumpCooldown = 14;
+          state.impactTag = h.type === "waiter" ? "WAITER HIT!" : "GUEST BUMP!";
+          state.impactTagTicks = 26;
+          state.soundEvents.push({ name: "creak", param: 0.95 });
+        }
       }
     }
     if (h.type === "dog") {
       const ph = state.tick % h.pausePeriod;
       h.headTurn = (ph < h.pauseLen);
+      h.inLane = !h.headTurn;
       if (!h.headTurn) {
         h.curX += h.curVx * FIXED_DT;
         if (h.curX < h.minX) { h.curX = h.minX; h.curVx = Math.abs(h.curVx); }
         if (h.curX > h.maxX) { h.curX = h.maxX; h.curVx = -Math.abs(h.curVx); }
       }
-      if (!state.collapsing && Math.abs(state.playerX - h.curX) < 22) {
-        externalImpulse += Math.sign(h.curVx || 1) * 1.9;
+      if (!state.collapsing && h.inLane && Math.abs(state.playerX - h.curX) < 23) {
+        const shoveDir = Math.sign(state.playerX - h.curX || h.curVx || 1);
+        externalImpulse += shoveDir * (h.push || 15.0);
+        if (state.bumpCooldown === 0) {
+          state.playerVx = shoveDir * 145;
+          state.bumpCooldown = 14;
+          state.impactTag = "HOUND RAM!";
+          state.impactTagTicks = 26;
+          state.soundEvents.push({ name: "creak", param: 0.95 });
+        }
       }
     }
+  }
+
+  if (nowOnRug !== state.onRug) {
+    const rugKick = (0.4 + Math.abs(state.playerVx) / WALK_MAX) * 5.0;
+    externalImpulse += (nowOnRug ? -rugKick : rugKick) * Math.sign(state.playerVx || 1);
+    state.onRug = nowOnRug;
+    if (!state.collapsing) { state.impactTag = "CARPET LIP!"; state.impactTagTicks = 22; }
   }
 
   // Locomotion & horizontal acceleration calculation
@@ -781,21 +852,33 @@ function stepCake(state, input) {
   if (moveDir !== 0) state.facing = moveDir;
   const fric = onPolish ? WAX_FRICTION : GROUND_FRICTION;
   if (moveDir !== 0) {
-    const accMult = onPolish ? 0.68 : 1.0;
+    const accMult = onPolish ? 0.62 : 1.0;
     state.playerVx = Math.max(-WALK_MAX, Math.min(WALK_MAX, state.playerVx + moveDir * WALK_ACCEL * accMult * FIXED_DT));
   } else {
     const dv = fric * FIXED_DT;
     if (state.playerVx > 0) state.playerVx = Math.max(0, state.playerVx - dv);
     else if (state.playerVx < 0) state.playerVx = Math.min(0, state.playerVx + dv);
   }
-  const plateAx = (state.playerVx - oldVx) / FIXED_DT + (rugPush * 0.45);
+  const plateAx = (state.playerVx - oldVx) / FIXED_DT + (rugPush * 0.42);
   state.playerX = Math.max(50, Math.min(LOGICAL_W - 70, state.playerX + (state.playerVx + rugPush) * FIXED_DT));
 
-  // Floor steps / grass bump vertical jolt
+  // Floor steps / grass bump vertical jolt + toe-catch check
   const newFloorY = getFloorY(state.def, state.playerX);
   const floorStepDy = newFloorY - state.prevFloorY;
   state.prevFloorY = newFloorY;
   state.playerY = newFloorY;
+  if (Math.abs(floorStepDy) > 1) {
+    const speedOver = Math.max(0.2, Math.abs(state.playerVx) / 120);
+    state.stepJoltTicks = 5;
+    state.stepJoltDir = Math.sign(state.playerVx || 1) * speedOver * (Math.abs(floorStepDy) * 0.22);
+    state.playerVx *= 0.72;
+    if (!state.collapsing) {
+      state.impactTag = speedOver > 1.05 ? "TOO FAST ON STEP!" : "STEP!";
+      state.impactTagTicks = 24;
+    }
+  }
+
+  if (Math.abs(state.playerVx) > 20) state.walkPhase += Math.abs(state.playerVx) * FIXED_DT * 0.14;
 
   // Footstep sound cadence
   if (Math.abs(state.playerVx) > 25 && !state.collapsing) {
@@ -806,11 +889,11 @@ function stepCake(state, input) {
     }
   }
 
-  // Cake Tier Stack Physics (multi-body coupled spring-damper + friction slide + tip cascade)
-  const steadyMult = state.steadyTicks > 0 ? 0.25 : 1.0;
+  // Cake Tier Stack Physics (shear-damped inverted pendulum + frosting slide + tip cascade)
+  const steadyMult = state.steadyTicks > 0 ? 0.40 : 1.0;
   const leanInput = (input.leanR ? 1 : 0) - (input.leanL ? 1 : 0);
-  const discoTorque = onDisco ? Math.sin(state.tick * 0.24) * 2.4 : 0;
-  const stepTorque = Math.abs(floorStepDy) > 1 ? Math.sign(state.playerVx || 1) * Math.abs(floorStepDy) * 0.28 : 0;
+  const speedFrac = Math.min(1.25, Math.abs(state.playerVx) / WALK_MAX);
+  const stepTorque = state.stepJoltTicks > 0 ? state.stepJoltDir * steadyMult : 0;
 
   let maxRatio = 0;
   for (let i = 0; i < state.tiers.length; i++) {
@@ -823,17 +906,23 @@ function stepCake(state, input) {
       continue;
     }
 
-    const heightMult = 1 + i * 0.16;
+    const heightMult = 1 + i * 0.08;
     const accelTorque = -plateAx * PLATE_IMPULSE_MULT * heightMult * steadyMult;
+    const gaitTorque = (Math.abs(state.playerVx) > 22)
+      ? (Math.sin(state.walkPhase + i * 0.05) * GAIT_SWAY_K + Math.sign(state.playerVx) * GAIT_DRIFT_K * speedFrac) * speedFrac * heightMult * steadyMult
+      : 0;
     const extTorque = externalImpulse * heightMult * 0.85 * steadyMult;
-    const playerCounter = leanInput * LEAN_COUNTER_FORCE * (i === 0 ? 1.15 : 0.7);
+    const playerCounter = leanInput * LEAN_COUNTER_FORCE * heightMult;
     const parentAngle = i > 0 && !state.tiers[i - 1].fallen ? state.tiers[i - 1].angle : 0;
+    const parentVel = i > 0 && !state.tiers[i - 1].fallen ? state.tiers[i - 1].angVel : 0;
     const relAng = t.angle - parentAngle;
+    const relVel = t.angVel - parentVel;
+    const gravTip = GRAVITY_TIP_K * Math.sin(t.angle) + t.xOff * OVERHANG_TORQUE_K;
 
-    const alpha = (-TIER_SPRING_K * relAng - TIER_DAMPING * t.angVel + accelTorque + extTorque + discoTorque + stepTorque + playerCounter) * (state.steadyTicks > 0 ? 1.55 : 1.0);
+    const alpha = (-TIER_SPRING_K * relAng - SHEAR_DAMPING * relVel + gravTip - TIER_DAMPING * t.angVel + accelTorque + gaitTorque + extTorque + discoTorque * steadyMult + stepTorque + playerCounter) * (state.steadyTicks > 0 ? 1.35 : 1.0);
     t.angVel += alpha * FIXED_DT;
     if (state.steadyTicks > 0) {
-      t.angVel *= 0.84; t.vx *= 0.84; t.xOff *= 0.92;
+      t.angVel *= 0.87; t.vx *= 0.87; t.xOff *= 0.93;
     }
     t.angle += t.angVel * FIXED_DT;
 
@@ -841,7 +930,10 @@ function stepCake(state, input) {
     if (Math.abs(t.angle) > SLIDE_FRICTION_LIMIT) {
       t.vx += Math.sign(t.angle) * SLIDE_RATE * FIXED_DT * steadyMult;
     } else {
-      t.vx *= 0.88;
+      t.vx *= 0.86;
+    }
+    if (leanInput !== 0 && Math.sign(leanInput) !== Math.sign(t.xOff)) {
+      t.vx += leanInput * 36 * FIXED_DT;
     }
     t.xOff += t.vx * FIXED_DT;
 
@@ -892,11 +984,14 @@ function stepCake(state, input) {
   });
   if (state.history.length > 180) state.history.shift();
 
-  // Check Goal Arrival (at table & reasonably settled)
-  if (!state.collapsing && state.playerX >= state.def.goalX && Math.abs(state.playerVx) < 35 && state.wobblePct < 65) {
-    finalizeWin(state);
+  // Check Goal Arrival (at table & calmed for SETTLE_REQUIRED_TICKS consecutive frames)
+  if (!state.collapsing && state.playerX >= state.def.goalX && Math.abs(state.playerVx) < 18 && state.wobblePct < 48) {
+    state.settleTicks++;
+    if (state.settleTicks >= SETTLE_REQUIRED_TICKS) finalizeWin(state);
+  } else {
+    state.settleTicks = 0;
   }
-  if (!state.collapsing && state.timeLeft <= 0) {
+  if (!state.collapsing && state.timeLeft <= 0 && !state.won) {
     state.failed = true;
     state.dropReports.push("Speech started before the cake arrived!");
     state.soundEvents.push({ name: "gasp", param: 1 });
@@ -988,6 +1083,7 @@ const app = {
   currentIdx: 0,
   state: null,
   showGhost: false,
+  ghostTrace: null,
   botWatch: null,
   solverOverlay: null,
   replayFrames: null,
@@ -1002,6 +1098,19 @@ const app = {
   touch: { left: false, right: false, leanL: false, leanR: false, steady: false }
 };
 
+function buildGhostTrace(def) {
+  const frames = expandSolution(LEVEL_SOLUTIONS[def.id] || []);
+  const gst = createCakeState(def);
+  const out = [{ x: gst.playerX, y: gst.playerY, q: false, e: false, s: false }];
+  for (let i = 0; i < frames.length; i++) {
+    const f = frames[i];
+    stepCake(gst, f);
+    out.push({ x: gst.playerX, y: gst.playerY, q: !!f.leanL, e: !!f.leanR, s: !!f.steady });
+    if (gst.won || gst.failed) break;
+  }
+  return out;
+}
+
 function pickNarratorLine() {
   let idx;
   do { idx = Math.floor(Math.random() * NARRATOR_LINES.length); }
@@ -1014,6 +1123,7 @@ function startCakeLevel(idx) {
   app.currentIdx = Math.max(0, Math.min(LEVELS.length - 1, idx));
   app.state = createCakeState(LEVELS[app.currentIdx], progress.styleId);
   app.showGhost = false;
+  app.ghostTrace = null;
   app.botWatch = null;
   app.replayFrames = null;
   app.narratorText = pickNarratorLine();
@@ -1100,7 +1210,11 @@ window.addEventListener("keydown", e => {
   if (c === "Escape") { if (app.solverOverlay) { app.solverOverlay = null; return; } app.screen = app.screen === "play" ? "title" : (app.state ? "play" : "title"); return; }
   if (c === "KeyO") { progress.bigObsOverlay = !progress.bigObsOverlay; saveProgress(progress); return; }
   if (c === "KeyV") { progress.streamerSafe = !progress.streamerSafe; saveProgress(progress); showToast(`SAFE MODE: ${progress.streamerSafe ? "ON" : "OFF"}`); return; }
-  if (c === "KeyG" && app.state && (progress.fails[app.state.def.id] || 0) >= 8) { app.showGhost = !app.showGhost; return; }
+  if (c === "KeyG" && app.state && (progress.fails[app.state.def.id] || 0) >= 5) {
+    app.showGhost = !app.showGhost;
+    if (app.showGhost && !app.ghostTrace) app.ghostTrace = buildGhostTrace(app.state.def);
+    return;
+  }
   if (c === "KeyR" && (app.screen === "play" || app.screen === "summary")) { startCakeLevel(app.currentIdx); return; }
   if (c === "KeyC" && app.state) {
     const code = `DDC-${String(app.state.def.id).padStart(2,"0")}`;
@@ -1172,16 +1286,29 @@ function drawCakeScene(st, px, py, tiers, facing, wobblePct) {
         }
       }
     } else if (h.type === "wind" && h.gusting) {
-      ctx.fillStyle = "rgba(255,255,254,0.3)";
+      ctx.fillStyle = "rgba(255,255,254,0.34)";
       for (let i = 0; i < 6; i++) ctx.fillRect(h.x + ((st.tick * 9 + i * 70) % h.w), 230 + i * 28, 22, 2);
     } else if (h.type === "guest" || h.type === "waiter") {
+      const offLane = h.inLane === false;
+      ctx.save();
+      if (offLane) ctx.globalAlpha = 0.38;
+      const gy = offLane ? 344 : 360;
       ctx.fillStyle = h.type === "waiter" ? PAL.WHITE : PAL.GOLD;
-      ctx.fillRect(h.curX - 10, 360, 20, 55);
-      ctx.fillStyle = PAL.BG; ctx.fillRect(h.curX + (h.curVx > 0 ? 3 : -7), 366, 4, 4);
-      if (h.headTurn) { ctx.fillStyle = PAL.CORAL; ctx.fillText("!", h.curX, 348); }
+      ctx.fillRect(h.curX - 10, gy, 20, 55);
+      ctx.fillStyle = PAL.BG; ctx.fillRect(h.curX + (h.curVx > 0 ? 3 : -7), gy + 6, 4, 4);
+      ctx.restore();
+      ctx.font = "bold 11px monospace"; ctx.textAlign = "center";
+      if (offLane) { ctx.fillStyle = PAL.MINT; ctx.fillText("CLEAR!", h.curX, 336); }
+      else if (h.headTurn) { ctx.fillStyle = PAL.CORAL; ctx.fillText("!", h.curX, 348); }
     } else if (h.type === "dog") {
-      ctx.fillStyle = PAL.GOLD; ctx.fillRect(h.curX - 14, 395, 28, 20);
-      if (h.headTurn) { ctx.fillStyle = PAL.CORAL; ctx.fillText("SNIFF", h.curX, 382); }
+      const sitting = !!h.headTurn;
+      ctx.save();
+      if (sitting) ctx.globalAlpha = 0.45;
+      const dy = sitting ? 386 : 395;
+      ctx.fillStyle = PAL.GOLD; ctx.fillRect(h.curX - 14, dy, 28, 20);
+      ctx.restore();
+      ctx.font = "bold 10px monospace"; ctx.textAlign = "center";
+      if (sitting) { ctx.fillStyle = PAL.MINT; ctx.fillText("SNIFF (SAFE)", h.curX, 376); }
     }
   }
 
@@ -1190,21 +1317,42 @@ function drawCakeScene(st, px, py, tiers, facing, wobblePct) {
   ctx.fillStyle = PAL.CORAL; ctx.fillRect(def.goalX - 10, 370, 95, 10);
   ctx.fillStyle = PAL.GOLD; ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
   ctx.fillText("CAKE TABLE", def.goalX + 38, 354);
+  if (st.settleTicks > 0 && !st.won) {
+    const sp = Math.min(1, st.settleTicks / SETTLE_REQUIRED_TICKS);
+    ctx.fillStyle = PAL.STONE; ctx.fillRect(def.goalX - 2, 328, 80, 7);
+    ctx.fillStyle = PAL.MINT; ctx.fillRect(def.goalX - 2, 328, Math.round(80 * sp), 7);
+    ctx.fillStyle = PAL.MINT; ctx.font = "bold 10px monospace";
+    ctx.fillText("SETTLING...", def.goalX + 38, 321);
+  }
+
+  // Optional Ghost Route Silhouette [G]
+  if (app.showGhost && app.ghostTrace && app.ghostTrace.length) {
+    const gf = app.ghostTrace[Math.min(st.tick, app.ghostTrace.length - 1)];
+    if (gf) {
+      ctx.save();
+      ctx.globalAlpha = 0.35; ctx.fillStyle = PAL.MINT;
+      ctx.fillRect(gf.x - 10, gf.y - 54, 20, 54);
+      ctx.globalAlpha = 0.9; ctx.font = "bold 10px monospace"; ctx.textAlign = "center";
+      const cue = [gf.s ? "STEADY" : "", gf.q ? "<<Q" : "", gf.e ? "E>>" : ""].filter(Boolean).join(" ");
+      if (cue) ctx.fillText(cue, gf.x, gf.y - 62);
+      ctx.restore();
+    }
+  }
 
   // Carrier Player Silhouette
   ctx.fillStyle = PAL.WHITE; ctx.fillRect(px - 10, py - 54, 20, 54);
   ctx.fillStyle = PAL.GOLD; ctx.fillRect(px - 10, py - 54, 20, 12); // Hat/hair
-  if (wobblePct > 65) {
-    ctx.fillStyle = PAL.CORAL; ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
-    ctx.fillText("WHOA!", px + 26, py - 68);
-  }
 
-  // Silver Plate
+  // Silver Plate (+ active STEADY glow)
   const plateX = px + facing * 12, plateY = py - 46;
   ctx.fillStyle = PAL.WHITE; ctx.fillRect(plateX - 42, plateY, 84, 5);
+  if (st.steadyTicks > 0) {
+    ctx.strokeStyle = PAL.MINT; ctx.lineWidth = 2; ctx.strokeRect(plateX - 44, plateY - 2, 88, 9);
+  }
 
   // Stacked Tiers + Fallen Tiers
   let curY = plateY;
+  let worstAng = 0;
   for (const t of tiers) {
     if (t.fallen) {
       ctx.save(); ctx.translate(t.fallX, t.fallY); ctx.rotate(t.fallAng);
@@ -1212,6 +1360,7 @@ function drawCakeScene(st, px, py, tiers, facing, wobblePct) {
       ctx.fillStyle = st.style.frost; ctx.fillRect(-t.w/2, -t.h, t.w, 5);
       ctx.restore();
     } else {
+      if (Math.abs(t.angle) > Math.abs(worstAng)) worstAng = t.angle;
       ctx.save(); ctx.translate(plateX + t.xOff, curY); ctx.rotate(t.angle);
       ctx.fillStyle = st.style.body; ctx.fillRect(-t.w/2, -t.h, t.w, t.h);
       ctx.fillStyle = st.style.frost; ctx.fillRect(-t.w/2, -t.h, t.w, 5);
@@ -1220,31 +1369,54 @@ function drawCakeScene(st, px, py, tiers, facing, wobblePct) {
       curY -= t.h;
     }
   }
+
+  // Directional counter-lean & collision callouts above stack
+  if (wobblePct > 35 && !st.collapsing) {
+    ctx.fillStyle = wobblePct > 70 ? PAL.CORAL : PAL.GOLD;
+    ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
+    ctx.fillText(worstAng >= 0 ? "<< LEAN Q!" : "LEAN E! >>", plateX, curY - 10);
+  }
+  if (st.impactTagTicks > 0 && st.impactTag) {
+    ctx.fillStyle = PAL.CORAL; ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
+    ctx.fillText(st.impactTag, plateX, curY - 26);
+  }
 }
 
 function renderHUD(st) {
   ctx.fillStyle = "rgba(15,14,23,0.92)"; ctx.fillRect(0, 0, LOGICAL_W, 42);
   ctx.fillStyle = PAL.GOLD; ctx.fillRect(0, 40, LOGICAL_W, 2);
-  ctx.textAlign = "left"; ctx.font = "bold 14px monospace";
-  ctx.fillStyle = PAL.GOLD; ctx.fillText(`CAKE #${String(st.def.id).padStart(2,"0")}: ${st.def.name}`, 14, 21);
+  ctx.textAlign = "left"; ctx.font = "bold 13px monospace";
+  ctx.fillStyle = PAL.GOLD; ctx.fillText(`#${String(st.def.id).padStart(2,"0")} ${st.def.name}`, 12, 22);
 
   // Wobble Meter Bar
-  ctx.fillStyle = PAL.WHITE; ctx.fillText("WOBBLE:", 310, 21);
-  ctx.fillStyle = PAL.STONE; ctx.fillRect(380, 12, 110, 16);
+  ctx.fillStyle = PAL.WHITE; ctx.fillText("WOB:", 226, 22);
+  ctx.fillStyle = PAL.STONE; ctx.fillRect(264, 13, 88, 15);
   ctx.fillStyle = st.wobblePct > 70 ? PAL.CORAL : (st.wobblePct > 40 ? PAL.GOLD : PAL.MINT);
-  ctx.fillRect(380, 12, Math.round(1.1 * st.wobblePct), 16);
+  ctx.fillRect(264, 13, Math.round(0.88 * st.wobblePct), 15);
+
+  // STEADY Grip Charge Bar
+  const cdPct = st.steadyTicks > 0 ? 1 : (1 - st.steadyCooldown / STEADY_COOLDOWN_TICKS);
+  ctx.fillStyle = st.steadyTicks > 0 ? PAL.MINT : PAL.WHITE;
+  ctx.fillText("STDY:", 364, 22);
+  ctx.fillStyle = PAL.STONE; ctx.fillRect(408, 13, 72, 15);
+  ctx.fillStyle = st.steadyCooldown === 0 || st.steadyTicks > 0 ? PAL.MINT : PAL.GOLD;
+  ctx.fillRect(408, 13, Math.round(72 * Math.max(0, Math.min(1, cdPct))), 15);
 
   const sec = (st.timeLeft / 60).toFixed(1);
-  ctx.fillStyle = st.timeLeft < 300 ? PAL.CORAL : PAL.WHITE; ctx.fillText(`TIME:${sec}S`, 512, 21);
+  ctx.fillStyle = st.timeLeft < 300 ? PAL.CORAL : PAL.WHITE; ctx.fillText(`T:${sec}s`, 492, 22);
   const intact = st.tiers.filter(t => !t.fallen).length;
-  ctx.fillStyle = PAL.MINT; ctx.fillText(`TIERS:${intact}/${st.tiers.length}`, 615, 21);
+  ctx.fillStyle = PAL.MINT; ctx.fillText(`LAYERS:${intact}/${st.tiers.length}`, 568, 22);
+  ctx.fillStyle = PAL.GOLD; ctx.font = "bold 11px monospace"; ctx.fillText("Q/E:LEAN SPC:STDY", 614, 36);
 
   addBtn(726, 7, 66, 26, "MENU", () => { app.screen = "title"; }, PAL.STONE, PAL.GOLD);
   addBtn(798, 7, 74, 26, "VENUES", () => { app.screen = "select"; }, PAL.STONE, PAL.WHITE);
   addBtn(878, 7, 70, 26, "RETRY", () => startCakeLevel(app.currentIdx), PAL.STONE, PAL.CORAL, PAL.CORAL);
 
-  if ((progress.fails[st.def.id] || 0) >= 8) {
-    addBtn(14, 48, 178, 26, app.showGhost ? "GHOST: ON [G]" : "GHOST ROUTE [G]", () => { app.showGhost = !app.showGhost; }, app.showGhost ? PAL.GOLD : PAL.STONE);
+  if ((progress.fails[st.def.id] || 0) >= 5) {
+    addBtn(14, 48, 178, 26, app.showGhost ? "GHOST: ON [G]" : "GHOST ROUTE [G]", () => {
+      app.showGhost = !app.showGhost;
+      if (app.showGhost && !app.ghostTrace) app.ghostTrace = buildGhostTrace(st.def);
+    }, app.showGhost ? PAL.GOLD : PAL.STONE);
   }
   if (progress.bigObsOverlay) {
     ctx.fillStyle = "rgba(15,14,23,0.9)"; ctx.fillRect(LOGICAL_W - 180, 50, 166, 68);
