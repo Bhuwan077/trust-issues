@@ -534,20 +534,24 @@ function normalizeRiddleAnswer(str) {
 addRound({
   id: 1, world: 1, name: "TRUST NOTHING", type: "PLATFORM",
   lieKey: "safe_sign_pit",
-  mechanic: "SAFE sign marks a collapsing bridge over spikes, followed by a fake LEVEL COMPLETE banner that erupts a spike before the door.",
-  tell: "The E in SAFE droops 2px, bridge tiles show a 2px seam, and a coral spike tip peeks at col 23.",
-  solutionSummary: "Jump the SAFE bridge, ignore the fake LEVEL COMPLETE jingle, and jump the erupting spike at col 23.",
-  grid: buildRoom(g => { g.row(14, 12, 15, "C"); g.row(15, 12, 15, "."); g.row(16, 12, 15, "^"); }),
+  mechanic: "SAFE bridge + trailing tile drop, fake LEVEL COMPLETE banner, double emerging spikes, hidden low ceiling, and an escaping exit onto a raised ledge.",
+  tell: "Crooked SAFE sign, floor seams under bridge and spikes, faint ceiling dust at col 20, and upper gold gleam at col 27.",
+  solutionSummary: "Jump the SAFE bridge, low-hop under H over spikes at 20 & 24, and climb onto the raised right ledge.",
+  grid: buildRoom(g => {
+    g.row(14, 12, 15, "C"); g.row(15, 12, 15, "."); g.row(16, 12, 15, "^");
+    g.plat(20, 10, 3, "H");
+    g.plat(26, 12, 3, "#");
+  }),
   start: { col: 3, row: 13 }, exit: { col: 27, row: 13 },
   signs: [{ id: "s1", col: 12.6, row: 10.6, w: 88, h: 28, text: "SAFE", arrowDown: true, crookedLast: true }],
-  spikeSeamTells: [{ col: 23, row: 13 }],
+  spikeSeamTells: [{ col: 20, row: 13 }, { col: 24, row: 13 }, { col: 27, row: 13 }],
   secretLetter: { char: "I", col: 1.5, row: 12 },
   triggers: [
     {
       id: "r1_fall", once: true,
       condition: { type: "zoneEnter", rect: { x: 12*30-4, y: 13*30, w: 4*30+8, h: 34 } },
       actions: [
-        { type: "fallTile", tiles: [{col:12,row:14},{col:13,row:14},{col:14,row:14},{col:15,row:14}], delayTicks: 2, fallSpeed: 8 },
+        { type: "fallTile", tiles: [{col:10,row:14},{col:12,row:14},{col:13,row:14},{col:14,row:14},{col:15,row:14}], delayTicks: 2, fallSpeed: 8 },
         { type: "playSound", sound: "trap" }, { type: "shake", intensity: 3, durationTicks: 5 }
       ]
     },
@@ -557,27 +561,44 @@ addRound({
       actions: [
         { type: "showFakeUI", variant: "complete", durationTicks: 95, blocksInput: false },
         { type: "playSound", sound: "fakeWin" },
-        { type: "spawnSpike", col: 23, row: 13, dir: "^", emergeTicks: 5 }
+        { type: "spawnSpike", col: 20, row: 13, dir: "^", emergeTicks: 5 },
+        { type: "spawnSpike", col: 24, row: 13, dir: "^", emergeTicks: 5 }
+      ]
+    },
+    {
+      id: "r1_door_dodge", once: true,
+      condition: { type: "playerX", x: 24.5 * 30, op: ">=" },
+      actions: [
+        { type: "moveEntity", targetId: "exit", toX: 27 * 30, toY: 11 * 30, durationTicks: 8 },
+        { type: "spawnSpike", col: 27, row: 13, dir: "^", emergeTicks: 5 },
+        { type: "playSound", sound: "flip" }
       ]
     }
   ]
 });
 
 addRound({
-  id: 2, world: 1, name: "THIRD TILE", type: "PLATFORM",
+  id: 2, world: 1, name: "BROKEN PROMISE", type: "PLATFORM",
   lieKey: "third_tile_falls",
-  mechanic: "The 3rd stepping pillar collapses immediately on contact.",
-  tell: "Pillar #3 has a diagonal hairline crack and sits 1px lower.",
-  solutionSummary: "Hop pillars 1 -> 2, long jump over cracked pillar 3 -> 4 -> 5 -> exit.",
+  mechanic: "Pillar 1 drops behind you, hidden block caps Pillar 2, Pillar 3 collapses on touch, and a fake YOU DIED flash hides an erupting spike on Pillar 5.",
+  tell: "Hairline crack on Pillar 3, dust above col 13, and 1px coral spike seam on col 24.",
+  solutionSummary: "Move fast off collapsing Pillar 1, low-hop past Pillar 3, ignore the fake death flash, and jump over col 24 onto the exit.",
   grid: buildRoom(g => {
     g.pit(6, 26, "^");
     g.plat(8, 14, 2, "#"); g.plat(12, 14, 2, "#"); g.set(16, 14, "F");
     g.plat(19, 14, 2, "#"); g.plat(23, 14, 2, "#");
+    g.plat(13, 10, 2, "H");
     g.set(8,15,"."); g.set(9,15,"."); g.set(12,15,"."); g.set(13,15,".");
     g.set(16,15,"."); g.set(19,15,"."); g.set(20,15,"."); g.set(23,15,"."); g.set(24,15,".");
   }),
   start: { col: 2, row: 13 }, exit: { col: 29, row: 13 },
+  spikeSeamTells: [{ col: 24, row: 13 }],
   triggers: [
+    {
+      id: "r2_p1_drop", once: true,
+      condition: { type: "zoneEnter", rect: { x: 8*30, y: 12*30, w: 60, h: 60 } },
+      actions: [{ type: "fallTile", tiles: [{col:8,row:14},{col:9,row:14}], delayTicks: 16, fallSpeed: 8 }]
+    },
     {
       id: "r2_seq", once: true,
       condition: { type: "sequence", steps: [
@@ -591,104 +612,180 @@ addRound({
       id: "r2_direct", once: true,
       condition: { type: "zoneEnter", rect: { x: 16*30-4, y: 13*30, w: 38, h: 34 } },
       actions: [{ type: "fallTile", tiles: [{col:16,row:14}], delayTicks: 1, fallSpeed: 9 }, { type: "playSound", sound: "trap" }]
+    },
+    {
+      id: "r2_fakedeath_spike", once: true,
+      condition: { type: "playerX", x: 19.5 * 30, op: ">=" },
+      actions: [
+        { type: "showFakeUI", variant: "fakeDeath", durationTicks: 42, blocksInput: false },
+        { type: "spawnSpike", col: 24, row: 13, dir: "^", emergeTicks: 5 },
+        { type: "playSound", sound: "death" }, { type: "shake", intensity: 5, durationTicks: 7 }
+      ]
     }
   ]
 });
 
 addRound({
-  id: 3, world: 1, name: "RUNAWAY EXIT", type: "PLATFORM",
+  id: 3, world: 1, name: "CHASE & INVERT", type: "PLATFORM",
   lieKey: "fleeing_door_route",
-  mechanic: "Approaching the exit dashes it to the upper-left balcony.",
-  tell: "Faint gold skid marks trail left from the door; mid-left platforms wait above.",
-  solutionSummary: "Approach x>=570 to trigger the flee, turn around, and climb to upper-left exit.",
+  mechanic: "Approaching exit flees it upper-left, collapses the middle return floor into spikes, spawns a back-spike, and inverts controls on the upper platform.",
+  tell: "Skid marks from door, floor seams at cols 11-13, and overshoot spike on col 2.",
+  solutionSummary: "Trigger exit flee at x>=540, climb back up cols 15->10, invert Left/Right after landing on plat 10, and hop carefully onto exit balcony.",
   grid: buildRoom(g => {
     g.plat(3, 9, 4, "#");
     g.plat(10, 11, 3, "#");
     g.plat(15, 13, 3, "#");
+    g.row(14, 11, 13, "C"); g.row(15, 11, 13, "."); g.row(16, 11, 13, "^");
+    g.set(2, 8, "^");
   }),
   start: { col: 3, row: 13 }, exit: { col: 28, row: 13 },
   skidMarks: [{ x1: 23*30, x2: 28*30, y: 14*30 - 2 }],
-  triggers: [{
-    id: "r3_flee", once: true,
-    condition: { type: "playerX", x: 19 * 30, op: ">=" },
-    actions: [
-      { type: "moveEntity", targetId: "exit", toX: 3.2 * 30, toY: 8 * 30, durationTicks: 10 },
-      { type: "spawnSpike", col: 28, row: 13, dir: "^", emergeTicks: 8 },
-      { type: "playSound", sound: "flip" }, { type: "shake", intensity: 4, durationTicks: 8 }
-    ]
-  }]
+  triggers: [
+    {
+      id: "r3_flee", once: true,
+      condition: { type: "playerX", x: 18.5 * 30, op: ">=" },
+      actions: [
+        { type: "moveEntity", targetId: "exit", toX: 4 * 30, toY: 8 * 30, durationTicks: 10 },
+        { type: "spawnSpike", col: 28, row: 13, dir: "^", emergeTicks: 8 },
+        { type: "spawnSpike", col: 22, row: 13, dir: "^", emergeTicks: 8 },
+        { type: "fallTile", tiles: [{col:11,row:14},{col:12,row:14},{col:13,row:14}], delayTicks: 4, fallSpeed: 8 },
+        { type: "playSound", sound: "flip" }, { type: "shake", intensity: 4, durationTicks: 8 }
+      ]
+    },
+    {
+      id: "r3_invert_climb", once: true,
+      condition: { type: "sequence", steps: [
+        { type: "playerX", x: 18.5 * 30, op: ">=" },
+        { type: "zoneEnter", rect: { x: 10*30, y: 9*30, w: 90, h: 60 } }
+      ]},
+      actions: [{ type: "reverseControls", enabled: true }, { type: "playSound", sound: "glitch" }]
+    }
+  ]
 });
 
 addRound({
-  id: 4, world: 1, name: "GREED TAX", type: "PLATFORM",
+  id: 4, world: 1, name: "DOUBLE SCAM", type: "PLATFORM",
   lieKey: "coin_spawns_spikes",
-  mechanic: "Collecting the tempting coin spawns coral floor spikes ahead and behind.",
-  tell: "1px coral spike tips peek out of the floor seam at cols 10-11 and 17-19.",
-  solutionSummary: "Skip the coin via the upper stone bridge (cols 11..22) or jump early.",
-  grid: buildRoom(g => { g.plat(7, 12, 2, "#"); g.plat(11, 10, 12, "#"); }),
+  mechanic: "Coin bait traps the low route, while taking the upper bridge collapses its far half into newly-erupted floor spikes beneath a hidden block.",
+  tell: "Spike seams below both routes plus hidden ceiling dust at col 24.",
+  solutionSummary: "Climb the upper bridge, jump early before col 18 collapses, clear the lower spikes, and exit.",
+  grid: buildRoom(g => {
+    g.plat(7, 12, 2, "#");
+    g.plat(11, 10, 12, "#");
+    g.plat(24, 9, 2, "H");
+    g.row(15, 13, 16, "."); g.row(16, 13, 16, "^");
+  }),
   start: { col: 2, row: 13 }, exit: { col: 29, row: 13 },
   coins: [{ id: "c4", col: 14.5, row: 13 }],
-  spikeSeamTells: [{col:10,row:13},{col:11,row:13},{col:17,row:13},{col:18,row:13},{col:19,row:13}],
-  triggers: [{
-    id: "r4_greed", once: true,
-    condition: { type: "collectItem", itemId: "c4" },
-    actions: [
-      { type: "spawnSpike", col: 10, row: 13, dir: "^", emergeTicks: 6 },
-      { type: "spawnSpike", col: 11, row: 13, dir: "^", emergeTicks: 6 },
-      { type: "spawnSpike", col: 17, row: 13, dir: "^", emergeTicks: 6 },
-      { type: "spawnSpike", col: 18, row: 13, dir: "^", emergeTicks: 6 },
-      { type: "spawnSpike", col: 19, row: 13, dir: "^", emergeTicks: 6 },
-      { type: "playSound", sound: "trap" }, { type: "shake", intensity: 4, durationTicks: 7 }
-    ]
-  }]
+  spikeSeamTells: [{col:10,row:13},{col:11,row:13},{col:17,row:13},{col:18,row:13},{col:19,row:13},{col:23,row:13},{col:24,row:13}],
+  triggers: [
+    {
+      id: "r4_greed", once: true,
+      condition: { type: "collectItem", itemId: "c4" },
+      actions: [
+        { type: "spawnSpike", col: 10, row: 13, dir: "^", emergeTicks: 6 },
+        { type: "spawnSpike", col: 11, row: 13, dir: "^", emergeTicks: 6 },
+        { type: "spawnSpike", col: 17, row: 13, dir: "^", emergeTicks: 6 },
+        { type: "spawnSpike", col: 18, row: 13, dir: "^", emergeTicks: 6 },
+        { type: "spawnSpike", col: 19, row: 13, dir: "^", emergeTicks: 6 },
+        { type: "fallTile", tiles: [{col:13,row:14},{col:14,row:14},{col:15,row:14},{col:16,row:14}], delayTicks: 2, fallSpeed: 8 },
+        { type: "playSound", sound: "trap" }, { type: "shake", intensity: 4, durationTicks: 7 }
+      ]
+    },
+    {
+      id: "r4_upper_trap", once: true,
+      condition: { type: "zoneEnter", rect: { x: 16*30, y: 8*30, w: 60, h: 60 } },
+      actions: [
+        { type: "fallTile", tiles: [{col:18,row:10},{col:19,row:10},{col:20,row:10},{col:21,row:10},{col:22,row:10}], delayTicks: 2, fallSpeed: 8 },
+        { type: "spawnSpike", col: 23, row: 13, dir: "^", emergeTicks: 5 },
+        { type: "spawnSpike", col: 24, row: 13, dir: "^", emergeTicks: 5 },
+        { type: "playSound", sound: "trap" }, { type: "shake", intensity: 4, durationTicks: 6 }
+      ]
+    }
+  ]
 });
 
 addRound({
-  id: 5, world: 1, name: "HEADACHE", type: "PLATFORM",
+  id: 5, world: 1, name: "GAUNTLET TUNNEL", type: "PLATFORM",
   lieKey: "hidden_ceiling",
-  mechanic: "An invisible solid ceiling block above the pit bonks full-height jumps into spikes.",
-  tell: "A faint 2px dust shadow hovers at row 10 above the takeoff lip.",
-  solutionSummary: "Tap Jump briefly for a short hop underneath the hidden ceiling block.",
-  grid: buildRoom(g => { g.pit(14, 16, "^"); g.plat(13, 10, 3, "H"); }),
-  start: { col: 3, row: 13 }, exit: { col: 27, row: 13 },
-  triggers: []
+  mechanic: "Invisible ceiling blocks cap two traps separated by an erupting spike and a fake non-solid stone floor over spikes, guarded by a sweeping hazard.",
+  tell: "Hovering ceiling dust lines at row 10 and a 1px horizontal seam split across the fake floor at cols 20-21.",
+  solutionSummary: "Low-hop the first pit under H, jump early over the erupting spike at col 16, clear the fake N bridge under H, and pass the sweeper.",
+  grid: buildRoom(g => {
+    g.pit(10, 12, "^"); g.plat(9, 10, 5, "H");
+    g.row(14, 20, 21, "N"); g.row(15, 20, 21, "."); g.row(16, 20, 21, "^");
+    g.plat(19, 10, 4, "H");
+  }),
+  start: { col: 3, row: 13 }, exit: { col: 28, row: 13 },
+  hazards: [{ kind: "sweep", minX: 23*30, maxX: 26*30, y: 12*30, w: 20, h: 20, period: 70 }],
+  spikeSeamTells: [{ col: 16, row: 13 }],
+  triggers: [
+    {
+      id: "r5_mid_spike", once: true,
+      condition: { type: "playerX", x: 14 * 30, op: ">=" },
+      actions: [{ type: "spawnSpike", col: 16, row: 13, dir: "^", emergeTicks: 5 }, { type: "playSound", sound: "trap" }]
+    }
+  ]
 });
 
 addRound({
-  id: 6, world: 1, name: "SHY FLOOR", type: "PLATFORM",
+  id: 6, world: 1, name: "SHY GRAVITY", type: "PLATFORM",
   lieKey: "shy_floor_still",
-  mechanic: "Bridge tiles only stay solid while you are NOT holding Left or Right.",
-  tell: "Tiles flicker into scanline holograms the instant you hold a movement key.",
-  solutionSummary: "Jump across the shy bridge, release Right before landing so tiles solidify, then hop again.",
-  grid: buildRoom(g => { g.pit(10, 21, "^"); g.plat(10, 14, 12, "#"); g.row(15, 10, 21, "^"); }),
+  mechanic: "Shy bridge vanishes while holding movement keys, then halfway across gravity flips upside-down onto a shy ceiling before flipping back.",
+  tell: "Hologram scanlines flash while holding keys; roof spikes mark where NOT to flip.",
+  solutionSummary: "Release movement keys when landing on the shy floor and shy roof as gravity flips and returns.",
+  grid: buildRoom(g => {
+    g.pit(9, 22, "^"); g.plat(9, 14, 14, "#"); g.row(15, 9, 22, "^");
+    g.plat(15, 2, 10, "#"); g.row(1, 9, 13, "v");
+  }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  triggers: [{
-    id: "r6_shy", once: false,
-    condition: { type: "always" },
-    actions: [{
-      type: "shyFloorToggle",
-      tiles: Array.from({length:12}, (_,i) => ({ col: 10 + i, row: 14 }))
-    }]
-  }]
+  triggers: [
+    {
+      id: "r6_shy", once: false,
+      condition: { type: "always" },
+      actions: [{
+        type: "shyFloorToggle",
+        tiles: [
+          ...Array.from({length:14}, (_,i) => ({ col: 9 + i, row: 14 })),
+          ...Array.from({length:10}, (_,i) => ({ col: 15 + i, row: 2 }))
+        ]
+      }]
+    },
+    {
+      id: "r6_flip_up", once: true,
+      condition: { type: "playerX", x: 15.5 * 30, op: ">=" },
+      actions: [{ type: "flipGravity" }, { type: "playSound", sound: "flip" }]
+    },
+    {
+      id: "r6_flip_down", once: true,
+      condition: { type: "playerX", x: 24.0 * 30, op: ">=" },
+      actions: [{ type: "flipGravity" }, { type: "playSound", sound: "flip" }]
+    }
+  ]
 });
 
 // ---------------- WORLD 2: THE INTERFACE (7..12) ----------------
 addRound({
   id: 7, world: 2, name: "EARLY CELEBRATION", type: "PLATFORM",
   lieKey: "fake_complete_ui",
-  mechanic: "A translucent LEVEL COMPLETE banner pops up while a spike pit awaits ahead.",
-  tell: "The popup reads '00.00S ...OR IS IT?' while your player continues running underneath.",
-  solutionSummary: "Ignore the fake victory screen, keep running right, and jump the pit at cols 22..24.",
+  mechanic: "Translucent LEVEL COMPLETE popup distracts you over two pits while a hidden slammer fist and late spike guard the door.",
+  tell: "Fake banner reads '00.00S ...OR IS IT?' above a visible ceiling fist rail and door-edge seam.",
+  solutionSummary: "Ignore the fake win banner, jump pit 1, dodge under/past the slammer fist at col 16, clear pit 2 and late spike at col 26.",
   grid: buildRoom(g => { g.pit(8, 10, "^"); g.pit(22, 24, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 29, row: 13 },
-  triggers: [{
-    id: "r7_fakewin", once: true,
-    condition: { type: "playerX", x: 15 * 30, op: ">=" },
-    actions: [
-      { type: "showFakeUI", variant: "complete", durationTicks: 150, blocksInput: false },
-      { type: "playSound", sound: "fakeWin" }
-    ]
-  }]
+  hazards: [{ kind: "fist", x: 16*30, y: 5*30, baseY: 5*30, slamY: 13*30, w: 26, h: 28, period: 75, warnTicks: 24, slamTicks: 18 }],
+  spikeSeamTells: [{ col: 26, row: 13 }],
+  triggers: [
+    {
+      id: "r7_fakewin", once: true,
+      condition: { type: "playerX", x: 14 * 30, op: ">=" },
+      actions: [
+        { type: "showFakeUI", variant: "complete", durationTicks: 150, blocksInput: false },
+        { type: "spawnSpike", col: 26, row: 13, dir: "^", emergeTicks: 5 },
+        { type: "playSound", sound: "fakeWin" }
+      ]
+    }
+  ]
 });
 
 addRound({
@@ -2081,13 +2178,13 @@ function expandSolution(segs) {
 }
 
 const LEVEL_SOLUTIONS = {
-  1:  [{ticks:50,right:true},{ticks:18,right:true,jump:true},{ticks:38,right:true},{ticks:16,right:true,jump:true},{ticks:60,right:true}],
-  2:  [{ticks:28,right:true},{ticks:4,right:true,jump:true},{ticks:20,right:true},{ticks:4,right:true,jump:true},{ticks:40,right:true},{ticks:12,right:true,jump:true},{ticks:24,right:true},{ticks:16,right:true,jump:true},{ticks:32,right:true}],
-  3:  [{ticks:28,right:true},{ticks:12,right:true,jump:true},{ticks:4,left:true,jump:true},{ticks:40,right:true},{ticks:4,right:true,jump:true},{ticks:12,right:true},{ticks:4,left:true},{ticks:4,right:true},{ticks:12,left:true},{ticks:4,left:true,jump:true},{ticks:4,left:true},{ticks:4,left:true,jump:true},{ticks:12,left:true},{ticks:4,right:true},{ticks:4,left:true},{ticks:8,left:true,jump:true},{ticks:8,left:true},{ticks:4,right:true},{ticks:12,left:true},{ticks:4,left:true,jump:true},{ticks:4,left:true},{ticks:8,left:true,jump:true},{ticks:24,left:true}],
-  4:  [{ticks:96,right:true},{ticks:4,right:true,jump:true},{ticks:44,right:true},{ticks:4,right:true,jump:true},{ticks:4,right:true},{ticks:8,right:true,jump:true},{ticks:20,right:true}],
-  5:  [{ticks:76,right:true},{ticks:4,right:true,jump:true},{ticks:80,right:true}],
-  6:  [{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":52,"right":true}],
-  7:  [{ticks:44,right:true},{ticks:4,right:true,jump:true},{ticks:88,right:true},{"ticks":4,"right":true,"jump":true},{"ticks":40,"right":true}],
+  1:  [{"ticks":64,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":40,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":7,"right":true}],
+  2:  [{"ticks":32,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":32,"right":true}],
+  3:  [{"ticks":76,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":12,"jump":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":24,"left":true},{"ticks":20,"left":true,"jump":true},{"ticks":4,"right":true,"jump":true},{"ticks":12,"right":true},{"ticks":16,"right":true,"jump":true},{"ticks":29,"right":true}],
+  4:  [{"ticks":32,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":96,"right":true}],
+  5:  [{"ticks":52,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":28,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":54,"right":true}],
+  6:  [{"ticks":52,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"jump":true},{"ticks":12,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":36,"right":true},{"ticks":4,"jump":true},{"ticks":12,"right":true,"jump":true},{"ticks":24,"right":true}],
+  7:  [{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":40,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":28,"right":true}],
   8:  [{"ticks":16,"right":true},{"ticks":8,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"right":true,"jump":true},{"ticks":8,"right":true},{"ticks":12,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4},{"ticks":16,"right":true},{"ticks":20,"right":true,"jump":true},{"ticks":16,"right":true},{"ticks":12,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":8,"left":true,"jump":true},{"ticks":4,"right":true},{"ticks":4},{"ticks":8,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":12,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true},{"ticks":4},{"ticks":44,"right":true}],
   9:  [{ticks:8,right:true},{ticks:8,right:true,jump:true},{ticks:32,right:true},{ticks:8,right:true,jump:true},{ticks:12,right:true},{ticks:12,right:true,jump:true},{ticks:8,right:true},{ticks:4,left:true},{ticks:12,left:true,jump:true},{ticks:4,left:true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"left":true},{"ticks":4},{"ticks":8,"left":true},{"ticks":16,"left":true,"jump":true},{"ticks":12,"left":true},{"ticks":8,"left":true,"jump":true},{"ticks":4,"left":true}],
   10: [{ticks:4,pause:true},{ticks:180,right:true}],
@@ -3874,6 +3971,16 @@ function renderFakeUI(state) {
     ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 4; ctx.strokeRect(220, 120, 520, 140);
     drawPixelText(ctx, "LEVEL COMPLETE!", 480, 148, 4, PAL.GOLD, "center");
     drawPixelText(ctx, "TIME: 00.00S   ...OR IS IT?", 480, 198, 2, PAL.WHITE, "center");
+  } else if (f.variant === "fakeDeath") {
+    ctx.globalAlpha = 0.82; ctx.fillStyle = PAL.BG; ctx.fillRect(240, 138, 480, 118);
+    ctx.strokeStyle = PAL.CORAL; ctx.lineWidth = 4; ctx.strokeRect(240, 138, 480, 118);
+    drawPixelText(ctx, "YOU DIED!", 480, 162, 5, PAL.CORAL, "center");
+    drawPixelText(ctx, "RESPAWNING... WAIT WHY ARE YOU STILL MOVING?", 480, 222, 1, PAL.WHITE, "center");
+  } else if (f.variant === "crash") {
+    ctx.globalAlpha = 0.92; ctx.fillStyle = PAL.BG; ctx.fillRect(190, 118, 580, 150);
+    ctx.strokeStyle = PAL.CORAL; ctx.lineWidth = 3; ctx.strokeRect(190, 118, 580, 150);
+    drawPixelText(ctx, "FATAL EXCEPTION 0xDEAD", 480, 148, 3, PAL.CORAL, "center");
+    drawPixelText(ctx, "PLAYER_SKILLS.DLL FAILED TO RESPOND", 480, 196, 2, PAL.WHITE, "center");
   }
   ctx.restore();
 }
@@ -4713,62 +4820,119 @@ function renderMindWin() {
 
 function renderTitleScreen() {
   ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
-  drawAtmosphereAndEye(app.mouse.x, app.mouse.y, 148);
 
-  // Decorative bottom spike horizon
-  for (let c = 0; c < COLS; c++) drawSpike(c * TILE, 16 * TILE, "^", 1);
-  ctx.fillStyle = PAL.STONE; ctx.fillRect(0, 17 * TILE, LOGICAL_W, TILE);
-  ctx.fillStyle = PAL.CORAL; ctx.fillRect(0, 17 * TILE, LOGICAL_W, 3);
+  // Atmospheric vignette + rising dark embers + drifting Watchful Eye
+  const rad = ctx.createRadialGradient(480, 130, 30, 480, 260, 560);
+  rad.addColorStop(0, "rgba(46,45,64,0.34)");
+  rad.addColorStop(1, "rgba(15,14,23,0)");
+  ctx.fillStyle = rad; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
 
-  // Top telemetry strip
+  if (!progress.streamerSafe) {
+    for (let i = 0; i < 14; i++) {
+      const ex = ((i * 73 + 29) % LOGICAL_W);
+      const ey = ((520 - ((app.uiTick * (0.4 + (i % 3) * 0.2) + i * 47) % 520)));
+      ctx.fillStyle = i % 3 === 0 ? "rgba(255,51,102,0.22)" : "rgba(255,184,0,0.16)";
+      ctx.fillRect(ex, ey, 3, 3);
+    }
+  }
+
+  // Reticle diamond behind the Watchful Eye
+  ctx.save();
+  ctx.strokeStyle = "rgba(255,255,254,0.09)"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(480, 38); ctx.lineTo(590, 124); ctx.lineTo(480, 210); ctx.lineTo(370, 124); ctx.closePath(); ctx.stroke();
+  ctx.restore();
+  drawAtmosphereAndEye(app.mouse.x, app.mouse.y, 124);
+
+  // Minimal floating top-corner telemetry badges
   const totalSuffering = progress.totalDeaths + (progress.g2TotalFails || 0);
-  drawPixelText(ctx, `TRUST RATING: ${app.trustScore}%`, 26, 16, 2, app.trustScore > 25 ? PAL.GOLD : PAL.CORAL, "left");
-  drawPixelText(ctx, `TOTAL SUFFERING: ${totalSuffering}`, 934, 16, 2, PAL.WHITE, "right");
+  ctx.fillStyle = "rgba(46,45,64,0.72)"; ctx.fillRect(26, 14, 194, 28);
+  ctx.fillStyle = app.trustScore > 25 ? PAL.GOLD : PAL.CORAL; ctx.fillRect(26, 14, 4, 28);
+  drawPixelText(ctx, `TRUST: ${app.trustScore}%`, 40, 21, 2, app.trustScore > 25 ? PAL.GOLD : PAL.CORAL, "left");
 
-  // Kinetic split-layer title
+  ctx.fillStyle = "rgba(46,45,64,0.72)"; ctx.fillRect(722, 14, 212, 28);
+  ctx.fillStyle = PAL.CORAL; ctx.fillRect(930, 14, 4, 28);
+  drawPixelText(ctx, `FAILS: ${totalSuffering}`, 918, 21, 2, PAL.WHITE, "right");
+
+  // Kinetic split-layer wordmark
   const jitter = progress.streamerSafe ? 0 : Math.round(Math.sin(app.uiTick * 0.14) * 2);
-  drawPixelText(ctx, "TRUST ISSUES ARCADE", 484 + jitter, 46, 5, PAL.CORAL, "center");
-  drawPixelText(ctx, "TRUST ISSUES ARCADE", 476 - jitter, 42, 5, PAL.GOLD, "center");
-  drawPixelText(ctx, "TRUST ISSUES ARCADE", 480, 44, 5, PAL.WHITE, "center");
-  drawPixelText(ctx, "TWO WAYS TO BREAK YOUR BRAIN. ZERO HINTS. ZERO MERCY.", 480, 100, 2, PAL.GOLD, "center");
+  drawPixelText(ctx, "TRUST ISSUES", 484 + jitter, 32, 6, PAL.CORAL, "center");
+  drawPixelText(ctx, "TRUST ISSUES", 476 - jitter, 28, 6, PAL.GOLD, "center");
+  drawPixelText(ctx, "TRUST ISSUES", 480, 30, 6, PAL.WHITE, "center");
 
-  // Left Cartridge: Game 1 (Platformer)
+  ctx.fillStyle = "rgba(15,14,23,0.9)"; ctx.fillRect(210, 96, 540, 26);
+  ctx.strokeStyle = PAL.STONE; ctx.lineWidth = 1.5; ctx.strokeRect(210, 96, 540, 26);
+  drawPixelText(ctx, "TWO WAYS TO LOSE YOUR MIND. ZERO HINTS. ZERO MERCY.", 480, 102, 1, PAL.GOLD, "center");
+
+  // ---------------- GAME 01 SHOWCASE CARD (PLATFORMER) ----------------
   const g1Cleared = Object.keys(progress.cleared).filter(id => Number(id) <= 100).length;
   const firstG1 = LEVELS.findIndex((l, idx) => idx < 100 && !progress.cleared[l.id]);
   const playG1Idx = app.state ? app.currentLevelIndex : (firstG1 >= 0 ? firstG1 : 0);
   const playG1Num = LEVELS[playG1Idx] ? LEVELS[playG1Idx].id : 1;
-  ctx.fillStyle = "rgba(46,45,64,0.88)"; ctx.fillRect(46, 142, 418, 250);
-  ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 3; ctx.strokeRect(46, 142, 418, 250);
-  ctx.fillStyle = PAL.GOLD; ctx.fillRect(46, 142, 418, 6);
-  drawPixelText(ctx, "GAME 01 // TRUST ISSUES", 255, 164, 2, PAL.GOLD, "center");
-  drawPixelText(ctx, "RIGGED PRECISION PLATFORMER", 255, 192, 2, PAL.WHITE, "center");
-  drawPixelText(ctx, `CLEARED: ${g1Cleared}/100  |  DEATHS: ${progress.totalDeaths}`, 255, 224, 1, PAL.WHITE, "center");
-  addButton(70, 254, 370, 56, app.state ? `RESUME #${playG1Num}` : (g1Cleared > 0 ? `CONTINUE #${playG1Num}` : "PLAY PLATFORMER"), () => {
-    if (app.state) { app.screen = "play"; } else { startLevel(playG1Idx, true); }
-  }, PAL.GOLD, PAL.BG, PAL.WHITE, "101 UNHINGED ROUNDS [ENTER]");
-  addButton(70, 324, 370, 46, "WORLDS & ROUNDS [L]", () => { app.screen = "select"; }, PAL.STONE, PAL.WHITE, PAL.WHITE);
 
-  // Right Cartridge: Game 2 (Psychological Logic / Reflex Torture)
+  ctx.fillStyle = "rgba(15,14,23,0.94)"; ctx.fillRect(54, 186, 416, 224);
+  ctx.strokeStyle = PAL.STONE; ctx.lineWidth = 2; ctx.strokeRect(54, 186, 416, 224);
+  ctx.fillStyle = PAL.GOLD; ctx.fillRect(54, 186, 5, 224);
+
+  // Live animated mini-platformer preview banner inside Card 1
+  ctx.fillStyle = "#161524"; ctx.fillRect(72, 198, 382, 46);
+  ctx.fillStyle = PAL.STONE; ctx.fillRect(72, 236, 382, 8);
+  for (let s = 0; s < 3; s++) drawSpike(224 + s * 22, 212, "^", 0.72);
+  const runT = (app.uiTick % 90) / 90;
+  const rx = 86 + runT * 340;
+  const jumpArc = (runT > 0.36 && runT < 0.62) ? Math.sin(((runT - 0.36) / 0.26) * Math.PI) * 20 : 0;
+  ctx.fillStyle = PAL.WHITE; ctx.fillRect(Math.round(rx), Math.round(220 - jumpArc), 12, 16);
+  ctx.fillStyle = PAL.GOLD; ctx.fillRect(422, 214, 14, 22);
+
+  drawPixelText(ctx, "01 // TRUST ISSUES", 74, 256, 3, PAL.GOLD, "left");
+  drawPixelText(ctx, "101 RIGGED PLATFORMER ROUNDS", 74, 286, 1, PAL.WHITE, "left");
+  drawPixelText(ctx, `${g1Cleared}/100 CLEARED   |   ${progress.totalDeaths} DEATHS`, 74, 302, 1, PAL.CORAL, "left");
+
+  const dailyId = getDailyRoundId();
+  addButton(74, 322, 378, 42, app.state ? `RESUME ROUND #${playG1Num}` : (g1Cleared > 0 ? `CONTINUE (#${playG1Num})` : "PLAY PLATFORMER [ENTER]"), () => {
+    if (app.state) { app.screen = "play"; } else { startLevel(playG1Idx, true); }
+  }, PAL.GOLD, PAL.BG, PAL.WHITE);
+  addButton(74, 370, 184, 30, "WORLDS [L]", () => { app.screen = "select"; }, PAL.STONE, PAL.WHITE, PAL.STONE);
+  addButton(268, 370, 184, 30, `DAILY (#${dailyId})`, () => startLevel(Math.min(LEVELS.length - 1, dailyId - 1), true), PAL.STONE, PAL.GOLD, PAL.GOLD);
+
+  // ---------------- GAME 02 SHOWCASE CARD (DO NOT OBEY) ----------------
   const g2Cleared = Object.keys(progress.g2Cleared || {}).length;
   const firstG2 = MIND_LEVELS.findIndex(m => !(progress.g2Cleared && progress.g2Cleared[m.id]));
   const playG2Idx = app.g2 ? app.g2CurrentIdx : (firstG2 >= 0 ? firstG2 : 0);
-  ctx.fillStyle = "rgba(46,45,64,0.88)"; ctx.fillRect(496, 142, 418, 250);
-  ctx.strokeStyle = PAL.CORAL; ctx.lineWidth = 3; ctx.strokeRect(496, 142, 418, 250);
-  ctx.fillStyle = PAL.CORAL; ctx.fillRect(496, 142, 418, 6);
-  drawPixelText(ctx, "GAME 02 // DO NOT OBEY", 705, 164, 2, PAL.CORAL, "center");
-  drawPixelText(ctx, "PSYCHOLOGICAL UI TORTURE", 705, 192, 2, PAL.WHITE, "center");
-  drawPixelText(ctx, `CLEARED: ${g2Cleared}/16  |  FAILS: ${progress.g2TotalFails || 0}`, 705, 224, 1, PAL.WHITE, "center");
-  addButton(520, 254, 370, 56, app.g2 ? `RESUME M${playG2Idx + 1}` : (g2Cleared > 0 ? `CONTINUE M${playG2Idx + 1}` : "PLAY MIND GAMES"), () => {
-    if (app.g2) { app.screen = "g2play"; } else { startMindLevel(playG2Idx); }
-  }, PAL.CORAL, PAL.WHITE, PAL.WHITE, "16 BRAIN TRAPS & ANTI-CONTROLS");
-  addButton(520, 324, 370, 46, "MIND STAGES (1..16)", () => { app.screen = "g2select"; }, PAL.STONE, PAL.WHITE, PAL.WHITE);
 
-  // Bottom quick bar + narrator bar on bottom stone floor
-  const dailyId = getDailyRoundId();
-  addButton(46, 412, 280, 44, `DAILY TRIAL (#${dailyId})`, () => startLevel(Math.min(LEVELS.length - 1, dailyId - 1), true), PAL.STONE, PAL.GOLD, PAL.GOLD);
-  addButton(340, 412, 280, 44, "HALL OF SHAME [H]", () => { app.screen = "shame"; }, PAL.STONE, PAL.CORAL, PAL.CORAL);
-  addButton(634, 412, 280, 44, "SETTINGS & KEYS [ESC]", () => { app.screen = "pause"; }, PAL.STONE, PAL.WHITE, PAL.WHITE);
-  drawPixelText(ctx, app.narratorText, 480, 518, 2, PAL.WHITE, "center");
+  ctx.fillStyle = "rgba(15,14,23,0.94)"; ctx.fillRect(490, 186, 416, 224);
+  ctx.strokeStyle = PAL.STONE; ctx.lineWidth = 2; ctx.strokeRect(490, 186, 416, 224);
+  ctx.fillStyle = PAL.CORAL; ctx.fillRect(490, 186, 5, 224);
+
+  // Live animated mini-mind-game preview inside Card 2
+  ctx.fillStyle = "#161524"; ctx.fillRect(508, 198, 382, 46);
+  const bx = 560 + Math.round(Math.sin(app.uiTick * 0.06) * 44);
+  ctx.fillStyle = PAL.CORAL; ctx.fillRect(bx, 210, 74, 22);
+  drawPixelText(ctx, "BAIT", bx + 37, 216, 1, PAL.WHITE, "center");
+  const cx = 755 - Math.round(Math.cos(app.uiTick * 0.06) * 36);
+  ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(cx, 221, 9, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx - 14, 221); ctx.lineTo(cx + 14, 221); ctx.moveTo(cx, 207); ctx.lineTo(cx, 235); ctx.stroke();
+
+  drawPixelText(ctx, "02 // DO NOT OBEY", 510, 256, 3, PAL.CORAL, "left");
+  drawPixelText(ctx, "16 PSYCHOLOGICAL BRAIN TRAPS", 510, 286, 1, PAL.WHITE, "left");
+  drawPixelText(ctx, `${g2Cleared}/16 CLEARED   |   ${progress.g2TotalFails || 0} FAILS`, 510, 302, 1, PAL.GOLD, "left");
+
+  addButton(510, 322, 378, 42, app.g2 ? `RESUME STAGE M${playG2Idx + 1}` : (g2Cleared > 0 ? `CONTINUE M${playG2Idx + 1}` : "PLAY MIND GAMES"), () => {
+    if (app.g2) { app.screen = "g2play"; } else { startMindLevel(playG2Idx); }
+  }, PAL.CORAL, PAL.WHITE, PAL.WHITE);
+  addButton(510, 370, 378, 30, "STAGE SELECT (M01..M16)", () => { app.screen = "g2select"; }, PAL.STONE, PAL.WHITE, PAL.STONE);
+
+  // ---------------- CLEAN UTILITY DOCK & FOOTER ----------------
+  addButton(138, 430, 216, 38, "HALL OF SHAME [H]", () => { app.screen = "shame"; }, PAL.STONE, PAL.CORAL, PAL.CORAL);
+  addButton(372, 430, 216, 38, "SETTINGS & KEYS [ESC]", () => { app.screen = "pause"; }, PAL.STONE, PAL.WHITE, PAL.WHITE);
+  addButton(606, 430, 216, 38, progress.muted ? "SOUND: MUTED" : "SOUND: ON", () => {
+    progress.muted = !progress.muted; sfx.muted = progress.muted; saveProgress(progress);
+  }, PAL.STONE, progress.muted ? PAL.CORAL : PAL.GOLD, progress.muted ? PAL.CORAL : PAL.GOLD);
+
+  ctx.fillStyle = "#161524"; ctx.fillRect(0, LOGICAL_H - 38, LOGICAL_W, 38);
+  ctx.fillStyle = PAL.CORAL; ctx.fillRect(0, LOGICAL_H - 38, 8, 38);
+  ctx.fillStyle = PAL.STONE; ctx.fillRect(8, LOGICAL_H - 38, LOGICAL_W - 8, 2);
+  drawPixelText(ctx, app.narratorText, 480, LOGICAL_H - 25, 2, PAL.WHITE, "center");
 }
 
 function renderLevelSelect() {
