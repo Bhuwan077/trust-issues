@@ -532,23 +532,35 @@ function normalizeRiddleAnswer(str) {
 
 // ---------------- WORLD 1: HONEST FLOORS (1..6) ----------------
 addRound({
-  id: 1, world: 1, name: "SAFE SIGN", type: "PLATFORM",
+  id: 1, world: 1, name: "TRUST NOTHING", type: "PLATFORM",
   lieKey: "safe_sign_pit",
-  mechanic: "SAFE sign marks a 4-tile collapsing seam bridge over spikes.",
-  tell: "The E in SAFE droops 2px and the 4 bridge tiles show a 2px bottom seam.",
-  solutionSummary: "Run right and jump cleanly over the 4-tile SAFE bridge.",
+  mechanic: "SAFE sign marks a collapsing bridge over spikes, followed by a fake LEVEL COMPLETE banner that erupts a spike before the door.",
+  tell: "The E in SAFE droops 2px, bridge tiles show a 2px seam, and a coral spike tip peeks at col 23.",
+  solutionSummary: "Jump the SAFE bridge, ignore the fake LEVEL COMPLETE jingle, and jump the erupting spike at col 23.",
   grid: buildRoom(g => { g.row(14, 12, 15, "C"); g.row(15, 12, 15, "."); g.row(16, 12, 15, "^"); }),
   start: { col: 3, row: 13 }, exit: { col: 27, row: 13 },
   signs: [{ id: "s1", col: 12.6, row: 10.6, w: 88, h: 28, text: "SAFE", arrowDown: true, crookedLast: true }],
+  spikeSeamTells: [{ col: 23, row: 13 }],
   secretLetter: { char: "I", col: 1.5, row: 12 },
-  triggers: [{
-    id: "r1_fall", once: true,
-    condition: { type: "zoneEnter", rect: { x: 12*30-4, y: 13*30, w: 4*30+8, h: 34 } },
-    actions: [
-      { type: "fallTile", tiles: [{col:12,row:14},{col:13,row:14},{col:14,row:14},{col:15,row:14}], delayTicks: 2, fallSpeed: 8 },
-      { type: "playSound", sound: "trap" }, { type: "shake", intensity: 3, durationTicks: 5 }
-    ]
-  }]
+  triggers: [
+    {
+      id: "r1_fall", once: true,
+      condition: { type: "zoneEnter", rect: { x: 12*30-4, y: 13*30, w: 4*30+8, h: 34 } },
+      actions: [
+        { type: "fallTile", tiles: [{col:12,row:14},{col:13,row:14},{col:14,row:14},{col:15,row:14}], delayTicks: 2, fallSpeed: 8 },
+        { type: "playSound", sound: "trap" }, { type: "shake", intensity: 3, durationTicks: 5 }
+      ]
+    },
+    {
+      id: "r1_double_betray", once: true,
+      condition: { type: "playerX", x: 18 * 30, op: ">=" },
+      actions: [
+        { type: "showFakeUI", variant: "complete", durationTicks: 95, blocksInput: false },
+        { type: "playSound", sound: "fakeWin" },
+        { type: "spawnSpike", col: 23, row: 13, dir: "^", emergeTicks: 5 }
+      ]
+    }
+  ]
 });
 
 addRound({
@@ -2069,7 +2081,7 @@ function expandSolution(segs) {
 }
 
 const LEVEL_SOLUTIONS = {
-  1:  [{ticks:50,right:true},{ticks:18,right:true,jump:true},{ticks:100,right:true}],
+  1:  [{ticks:50,right:true},{ticks:18,right:true,jump:true},{ticks:38,right:true},{ticks:16,right:true,jump:true},{ticks:60,right:true}],
   2:  [{ticks:28,right:true},{ticks:4,right:true,jump:true},{ticks:20,right:true},{ticks:4,right:true,jump:true},{ticks:40,right:true},{ticks:12,right:true,jump:true},{ticks:24,right:true},{ticks:16,right:true,jump:true},{ticks:32,right:true}],
   3:  [{ticks:28,right:true},{ticks:12,right:true,jump:true},{ticks:4,left:true,jump:true},{ticks:40,right:true},{ticks:4,right:true,jump:true},{ticks:12,right:true},{ticks:4,left:true},{ticks:4,right:true},{ticks:12,left:true},{ticks:4,left:true,jump:true},{ticks:4,left:true},{ticks:4,left:true,jump:true},{ticks:12,left:true},{ticks:4,right:true},{ticks:4,left:true},{ticks:8,left:true,jump:true},{ticks:8,left:true},{ticks:4,right:true},{ticks:12,left:true},{ticks:4,left:true,jump:true},{ticks:4,left:true},{ticks:8,left:true,jump:true},{ticks:24,left:true}],
   4:  [{ticks:96,right:true},{ticks:4,right:true,jump:true},{ticks:44,right:true},{ticks:4,right:true,jump:true},{ticks:4,right:true},{ticks:8,right:true,jump:true},{ticks:20,right:true}],
@@ -3068,6 +3080,9 @@ const defaultProgress = () => ({
   bestTimes: {},
   foundSecrets: {},
   rageClips: [],
+  g2Cleared: {},
+  g2Fails: {},
+  g2TotalFails: 0,
   streamerSafe: false,
   colorBlind: false,
   muted: false,
@@ -3104,17 +3119,22 @@ function isWorldUnlocked(worldId) {
 }
 
 const app = {
-  screen: "title", // title | play | select | pause | shame | victory
+  screen: "title", // title | play | select | pause | shame | victory | g2play | g2select | g2win
   selectedWorld: 1,
   currentLevelIndex: 0,
   consecutiveDeaths: 0,
   state: null,
+  g2: null,
+  g2CurrentIdx: 0,
+  trustScore: 100,
+  fakeAlertText: "",
+  fakeAlertTicks: 0,
   prevPlayerPos: null,
   particles: [],
   shakeTicks: 0,
   shakeIntensity: 0,
   deathFlashTicks: 0,
-  narratorText: "EVERY LEVEL LOOKS SAFE. NONE OF THEM ARE.",
+  narratorText: "TRUST NOTHING HERE. NOT EVEN THE BUTTONS.",
   lastNarratorIdx: -1,
   showClipPanel: false,
   solverOverlay: null,
@@ -3188,9 +3208,20 @@ function handleDeathTransition() {
     showToast(`RAGE CLIP MARKER: ${app.consecutiveDeaths} DEATHS ON R${def.id}`);
   }
   saveProgress(progress);
+  app.trustScore = Math.max(-999, app.trustScore - 7);
   app.narratorText = pickNarratorLine();
   app.eyeMood = "laugh";
   app.eyeMoodTicks = 45;
+  if (!progress.streamerSafe && (progress.totalDeaths === 1 || progress.totalDeaths % 6 === 0)) {
+    const alerts = [
+      "SYSTEM ALERT: SAVE DATA CORRUPTED (0/100)",
+      "WARNING: CONTROLS PERMANENTLY INVERTED",
+      "PATCHING OUT YOUR SKILL... 99% COMPLETE",
+      "DELETING GAME.EXE ... FAILED (TRY AGAIN)"
+    ];
+    app.fakeAlertText = alerts[progress.totalDeaths % alerts.length];
+    app.fakeAlertTicks = 46;
+  }
   spawnDeathParticles(app.state.player.x, app.state.player.y);
   if (!progress.streamerSafe) app.deathFlashTicks = 5;
 }
@@ -3308,7 +3339,14 @@ window.addEventListener("keydown", e => {
       app.screen = app.state ? "play" : "title";
     } else if (app.screen === "select" || app.screen === "shame") {
       app.screen = app.state ? "play" : "title";
+    } else if (app.screen === "g2play" || app.screen === "g2select" || app.screen === "g2win") {
+      app.screen = "title";
     }
+    return;
+  }
+
+  if (app.screen === "g2play") {
+    handleMindKeyDown(code, e.key);
     return;
   }
 
@@ -3319,24 +3357,17 @@ window.addEventListener("keydown", e => {
   if (code === "KeyK") { progress.colorBlind = !progress.colorBlind; saveProgress(progress); showToast(`COLOR-BLIND SHAPES: ${progress.colorBlind ? "ON" : "OFF"}`); return; }
   if (code === "KeyL") { app.screen = app.screen === "select" ? (app.state ? "play" : "title") : "select"; return; }
   if (code === "KeyS" && app.screen === "play") { shareCurrentLevelCode(); return; }
-  if (code === "KeyP" && app.screen === "play" && (progress.levelDeaths[app.state.levelDef.id] || 0) >= 25) {
-    app.pityActive = !app.pityActive;
-    showToast(`PITY ASSIST: ${app.pityActive ? "ON (MARKED [A])" : "OFF"}`);
-    return;
-  }
-  if (code === "KeyG" && app.screen === "play" && app.state.riddle && (progress.levelDeaths[app.state.levelDef.id] || 0) > 10) {
-    app.riddleRevealed = true;
-    showToast(app.state.riddle.revealText || "RIDDLE REVEALED");
-    return;
-  }
 
-  if (matchesAction(code, "left")) app.keys.left = true;
-  if (matchesAction(code, "right")) app.keys.right = true;
-  if (matchesAction(code, "jump")) app.keys.jump = true;
-  if (code === progress.keys.restart && app.screen === "play") { startLevel(app.currentLevelIndex, false); return; }
+  if (app.screen === "play") {
+    if (matchesAction(code, "left")) app.keys.left = true;
+    if (matchesAction(code, "right")) app.keys.right = true;
+    if (matchesAction(code, "jump")) app.keys.jump = true;
+    if (code === progress.keys.restart) { startLevel(app.currentLevelIndex, false); return; }
+  }
 
   if (app.screen === "title" && (code === "Enter" || code === "Space")) startLevel(0, true);
   else if (app.screen === "victory" && (code === "Enter" || code === "Space" || code === "KeyR")) startLevel(0, true);
+  else if (app.screen === "g2win" && (code === "Enter" || code === "Space" || code === "KeyR")) startMindLevel(0);
 });
 
 window.addEventListener("keyup", e => {
@@ -3347,7 +3378,7 @@ window.addEventListener("keyup", e => {
 
 // Touch Controls
 const touchEl = document.getElementById("touch-controls");
-window.addEventListener("touchstart", () => { sfx.unlock(); touchEl.classList.add("active"); }, { passive: true, once: true });
+window.addEventListener("touchstart", () => { sfx.unlock(); app.hasTouch = true; }, { passive: true, once: true });
 function bindTouch(id, field) {
   const btn = document.getElementById(id);
   const set = v => { sfx.unlock(); app.touch[field] = v; btn.classList.toggle("pressed", v); };
@@ -3368,6 +3399,7 @@ function getCanvasCoords(e) {
 }
 canvas.addEventListener("pointermove", e => {
   app.mouse = getCanvasCoords(e);
+  if (app.screen === "g2play") handleMindPointerMove(app.mouse);
 });
 canvas.addEventListener("pointerdown", e => {
   sfx.unlock();
@@ -3377,6 +3409,7 @@ canvas.addEventListener("pointerdown", e => {
     const b = uiButtons[i];
     if (pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h) { b.onClick(); return; }
   }
+  if (app.screen === "g2play") handleMindPointerDown(pt);
 });
 
 function resizeCanvas() {
@@ -3870,6 +3903,12 @@ function renderHUD(state) {
   addButton(816, 10, 64, 26, "SHARE", shareCurrentLevelCode, PAL.STONE, PAL.WHITE, PAL.STONE);
   addButton(886, 10, 60, 26, "PAUSE", () => { app.screen = "pause"; }, PAL.STONE, PAL.CORAL, PAL.CORAL);
 
+  if (app.fakeAlertTicks > 0) {
+    ctx.fillStyle = PAL.CORAL; ctx.fillRect(190, 48, 580, 32);
+    ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 2; ctx.strokeRect(190, 48, 580, 32);
+    drawPixelText(ctx, app.fakeAlertText, 480, 57, 2, PAL.WHITE, "center");
+  }
+
   ctx.fillStyle = PAL.BG; ctx.fillRect(0, LOGICAL_H - 30, LOGICAL_W, 30);
   ctx.fillStyle = PAL.CORAL; ctx.fillRect(0, LOGICAL_H - 30, 8, 30);
   ctx.fillStyle = PAL.STONE; ctx.fillRect(8, LOGICAL_H - 30, LOGICAL_W - 8, 2);
@@ -3884,47 +3923,852 @@ function renderHUD(state) {
   }
 }
 
+/* ============================================================================
+ * 12B. GAME 2: DO NOT OBEY (16-ROUND PSYCHOLOGICAL TORTURE MODE)
+ * ============================================================================ */
+const MIND_LEVELS = [
+  { id: 1,  name: "THE LYING BUTTON",     prompt: 'CLICK "START" TO PROVE YOU ARE HUMAN' },
+  { id: 2,  name: "INK VS WORD",          prompt: "CLICK THE TILE WRITTEN IN GOLD INK" },
+  { id: 3,  name: "IMPULSIVE CLICKER",    prompt: "DO NOT TOUCH ANYTHING FOR 4.0 SECONDS" },
+  { id: 4,  name: "MIRROR CURSOR",        prompt: "SMASH ALL 3 GOLD CORES. MIND THE CORAL." },
+  { id: 5,  name: "SPIKE PARANOIA",       prompt: "HOW MANY CORAL SPIKES ARE ON SCREEN?" },
+  { id: 6,  name: "BACKWARDS SIMON",      prompt: "WATCH THE ORDER. REPEAT IT BACKWARDS." },
+  { id: 7,  name: "THE LYING TIMER",      prompt: "PRESS STOP AT 4.00S-5.00S ON THE BAR" },
+  { id: 8,  name: "ONE TRUTH, TWO BOMBS", prompt: "1 SAFE BOX. ONLY ONE LABEL TELLS THE TRUTH." },
+  { id: 9,  name: "EARBLEED VOLUME",      prompt: "MUTE AUDIO TO 0% AND CONFIRM" },
+  { id: 10, name: "GREEDY FINGERS",       prompt: "HIT THE GOLD TARGET 8 TIMES IN 6.0S" },
+  { id: 11, name: "SHUFFLED KEYPAD",      prompt: 'SPELL "TRICK" ON THE KEYPAD. ZERO ERRORS.' },
+  { id: 12, name: "SYSTEM WIPE SCARE",    prompt: "PROTECT YOUR SAVE FILE RIGHT NOW" },
+  { id: 13, name: "EBBINGHAUS SCAM",      prompt: "CLICK THE LARGEST SOLID CIRCLE" },
+  { id: 14, name: "PIXEL LIAR",           prompt: "CLICK THE 1 MISMATCHED TILE ON THE RIGHT" },
+  { id: 15, name: "POKE THE WATCHER",     prompt: "DO NOT CLICK EITHER BUTTON." },
+  { id: 16, name: "FINAL MELTDOWN",       prompt: "SURVIVE ALL 4 BRAIN CHECKS" }
+];
+
+const G2_ROASTS = [
+  "ZERO HESITATION, ZERO THOUGHT.",
+  "I LITERALLY TOLD YOU WHAT TO DO.",
+  "YOUR BRAIN BELIEVES EVERYTHING IT SEES.",
+  "STREAM CHAT JUST LAUGHED OUT LOUD.",
+  "MUSCLE MEMORY IS YOUR BIGGEST ENEMY.",
+  "READ IT AGAIN. SLOWLY THIS TIME.",
+  "YOU FELL FOR BAIT MADE OF PIXELS."
+];
+
+function startMindLevel(idx) {
+  app.g2CurrentIdx = Math.max(0, Math.min(MIND_LEVELS.length - 1, idx));
+  const def = MIND_LEVELS[app.g2CurrentIdx];
+  const failsOnId = progress.g2Fails[def.id] || 0;
+  app.g2 = {
+    def,
+    tick: 0,
+    failTicks: 0,
+    dodges: 0,
+    decoyPos: { x: 340, y: 262, w: 280, h: 68 },
+    targets: def.id === 4
+      ? [
+          { x: 190, y: 180, r: 28, gold: true, hit: false },
+          { x: 770, y: 180, r: 28, gold: true, hit: false },
+          { x: 210, y: 405, r: 28, gold: true, hit: false },
+          { x: 740, y: 400, r: 28, gold: false, hit: false },
+          { x: 480, y: 300, r: 28, gold: false, hit: false }
+        ]
+      : [
+          { x: 200, y: 185, r: 28, gold: true, hit: false },
+          { x: 760, y: 395, r: 28, gold: true, hit: false },
+          { x: 740, y: 190, r: 28, gold: false, hit: false },
+          { x: 220, y: 395, r: 28, gold: false, hit: false }
+        ],
+    simonSeq: [2, 0, 3, 1],
+    simonInput: [],
+    vol: 72,
+    mutedIcon: false,
+    clicks: 0,
+    mashTrapActive: false,
+    mashTrapPos: { x: 480, y: 350 },
+    typedIdx: 0,
+    oddIdx: (failsOnId * 5 + 6) % 16,
+    phase: 0,
+    phaseTick: 0,
+    eyeHits: 0,
+    invertedCursor: def.id === 4
+  };
+  app.screen = "g2play";
+}
+
+function failMindLevel(msg) {
+  const g2 = app.g2;
+  if (!g2 || g2.failTicks > 0) return;
+  sfx.play("death");
+  progress.g2TotalFails = (progress.g2TotalFails || 0) + 1;
+  progress.g2Fails[g2.def.id] = (progress.g2Fails[g2.def.id] || 0) + 1;
+  saveProgress(progress);
+  app.trustScore = Math.max(-999, app.trustScore - 9);
+  app.eyeMood = "laugh";
+  app.eyeMoodTicks = 45;
+  app.narratorText = msg || G2_ROASTS[progress.g2TotalFails % G2_ROASTS.length];
+  if (!progress.streamerSafe) app.deathFlashTicks = 5;
+  g2.failTicks = 14;
+}
+
+function winMindLevel() {
+  const g2 = app.g2;
+  if (!g2 || g2.failTicks > 0) return;
+  sfx.play("riddleWin");
+  progress.g2Cleared[g2.def.id] = true;
+  saveProgress(progress);
+  app.narratorText = `M${String(g2.def.id).padStart(2,"0")} CLEARED. DON'T GET COMFORTABLE.`;
+  if (app.g2CurrentIdx + 1 < MIND_LEVELS.length) {
+    startMindLevel(app.g2CurrentIdx + 1);
+  } else {
+    app.screen = "g2win";
+  }
+}
+
+function tickMindGame() {
+  const g2 = app.g2;
+  if (!g2) return;
+  if (g2.failTicks > 0) {
+    g2.failTicks--;
+    if (g2.failTicks === 0) startMindLevel(app.g2CurrentIdx);
+    return;
+  }
+  g2.tick++;
+  const id = g2.def.id;
+  if (id === 2 && g2.tick >= 360) failMindLevel("TOO SLOW. STROOP FROZE YOUR BRAIN.");
+  else if (id === 3 && g2.tick >= 240) winMindLevel();
+  else if (id === 7 && g2.tick > 360) failMindLevel("YOU WATCHED THE WHOLE BAR EXPIRE.");
+  else if (id === 10 && g2.tick >= 360) failMindLevel("OUT OF TIME. FINGERS TOO SLOW.");
+  else if (id === 12 && g2.tick >= 270) failMindLevel("TIME EXPIRED. DATA IMAGINARY-WIPED.");
+  else if (id === 16) {
+    g2.phaseTick++;
+    if (g2.phase === 1 && g2.phaseTick >= 120) {
+      g2.phase = 2; g2.phaseTick = 0; g2.invertedCursor = true; sfx.play("flip");
+    }
+  }
+}
+
+function getInvertedMindPt(pt) {
+  return {
+    x: Math.max(18, Math.min(LOGICAL_W - 18, LOGICAL_W - pt.x)),
+    y: Math.max(54, Math.min(LOGICAL_H - 42, LOGICAL_H - pt.y))
+  };
+}
+
+function handleMindPointerMove(pt) {
+  const g2 = app.g2;
+  if (!g2 || g2.failTicks > 0) return;
+  if (g2.def.id === 1 && g2.dodges < 3) {
+    const b = g2.decoyPos;
+    if (pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h) {
+      const spots = [
+        { x: 90, y: 220 },
+        { x: 580, y: 345 },
+        { x: 340, y: 262 }
+      ];
+      const next = spots[g2.dodges];
+      g2.dodges++;
+      g2.decoyPos = { x: next.x, y: next.y, w: 280, h: 68 };
+      sfx.play("flip");
+    }
+  }
+}
+
+function handleMindKeyDown(code, key) {
+  const g2 = app.g2;
+  if (!g2 || g2.failTicks > 0) return;
+  if (g2.def.id === 11 && key && key.length === 1 && /^[a-zA-Z]$/.test(key)) {
+    const targetWord = "TRICK";
+    const ch = key.toUpperCase();
+    if (ch === targetWord[g2.typedIdx]) {
+      g2.typedIdx++; sfx.play("blip");
+      if (g2.typedIdx >= targetWord.length) winMindLevel();
+    } else {
+      failMindLevel("WRONG LETTER. ZERO MERCY.");
+    }
+    return;
+  }
+  if (code === "KeyR") { startMindLevel(app.g2CurrentIdx); return; }
+  if (g2.def.id === 3 || (g2.def.id === 16 && g2.phase === 1)) {
+    failMindLevel("EVEN THE KEYBOARD COUNTS AS TOUCHING.");
+  }
+}
+
+function handleMindPointerDown(pt) {
+  const g2 = app.g2;
+  if (!g2 || g2.failTicks > 0) return;
+  const id = g2.def.id;
+
+  if (id === 1) {
+    // True hitbox is the word "START" inside the prompt banner
+    if (pt.x >= 244 && pt.x <= 338 && pt.y >= 56 && pt.y <= 104) {
+      winMindLevel(); return;
+    }
+    const b = g2.decoyPos;
+    if (pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h) {
+      failMindLevel("YOU REALLY BELIEVED A FLEEING BUTTON.");
+    }
+    return;
+  }
+
+  if (id === 2) {
+    const shift = Math.floor(g2.tick / 50) % 4;
+    for (let slot = 0; slot < 4; slot++) {
+      const cardIdx = (slot + shift) % 4;
+      const col = slot % 2, row = Math.floor(slot / 2);
+      const bx = 220 + col * 270, by = 186 + row * 124;
+      if (pt.x >= bx && pt.x <= bx + 240 && pt.y >= by && pt.y <= by + 98) {
+        if (cardIdx === 0) winMindLevel();
+        else failMindLevel("READ THE INK COLOR, NOT THE TEXT.");
+        return;
+      }
+    }
+    return;
+  }
+
+  if (id === 3) {
+    failMindLevel("YOU CLICKED. I LITERALLY SAID DON'T TOUCH.");
+    return;
+  }
+
+  if (id === 4) {
+    const ip = getInvertedMindPt(pt);
+    for (const t of g2.targets) {
+      if (t.hit) continue;
+      if (Math.hypot(ip.x - t.x, ip.y - t.y) <= t.r + 8) {
+        if (!t.gold) { failMindLevel("THAT WAS A CORAL BOMB ON THE INVERTED SIDE."); return; }
+        t.hit = true; sfx.play("bounce");
+        if (g2.targets.filter(x => x.gold && !x.hit).length === 0) winMindLevel();
+        return;
+      }
+    }
+    return;
+  }
+
+  if (id === 5) {
+    const choices = [4, 5, 6, 7];
+    for (let i = 0; i < 4; i++) {
+      const bx = 170 + i * 160, by = 365;
+      if (pt.x >= bx && pt.x <= bx + 130 && pt.y >= by && pt.y <= by + 62) {
+        if (choices[i] === 7) winMindLevel();
+        else failMindLevel("CHECK THE BORDERS. NEVER ASSUME IT'S SIMPLE.");
+        return;
+      }
+    }
+    return;
+  }
+
+  if (id === 6) {
+    if (g2.tick < 140) { failMindLevel("WAIT UNTIL THE FLASHES FINISH."); return; }
+    for (let i = 0; i < 4; i++) {
+      const bx = 140 + i * 175, by = 220;
+      if (pt.x >= bx && pt.x <= bx + 145 && pt.y >= by && pt.y <= by + 135) {
+        const expected = g2.simonSeq[3 - g2.simonInput.length];
+        if (i === expected) {
+          g2.simonInput.push(i); sfx.play("blip");
+          if (g2.simonInput.length === 4) winMindLevel();
+        } else {
+          failMindLevel("REVERSE ORDER! WHY DID YOU LISTEN TO THE BANNER?");
+        }
+        return;
+      }
+    }
+    return;
+  }
+
+  if (id === 7) {
+    if (pt.x >= 330 && pt.x <= 630 && pt.y >= 324 && pt.y <= 394) {
+      if (g2.tick >= 240 && g2.tick <= 300) winMindLevel();
+      else failMindLevel(`STOPPED AT ${(g2.tick / 60).toFixed(2)}S REAL TIME. TRICKED BY THE DIGITS.`);
+    }
+    return;
+  }
+
+  if (id === 8) {
+    for (let i = 0; i < 3; i++) {
+      const bx = 100 + i * 265, by = 205;
+      if (pt.x >= bx && pt.x <= bx + 230 && pt.y >= by && pt.y <= by + 185) {
+        if (i === 0) winMindLevel();
+        else failMindLevel("PURE LOGIC CHECK FAILED.");
+        return;
+      }
+    }
+    return;
+  }
+
+  if (id === 9) {
+    // Speaker mute icon
+    if (pt.x >= 205 && pt.x <= 265 && pt.y >= 225 && pt.y <= 285) {
+      g2.vol = 0; g2.mutedIcon = true; sfx.play("blip"); return;
+    }
+    // Slider track refuses to drop below 1%
+    if (pt.x >= 280 && pt.x <= 720 && pt.y >= 225 && pt.y <= 285) {
+      const pct = Math.round(((pt.x - 280) / 440) * 100);
+      g2.vol = Math.max(1, Math.min(100, pct));
+      g2.mutedIcon = false;
+      sfx.play("trap");
+      return;
+    }
+    if (pt.x >= 335 && pt.x <= 625 && pt.y >= 346 && pt.y <= 410) {
+      if (g2.vol === 0 && g2.mutedIcon) winMindLevel();
+      else failMindLevel(`${g2.vol}% IS STILL NOT ZERO. TRY HARDER.`);
+    }
+    return;
+  }
+
+  if (id === 10) {
+    const spots = [
+      { x: 480, y: 270 }, { x: 480, y: 270 }, { x: 480, y: 270 }, { x: 480, y: 270 },
+      { x: 220, y: 220 }, { x: 740, y: 220 }, { x: 480, y: 350 }, { x: 195, y: 175 }
+    ];
+    if (g2.mashTrapActive && Math.hypot(pt.x - g2.mashTrapPos.x, pt.y - g2.mashTrapPos.y) <= 52) {
+      failMindLevel("CLASSIC CLICK-MASHER. SPAWNED RIGHT UNDER YOUR FINGER.");
+      return;
+    }
+    const cur = spots[Math.min(7, g2.clicks)];
+    if (Math.hypot(pt.x - cur.x, pt.y - cur.y) <= 50) {
+      g2.clicks++; sfx.play("blip");
+      if (g2.clicks === 7) {
+        g2.mashTrapActive = true;
+        g2.mashTrapPos = { x: cur.x, y: cur.y };
+      } else if (g2.clicks >= 8) {
+        winMindLevel();
+      }
+    }
+    return;
+  }
+
+  if (id === 11) {
+    const perms = [
+      [0,1,2,3,4,5],
+      [4,2,5,0,3,1],
+      [3,5,1,4,0,2],
+      [2,0,4,5,1,3],
+      [5,3,0,2,4,1]
+    ];
+    const letters = ["T", "R", "I", "C", "K", "X"];
+    const p = perms[g2.typedIdx % perms.length];
+    for (let slot = 0; slot < 6; slot++) {
+      const col = slot % 3, row = Math.floor(slot / 3);
+      const bx = 264 + col * 150, by = 230 + row * 94;
+      if (pt.x >= bx && pt.x <= bx + 132 && pt.y >= by && pt.y <= by + 74) {
+        const letter = letters[p[slot]];
+        if (letter === "TRICK"[g2.typedIdx]) {
+          g2.typedIdx++; sfx.play("blip");
+          if (g2.typedIdx >= 5) winMindLevel();
+        } else {
+          failMindLevel("MUSCLE MEMORY BETRAYED YOU.");
+        }
+        return;
+      }
+    }
+    return;
+  }
+
+  if (id === 12) {
+    // Top-right [X] close button
+    if (pt.x >= 722 && pt.x <= 764 && pt.y >= 124 && pt.y <= 166) {
+      winMindLevel(); return;
+    }
+    if ((pt.x >= 220 && pt.x <= 460 && pt.y >= 336 && pt.y <= 394) ||
+        (pt.x >= 500 && pt.x <= 740 && pt.y >= 336 && pt.y <= 394)) {
+      failMindLevel("BOTH BOTTOM BUTTONS WERE RIGGED FROM THE START.");
+    }
+    return;
+  }
+
+  if (id === 13) {
+    const circles = [
+      { x: 250, y: 285, r: 42, win: true },
+      { x: 515, y: 285, r: 34, win: false },
+      { x: 745, y: 225, r: 31, win: false },
+      { x: 745, y: 385, r: 26, win: false }
+    ];
+    for (const c of circles) {
+      if (Math.hypot(pt.x - c.x, pt.y - c.y) <= c.r + 6) {
+        if (c.win) winMindLevel();
+        else failMindLevel("SCAMMED BY AN OPTICAL ILLUSION.");
+        return;
+      }
+    }
+    return;
+  }
+
+  if (id === 14) {
+    // Right 4x4 grid
+    for (let idx = 0; idx < 16; idx++) {
+      const col = idx % 4, row = Math.floor(idx / 4);
+      const bx = 576 + col * 62, by = 180 + row * 62;
+      if (pt.x >= bx && pt.x <= bx + 54 && pt.y >= by && pt.y <= by + 54) {
+        if (idx === g2.oddIdx) winMindLevel();
+        else failMindLevel("THAT TILE MATCHED. LOOK CLOSER AT THE RIGHT GRID.");
+        return;
+      }
+    }
+    return;
+  }
+
+  if (id === 15) {
+    if (Math.hypot(pt.x - 480, pt.y - 210) <= 38) {
+      winMindLevel(); return;
+    }
+    if ((pt.x >= 165 && pt.x <= 445 && pt.y >= 330 && pt.y <= 406) ||
+        (pt.x >= 515 && pt.x <= 795 && pt.y >= 330 && pt.y <= 406)) {
+      failMindLevel("I SAID DO NOT CLICK EITHER BUTTON.");
+    }
+    return;
+  }
+
+  if (id === 16) {
+    if (g2.phase === 0) {
+      const opts = [
+        { text: "CORAL", color: PAL.WHITE, win: false },
+        { text: "GOLD", color: PAL.CORAL, win: true },
+        { text: "WHITE", color: PAL.GOLD, win: false }
+      ];
+      for (let i = 0; i < 3; i++) {
+        const bx = 175 + i * 210, by = 250;
+        if (pt.x >= bx && pt.x <= bx + 185 && pt.y >= by && pt.y <= by + 84) {
+          if (opts[i].win) { g2.phase = 1; g2.phaseTick = 0; sfx.play("blip"); }
+          else failMindLevel("PHASE 1 FAILED: CLICK CORAL INK.");
+          return;
+        }
+      }
+    } else if (g2.phase === 1) {
+      failMindLevel("PHASE 2 FAILED: DO NOT TOUCH!");
+    } else if (g2.phase === 2) {
+      const ip = getInvertedMindPt(pt);
+      for (const t of g2.targets) {
+        if (t.hit) continue;
+        if (Math.hypot(ip.x - t.x, ip.y - t.y) <= t.r + 8) {
+          if (!t.gold) { failMindLevel("PHASE 3 FAILED: HIT INVERTED BOMB."); return; }
+          t.hit = true; sfx.play("bounce");
+          if (g2.targets.filter(x => x.gold && !x.hit).length === 0) {
+            g2.phase = 3; g2.phaseTick = 0; g2.invertedCursor = false; sfx.play("flip");
+          }
+          return;
+        }
+      }
+    } else if (g2.phase === 3) {
+      const ex = 480 + Math.sin(g2.phaseTick * 0.065) * 210;
+      const ey = 265 + Math.cos(g2.phaseTick * 0.085) * 70;
+      if (Math.hypot(pt.x - ex, pt.y - ey) <= 44) {
+        g2.eyeHits++; sfx.play("bounce");
+        if (g2.eyeHits >= 3) winMindLevel();
+      }
+    }
+  }
+}
+
+function renderMindGame() {
+  const g2 = app.g2;
+  if (!g2) return;
+  const id = g2.def.id;
+  ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+
+  // Subtle background + Watchful Eye (hidden on M15/M16p3 so dedicated playable Eye shines)
+  if (id !== 15 && !(id === 16 && g2.phase === 3)) {
+    drawAtmosphereAndEye(app.mouse.x, app.mouse.y, 295);
+  }
+
+  // Top HUD Bar
+  ctx.fillStyle = PAL.BG; ctx.fillRect(8, 6, 330, 34);
+  ctx.strokeStyle = PAL.STONE; ctx.lineWidth = 2; ctx.strokeRect(8, 6, 330, 34);
+  ctx.fillStyle = PAL.GOLD; ctx.fillRect(8, 6, 4, 34);
+  drawPixelText(ctx, `M${String(id).padStart(2,"0")} ${g2.def.name}`, 20, 16, 2, PAL.GOLD, "left");
+
+  ctx.fillStyle = PAL.BG; ctx.fillRect(346, 6, 606, 34);
+  ctx.strokeStyle = PAL.STONE; ctx.lineWidth = 2; ctx.strokeRect(346, 6, 606, 34);
+  drawPixelText(ctx, `FAILS:${progress.g2Fails[id] || 0}`, 360, 16, 2, PAL.CORAL, "left");
+  drawPixelText(ctx, `TRUST:${app.trustScore}%`, 505, 16, 2, app.trustScore > 0 ? PAL.GOLD : PAL.CORAL, "left");
+
+  addButton(706, 10, 74, 26, "MENU", () => { app.screen = "title"; }, PAL.STONE, PAL.GOLD, PAL.GOLD);
+  addButton(786, 10, 82, 26, "STAGES", () => { app.screen = "g2select"; }, PAL.STONE, PAL.WHITE, PAL.STONE);
+  addButton(874, 10, 72, 26, "RETRY", () => startMindLevel(app.g2CurrentIdx), PAL.STONE, PAL.CORAL, PAL.CORAL);
+
+  // Prompt Banner (M01 embeds clickable "START" inside the sentence itself)
+  ctx.fillStyle = "rgba(46,45,64,0.85)"; ctx.fillRect(70, 58, 820, 42);
+  ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 2; ctx.strokeRect(70, 58, 820, 42);
+  if (id === 1) {
+    drawPixelText(ctx, 'CLICK "', 254, 72, 2, PAL.WHITE, "right");
+    drawPixelText(ctx, "START", 258, 72, 2, PAL.GOLD, "left");
+    drawPixelText(ctx, '" TO PROVE YOU ARE HUMAN', 322, 72, 2, PAL.WHITE, "left");
+  } else {
+    drawPixelText(ctx, g2.def.prompt, 480, 72, 2, PAL.WHITE, "center");
+  }
+
+  // Stage-specific rendering
+  if (id === 1) {
+    const b = g2.decoyPos;
+    const lbl = g2.dodges >= 3 ? "OK FINE, CLICK ME" : (g2.dodges > 0 ? "TOO SLOW LOL" : "START");
+    ctx.fillStyle = g2.dodges >= 3 ? PAL.CORAL : PAL.GOLD;
+    ctx.fillRect(b.x, b.y, b.w, b.h);
+    ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.w, b.h);
+    drawPixelText(ctx, lbl, b.x + b.w / 2, b.y + 24, 2, PAL.BG, "center");
+  } else if (id === 2) {
+    const pct = Math.max(0, 1 - g2.tick / 360);
+    ctx.fillStyle = PAL.STONE; ctx.fillRect(220, 126, 520, 14);
+    ctx.fillStyle = pct < 0.3 ? PAL.CORAL : PAL.GOLD; ctx.fillRect(220, 126, Math.round(520 * pct), 14);
+    const cards = [
+      { word: "WHITE", ink: PAL.GOLD },
+      { word: "GOLD",  ink: PAL.CORAL },
+      { word: "CORAL", ink: PAL.WHITE },
+      { word: "STONE", ink: "#8C8AA6" }
+    ];
+    const shift = Math.floor(g2.tick / 50) % 4;
+    for (let slot = 0; slot < 4; slot++) {
+      const c = cards[(slot + shift) % 4];
+      const col = slot % 2, row = Math.floor(slot / 2);
+      const bx = 220 + col * 270, by = 186 + row * 124;
+      ctx.fillStyle = PAL.STONE; ctx.fillRect(bx, by, 240, 98);
+      ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 2; ctx.strokeRect(bx, by, 240, 98);
+      drawPixelText(ctx, c.word, bx + 120, by + 36, 4, c.ink, "center");
+    }
+  } else if (id === 3) {
+    const pct = Math.min(1, g2.tick / 240);
+    ctx.fillStyle = PAL.STONE; ctx.fillRect(220, 132, 520, 14);
+    ctx.fillStyle = PAL.GOLD; ctx.fillRect(220, 132, Math.round(520 * pct), 14);
+    if (g2.tick >= 45) {
+      ctx.fillStyle = PAL.CORAL; ctx.fillRect(290, 210, 380, 96);
+      ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 3; ctx.strokeRect(290, 210, 380, 96);
+      drawPixelText(ctx, "AFK TIMEOUT! CLICK TO ABORT!", 480, 232, 2, PAL.WHITE, "center");
+      drawPixelText(ctx, "[ ABORT WIPE ]", 480, 266, 3, PAL.GOLD, "center");
+    }
+    if (g2.tick >= 120) {
+      const bx = 120 + ((g2.tick * 4) % 520);
+      ctx.fillStyle = PAL.GOLD; ctx.fillRect(bx, 355, 220, 46);
+      drawPixelText(ctx, "FREE SKIP ->", bx + 110, 370, 2, PAL.BG, "center");
+    }
+  } else if (id === 4) {
+    for (const t of g2.targets) {
+      if (t.hit) continue;
+      ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2);
+      ctx.fillStyle = t.gold ? PAL.GOLD : PAL.CORAL; ctx.fill();
+      ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 3; ctx.stroke();
+      drawPixelText(ctx, t.gold ? "HIT" : "BOMB", t.x, t.y - 6, 1, PAL.BG, "center");
+    }
+    const ip = getInvertedMindPt(app.mouse);
+    ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(ip.x, ip.y, 12, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ip.x - 18, ip.y); ctx.lineTo(ip.x + 18, ip.y);
+    ctx.moveTo(ip.x, ip.y - 18); ctx.lineTo(ip.x, ip.y + 18); ctx.stroke();
+  } else if (id === 5) {
+    // Exact 7 Coral spikes across screen: 4 center, 1 badge-left, 2 border-right
+    ctx.fillStyle = PAL.STONE; ctx.fillRect(300, 165, 360, 140);
+    ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 2; ctx.strokeRect(300, 165, 360, 140);
+    for (let i = 0; i < 4; i++) drawSpike(355 + i * 70, 225, "^", 1.1);
+    drawSpike(80, 128, "^", 0.9);
+    drawSpike(820, 130, "^", 0.9);
+    drawSpike(852, 130, "^", 0.9);
+    const choices = [4, 5, 6, 7];
+    for (let i = 0; i < 4; i++) {
+      const bx = 170 + i * 160, by = 365;
+      ctx.fillStyle = PAL.STONE; ctx.fillRect(bx, by, 130, 62);
+      ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 2; ctx.strokeRect(bx, by, 130, 62);
+      drawPixelText(ctx, String(choices[i]), bx + 65, by + 19, 3, PAL.WHITE, "center");
+    }
+  } else if (id === 6) {
+    let activePad = -1;
+    if (g2.tick >= 15 && g2.tick < 40) activePad = g2.simonSeq[0];
+    else if (g2.tick >= 45 && g2.tick < 70) activePad = g2.simonSeq[1];
+    else if (g2.tick >= 75 && g2.tick < 100) activePad = g2.simonSeq[2];
+    else if (g2.tick >= 105 && g2.tick < 130) activePad = g2.simonSeq[3];
+    if (g2.tick >= 140) {
+      drawPixelText(ctx, "QUICK! CLICK PAD #3 FIRST!", 480, 142, 2, PAL.CORAL, "center");
+    } else {
+      drawPixelText(ctx, "MEMORIZE...", 480, 142, 2, PAL.GOLD, "center");
+    }
+    for (let i = 0; i < 4; i++) {
+      const bx = 140 + i * 175, by = 220;
+      const lit = activePad === i;
+      ctx.fillStyle = lit ? PAL.GOLD : PAL.STONE;
+      ctx.fillRect(bx, by, 145, 135);
+      ctx.strokeStyle = lit ? PAL.WHITE : PAL.GOLD; ctx.lineWidth = 3; ctx.strokeRect(bx, by, 145, 135);
+      drawPixelText(ctx, `#${i + 1}`, bx + 72, by + 50, 4, lit ? PAL.BG : PAL.WHITE, "center");
+    }
+    drawPixelText(ctx, `ENTERED: ${g2.simonInput.length}/4`, 480, 392, 2, PAL.WHITE, "center");
+  } else if (id === 7) {
+    // Lying digital readout vs honest bar
+    let fakeStr = (g2.tick / 60).toFixed(2) + "S";
+    if (g2.tick >= 95 && g2.tick < 140) fakeStr = "4.42S";
+    else if (g2.tick >= 155 && g2.tick < 200) fakeStr = "4.91S";
+    drawPixelText(ctx, fakeStr, 480, 142, 6, PAL.CORAL, "center");
+    const pct = Math.min(1, g2.tick / 360);
+    ctx.fillStyle = PAL.STONE; ctx.fillRect(180, 232, 600, 34);
+    ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 2; ctx.strokeRect(180, 232, 600, 34);
+    ctx.fillStyle = PAL.GOLD; ctx.fillRect(182, 234, Math.round(596 * pct), 30);
+    for (let s = 1; s < 6; s++) {
+      const mx = 180 + (600 * s) / 6;
+      ctx.fillStyle = PAL.WHITE; ctx.fillRect(mx - 1, 266, 2, 10);
+    }
+    ctx.fillStyle = PAL.GOLD; ctx.fillRect(330, 324, 300, 70);
+    ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 3; ctx.strokeRect(330, 324, 300, 70);
+    drawPixelText(ctx, "STOP CLOCK", 480, 347, 3, PAL.BG, "center");
+  } else if (id === 8) {
+    const boxes = [
+      { title: "BOX A", line: "SAFE IS A OR C" },
+      { title: "BOX B", line: "A IS A BOMB" },
+      { title: "BOX C", line: "BOX B IS SAFE" }
+    ];
+    for (let i = 0; i < 3; i++) {
+      const bx = 100 + i * 265, by = 205;
+      ctx.fillStyle = PAL.STONE; ctx.fillRect(bx, by, 230, 185);
+      ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 3; ctx.strokeRect(bx, by, 230, 185);
+      drawPixelText(ctx, boxes[i].title, bx + 115, by + 32, 3, PAL.GOLD, "center");
+      drawPixelText(ctx, boxes[i].line, bx + 115, by + 102, 2, PAL.WHITE, "center");
+    }
+  } else if (id === 9) {
+    // Speaker icon + slider stuck at 1%
+    ctx.fillStyle = g2.mutedIcon ? PAL.GOLD : PAL.STONE;
+    ctx.fillRect(205, 225, 60, 60);
+    ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 2; ctx.strokeRect(205, 225, 60, 60);
+    drawPixelText(ctx, g2.mutedIcon ? "X" : "VOL", 235, 247, 2, g2.mutedIcon ? PAL.BG : PAL.CORAL, "center");
+    ctx.fillStyle = PAL.STONE; ctx.fillRect(280, 246, 440, 18);
+    ctx.fillStyle = g2.vol === 0 ? PAL.GOLD : PAL.CORAL;
+    ctx.fillRect(280, 246, Math.round(440 * (g2.vol / 100)), 18);
+    const kx = 280 + Math.round(440 * (g2.vol / 100));
+    ctx.fillStyle = PAL.WHITE; ctx.fillRect(kx - 8, 234, 16, 42);
+    drawPixelText(ctx, `${g2.vol}%`, 755, 245, 3, g2.vol === 0 ? PAL.GOLD : PAL.CORAL, "left");
+    ctx.fillStyle = g2.mutedIcon ? PAL.GOLD : PAL.STONE;
+    ctx.fillRect(335, 346, 290, 64);
+    ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 2; ctx.strokeRect(335, 346, 290, 64);
+    drawPixelText(ctx, "CONFIRM MUTE", 480, 368, 2, g2.mutedIcon ? PAL.BG : PAL.WHITE, "center");
+  } else if (id === 10) {
+    const pct = Math.max(0, 1 - g2.tick / 360);
+    ctx.fillStyle = PAL.STONE; ctx.fillRect(220, 120, 520, 14);
+    ctx.fillStyle = PAL.GOLD; ctx.fillRect(220, 120, Math.round(520 * pct), 14);
+    const spots = [
+      { x: 480, y: 270 }, { x: 480, y: 270 }, { x: 480, y: 270 }, { x: 480, y: 270 },
+      { x: 220, y: 220 }, { x: 740, y: 220 }, { x: 480, y: 350 }, { x: 195, y: 175 }
+    ];
+    const cur = spots[Math.min(7, g2.clicks)];
+    ctx.beginPath(); ctx.arc(cur.x, cur.y, 44, 0, Math.PI * 2);
+    ctx.fillStyle = PAL.GOLD; ctx.fill();
+    ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 3; ctx.stroke();
+    drawPixelText(ctx, `${g2.clicks}/8`, cur.x, cur.y - 8, 3, PAL.BG, "center");
+    if (g2.mashTrapActive) {
+      ctx.beginPath(); ctx.arc(g2.mashTrapPos.x, g2.mashTrapPos.y, 46, 0, Math.PI * 2);
+      ctx.fillStyle = PAL.CORAL; ctx.fill();
+      ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 3; ctx.stroke();
+      drawPixelText(ctx, "8/8 DONE!", g2.mashTrapPos.x, g2.mashTrapPos.y - 8, 2, PAL.WHITE, "center");
+    }
+  } else if (id === 11) {
+    const shown = "TRICK".split("").map((ch, idx) => idx < g2.typedIdx ? ch : "_").join(" ");
+    drawPixelText(ctx, shown, 480, 146, 5, PAL.GOLD, "center");
+    const perms = [
+      [0,1,2,3,4,5], [4,2,5,0,3,1], [3,5,1,4,0,2], [2,0,4,5,1,3], [5,3,0,2,4,1]
+    ];
+    const letters = ["T", "R", "I", "C", "K", "X"];
+    const p = perms[g2.typedIdx % perms.length];
+    for (let slot = 0; slot < 6; slot++) {
+      const col = slot % 3, row = Math.floor(slot / 3);
+      const bx = 264 + col * 150, by = 230 + row * 94;
+      ctx.fillStyle = PAL.STONE; ctx.fillRect(bx, by, 132, 74);
+      ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 2; ctx.strokeRect(bx, by, 132, 74);
+      drawPixelText(ctx, letters[p[slot]], bx + 66, by + 23, 4, PAL.GOLD, "center");
+    }
+  } else if (id === 12) {
+    ctx.fillStyle = PAL.STONE; ctx.fillRect(190, 118, 580, 300);
+    ctx.strokeStyle = PAL.CORAL; ctx.lineWidth = 4; ctx.strokeRect(190, 118, 580, 300);
+    ctx.fillStyle = PAL.CORAL; ctx.fillRect(722, 124, 38, 38);
+    drawPixelText(ctx, "X", 741, 134, 2, PAL.WHITE, "center");
+    drawPixelText(ctx, `WIPING SAVE DATA IN ${Math.max(0, (270 - g2.tick) / 60).toFixed(1)}S`, 480, 196, 3, PAL.CORAL, "center");
+    const swapped = g2.tick >= 75;
+    ctx.fillStyle = swapped ? PAL.CORAL : PAL.GOLD; ctx.fillRect(220, 336, 240, 58);
+    drawPixelText(ctx, swapped ? "DELETE ALL" : "CANCEL WIPE", 340, 356, 2, PAL.BG, "center");
+    ctx.fillStyle = swapped ? PAL.GOLD : PAL.CORAL; ctx.fillRect(500, 336, 240, 58);
+    drawPixelText(ctx, swapped ? "CANCEL WIPE" : "DELETE ALL", 620, 356, 2, PAL.BG, "center");
+  } else if (id === 13) {
+    // Ebbinghaus illusion
+    for (let a = 0; a < 6; a++) {
+      const ang = (Math.PI * 2 * a) / 6;
+      ctx.beginPath(); ctx.arc(250 + Math.cos(ang) * 84, 285 + Math.sin(ang) * 84, 28, 0, Math.PI * 2);
+      ctx.fillStyle = PAL.STONE; ctx.fill();
+    }
+    ctx.beginPath(); ctx.arc(250, 285, 42, 0, Math.PI * 2); ctx.fillStyle = PAL.GOLD; ctx.fill();
+
+    for (let a = 0; a < 8; a++) {
+      const ang = (Math.PI * 2 * a) / 8;
+      ctx.beginPath(); ctx.arc(515 + Math.cos(ang) * 52, 285 + Math.sin(ang) * 52, 6, 0, Math.PI * 2);
+      ctx.fillStyle = PAL.WHITE; ctx.fill();
+    }
+    ctx.beginPath(); ctx.arc(515, 285, 34, 0, Math.PI * 2); ctx.fillStyle = PAL.CORAL; ctx.fill();
+
+    ctx.beginPath(); ctx.arc(745, 225, 56, 0, Math.PI * 2); ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 3; ctx.stroke();
+    ctx.beginPath(); ctx.arc(745, 225, 31, 0, Math.PI * 2); ctx.fillStyle = PAL.WHITE; ctx.fill();
+
+    ctx.beginPath(); ctx.arc(745, 385, 26, 0, Math.PI * 2); ctx.fillStyle = PAL.STONE; ctx.fill();
+  } else if (id === 14) {
+    drawPixelText(ctx, "LEFT", 252, 146, 2, PAL.STONE, "center");
+    drawPixelText(ctx, "RIGHT", 688, 146, 2, PAL.GOLD, "center");
+    for (let idx = 0; idx < 16; idx++) {
+      const col = idx % 4, row = Math.floor(idx / 4);
+      const lx = 140 + col * 62, ly = 180 + row * 62;
+      const rx = 576 + col * 62, ry = 180 + row * 62;
+      for (const [x, y, odd] of [[lx, ly, false], [rx, ry, idx === g2.oddIdx]]) {
+        ctx.fillStyle = PAL.STONE; ctx.fillRect(x, y, 54, 54);
+        ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 2; ctx.strokeRect(x, y, 54, 54);
+        ctx.fillStyle = PAL.WHITE; ctx.fillRect(x + 15, y + 15, 24, 24);
+        ctx.fillStyle = PAL.CORAL;
+        ctx.fillRect(x + (odd ? 30 : 18), y + 18, 6, 6);
+      }
+    }
+  } else if (id === 15) {
+    // Big centered interactive Eye + 2 giant fake trap buttons
+    const dx = app.mouse.x - 480, dy = app.mouse.y - 210, d = Math.max(1, Math.hypot(dx, dy));
+    const px = (dx / d) * Math.min(18, d * 0.08), py = (dy / d) * Math.min(10, d * 0.08);
+    ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(385, 210); ctx.quadraticCurveTo(480, 150, 575, 210);
+    ctx.quadraticCurveTo(480, 270, 385, 210); ctx.closePath();
+    ctx.fillStyle = PAL.STONE; ctx.fill(); ctx.stroke();
+    ctx.fillStyle = PAL.GOLD; ctx.beginPath(); ctx.arc(480 + px, 210 + py, 20, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = PAL.BG; ctx.beginPath(); ctx.arc(480 + px * 1.15, 210 + py * 1.15, 8, 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = PAL.GOLD; ctx.fillRect(165, 330, 280, 76);
+    drawPixelText(ctx, "SAFE BUTTON (WIN)", 305, 358, 2, PAL.BG, "center");
+    ctx.fillStyle = PAL.CORAL; ctx.fillRect(515, 330, 280, 76);
+    drawPixelText(ctx, "NO CLICK ME INSTEAD!", 655, 358, 2, PAL.WHITE, "center");
+  } else if (id === 16) {
+    drawPixelText(ctx, `STAGE ${g2.phase + 1}/4`, 480, 124, 2, PAL.GOLD, "center");
+    if (g2.phase === 0) {
+      drawPixelText(ctx, "CLICK CORAL INK!", 480, 174, 3, PAL.WHITE, "center");
+      const opts = [
+        { text: "CORAL", color: PAL.WHITE },
+        { text: "GOLD", color: PAL.CORAL },
+        { text: "WHITE", color: PAL.GOLD }
+      ];
+      for (let i = 0; i < 3; i++) {
+        const bx = 175 + i * 210, by = 250;
+        ctx.fillStyle = PAL.STONE; ctx.fillRect(bx, by, 185, 84);
+        ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 2; ctx.strokeRect(bx, by, 185, 84);
+        drawPixelText(ctx, opts[i].text, bx + 92, by + 30, 3, opts[i].color, "center");
+      }
+    } else if (g2.phase === 1) {
+      drawPixelText(ctx, "FREEZE FOR 2 SECONDS!", 480, 190, 3, PAL.GOLD, "center");
+      ctx.fillStyle = PAL.CORAL; ctx.fillRect(320, 260, 320, 72);
+      drawPixelText(ctx, "CLICK FAST TO WIN!", 480, 286, 2, PAL.WHITE, "center");
+    } else if (g2.phase === 2) {
+      drawPixelText(ctx, "INVERTED: HIT BOTH GOLD CORES", 480, 128, 2, PAL.GOLD, "center");
+      for (const t of g2.targets) {
+        if (t.hit) continue;
+        ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2);
+        ctx.fillStyle = t.gold ? PAL.GOLD : PAL.CORAL; ctx.fill();
+      }
+      const ip = getInvertedMindPt(app.mouse);
+      ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(ip.x, ip.y, 12, 0, Math.PI * 2); ctx.stroke();
+    } else if (g2.phase === 3) {
+      drawPixelText(ctx, `POKE THE EYE (${g2.eyeHits}/3)`, 480, 146, 3, PAL.CORAL, "center");
+      const ex = 480 + Math.sin(g2.phaseTick * 0.065) * 210;
+      const ey = 265 + Math.cos(g2.phaseTick * 0.085) * 70;
+      ctx.fillStyle = PAL.STONE; ctx.beginPath(); ctx.arc(ex, ey, 36, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = PAL.CORAL; ctx.beginPath(); ctx.arc(ex, ey, 18, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = PAL.BG; ctx.beginPath(); ctx.arc(ex, ey, 7, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  // Narrator footer
+  ctx.fillStyle = PAL.BG; ctx.fillRect(0, LOGICAL_H - 30, LOGICAL_W, 30);
+  ctx.fillStyle = PAL.GOLD; ctx.fillRect(0, LOGICAL_H - 30, 8, 30);
+  ctx.fillStyle = PAL.STONE; ctx.fillRect(8, LOGICAL_H - 30, LOGICAL_W - 8, 2);
+  drawPixelText(ctx, app.narratorText, 18, LOGICAL_H - 21, 2, PAL.WHITE, "left");
+  drawPixelText(ctx, "[R] RETRY  [ESC] ARCADE HUB", LOGICAL_W - 14, LOGICAL_H - 19, 1, PAL.GOLD, "right");
+
+  if (g2.failTicks > 0) {
+    ctx.save(); ctx.globalAlpha = 0.28; ctx.fillStyle = PAL.CORAL; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H); ctx.restore();
+  }
+}
+
+function renderMindSelect() {
+  ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  drawAtmosphereAndEye(app.mouse.x, app.mouse.y, 265);
+  drawPixelText(ctx, "GAME 02: DO NOT OBEY — STAGES", 480, 18, 3, PAL.CORAL, "center");
+  for (let i = 0; i < MIND_LEVELS.length; i++) {
+    const def = MIND_LEVELS[i];
+    const col = i % 4, row = Math.floor(i / 4);
+    const x = 48 + col * 220, y = 72 + row * 94;
+    const cleared = !!progress.g2Cleared[def.id];
+    const fails = progress.g2Fails[def.id] || 0;
+    addButton(x, y, 204, 78, `M${String(def.id).padStart(2,"0")} ${cleared ? "[OK]" : ""}`, () => startMindLevel(i),
+      PAL.STONE, cleared ? PAL.GOLD : PAL.WHITE, cleared ? PAL.GOLD : PAL.WHITE,
+      `${def.name.slice(0,16)} (F:${fails})`);
+  }
+  addButton(270, 466, 200, 40, "MAIN MENU", () => { app.screen = "title"; }, PAL.GOLD, PAL.BG, PAL.WHITE);
+  addButton(490, 466, 200, 40, "PLAY NEXT", () => {
+    const next = MIND_LEVELS.findIndex(m => !progress.g2Cleared[m.id]);
+    startMindLevel(next >= 0 ? next : 0);
+  }, PAL.STONE, PAL.CORAL, PAL.CORAL);
+}
+
+function renderMindWin() {
+  ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  drawAtmosphereAndEye(app.mouse.x, app.mouse.y, 185);
+  drawPixelText(ctx, "YOUR BRAIN SURVIVED DO NOT OBEY!", 480, 74, 3, PAL.GOLD, "center");
+  drawPixelText(ctx, `MIND FAILS: ${progress.g2TotalFails || 0}  |  TRUST RATING: ${app.trustScore}%`, 480, 134, 2, PAL.CORAL, "center");
+  addButton(320, 232, 320, 48, "REPLAY DO NOT OBEY [ENTER]", () => startMindLevel(0), PAL.GOLD, PAL.BG, PAL.WHITE);
+  addButton(320, 294, 320, 46, "SWITCH TO GAME 1: PLATFORMER", () => startLevel(0, true), PAL.STONE, PAL.WHITE, PAL.WHITE);
+  addButton(320, 354, 320, 46, "MAIN MENU", () => { app.screen = "title"; }, PAL.STONE, PAL.GOLD, PAL.GOLD);
+}
+
 function renderTitleScreen() {
   ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
-  drawAtmosphereAndEye(app.mouse.x, app.mouse.y, 178);
+  drawAtmosphereAndEye(app.mouse.x, app.mouse.y, 148);
 
-  // Decorative spike horizon
+  // Decorative bottom spike horizon
   for (let c = 0; c < COLS; c++) drawSpike(c * TILE, 16 * TILE, "^", 1);
   ctx.fillStyle = PAL.STONE; ctx.fillRect(0, 17 * TILE, LOGICAL_W, TILE);
   ctx.fillStyle = PAL.CORAL; ctx.fillRect(0, 17 * TILE, LOGICAL_W, 3);
 
+  // Top telemetry strip
+  const totalSuffering = progress.totalDeaths + (progress.g2TotalFails || 0);
+  drawPixelText(ctx, `TRUST RATING: ${app.trustScore}%`, 26, 16, 2, app.trustScore > 25 ? PAL.GOLD : PAL.CORAL, "left");
+  drawPixelText(ctx, `TOTAL SUFFERING: ${totalSuffering}`, 934, 16, 2, PAL.WHITE, "right");
+
   // Kinetic split-layer title
-  const jitter = progress.streamerSafe ? 0 : Math.round(Math.sin(app.uiTick * 0.12) * 2);
-  drawPixelText(ctx, "TRUST ISSUES", 484 + jitter, 58, 8, PAL.CORAL, "center");
-  drawPixelText(ctx, "TRUST ISSUES", 476 - jitter, 54, 8, PAL.GOLD, "center");
-  drawPixelText(ctx, "TRUST ISSUES", 480, 56, 8, PAL.WHITE, "center");
+  const jitter = progress.streamerSafe ? 0 : Math.round(Math.sin(app.uiTick * 0.14) * 2);
+  drawPixelText(ctx, "TRUST ISSUES ARCADE", 484 + jitter, 46, 5, PAL.CORAL, "center");
+  drawPixelText(ctx, "TRUST ISSUES ARCADE", 476 - jitter, 42, 5, PAL.GOLD, "center");
+  drawPixelText(ctx, "TRUST ISSUES ARCADE", 480, 44, 5, PAL.WHITE, "center");
+  drawPixelText(ctx, "TWO WAYS TO BREAK YOUR BRAIN. ZERO HINTS. ZERO MERCY.", 480, 100, 2, PAL.GOLD, "center");
 
-  // Tagline & live stats pill
-  ctx.fillStyle = PAL.STONE; ctx.fillRect(210, 134, 540, 26);
-  ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 2; ctx.strokeRect(210, 134, 540, 26);
-  drawPixelText(ctx, "ONE NEW LIE PER ROUND. NO HINTS. NO MERCY.", 480, 141, 2, PAL.GOLD, "center");
+  // Left Cartridge: Game 1 (Platformer)
+  const g1Cleared = Object.keys(progress.cleared).filter(id => Number(id) <= 100).length;
+  const firstG1 = LEVELS.findIndex((l, idx) => idx < 100 && !progress.cleared[l.id]);
+  const playG1Idx = app.state ? app.currentLevelIndex : (firstG1 >= 0 ? firstG1 : 0);
+  const playG1Num = LEVELS[playG1Idx] ? LEVELS[playG1Idx].id : 1;
+  ctx.fillStyle = "rgba(46,45,64,0.88)"; ctx.fillRect(46, 142, 418, 250);
+  ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 3; ctx.strokeRect(46, 142, 418, 250);
+  ctx.fillStyle = PAL.GOLD; ctx.fillRect(46, 142, 418, 6);
+  drawPixelText(ctx, "GAME 01 // TRUST ISSUES", 255, 164, 2, PAL.GOLD, "center");
+  drawPixelText(ctx, "RIGGED PRECISION PLATFORMER", 255, 192, 2, PAL.WHITE, "center");
+  drawPixelText(ctx, `CLEARED: ${g1Cleared}/100  |  DEATHS: ${progress.totalDeaths}`, 255, 224, 1, PAL.WHITE, "center");
+  addButton(70, 254, 370, 56, app.state ? `RESUME #${playG1Num}` : (g1Cleared > 0 ? `CONTINUE #${playG1Num}` : "PLAY PLATFORMER"), () => {
+    if (app.state) { app.screen = "play"; } else { startLevel(playG1Idx, true); }
+  }, PAL.GOLD, PAL.BG, PAL.WHITE, "101 UNHINGED ROUNDS [ENTER]");
+  addButton(70, 324, 370, 46, "WORLDS & ROUNDS [L]", () => { app.screen = "select"; }, PAL.STONE, PAL.WHITE, PAL.WHITE);
 
-  const clearedCount = Object.keys(progress.cleared).filter(id => Number(id) <= 100).length;
-  const firstUnclearIdx = LEVELS.findIndex((l, idx) => idx < 100 && !progress.cleared[l.id]);
-  const playIdx = app.state ? app.currentLevelIndex : (firstUnclearIdx >= 0 ? firstUnclearIdx : 0);
-  const playNum = LEVELS[playIdx] ? LEVELS[playIdx].id : 1;
-  drawPixelText(ctx, `CLEARED: ${clearedCount}/100   |   TOTAL DEATHS: ${progress.totalDeaths}`, 480, 174, 2, PAL.WHITE, "center");
+  // Right Cartridge: Game 2 (Psychological Logic / Reflex Torture)
+  const g2Cleared = Object.keys(progress.g2Cleared || {}).length;
+  const firstG2 = MIND_LEVELS.findIndex(m => !(progress.g2Cleared && progress.g2Cleared[m.id]));
+  const playG2Idx = app.g2 ? app.g2CurrentIdx : (firstG2 >= 0 ? firstG2 : 0);
+  ctx.fillStyle = "rgba(46,45,64,0.88)"; ctx.fillRect(496, 142, 418, 250);
+  ctx.strokeStyle = PAL.CORAL; ctx.lineWidth = 3; ctx.strokeRect(496, 142, 418, 250);
+  ctx.fillStyle = PAL.CORAL; ctx.fillRect(496, 142, 418, 6);
+  drawPixelText(ctx, "GAME 02 // DO NOT OBEY", 705, 164, 2, PAL.CORAL, "center");
+  drawPixelText(ctx, "PSYCHOLOGICAL UI TORTURE", 705, 192, 2, PAL.WHITE, "center");
+  drawPixelText(ctx, `CLEARED: ${g2Cleared}/16  |  FAILS: ${progress.g2TotalFails || 0}`, 705, 224, 1, PAL.WHITE, "center");
+  addButton(520, 254, 370, 56, app.g2 ? `RESUME M${playG2Idx + 1}` : (g2Cleared > 0 ? `CONTINUE M${playG2Idx + 1}` : "PLAY MIND GAMES"), () => {
+    if (app.g2) { app.screen = "g2play"; } else { startMindLevel(playG2Idx); }
+  }, PAL.CORAL, PAL.WHITE, PAL.WHITE, "16 BRAIN TRAPS & ANTI-CONTROLS");
+  addButton(520, 324, 370, 46, "MIND STAGES (1..16)", () => { app.screen = "g2select"; }, PAL.STONE, PAL.WHITE, PAL.WHITE);
 
+  // Bottom quick bar + narrator bar on bottom stone floor
   const dailyId = getDailyRoundId();
-  const playLabel = app.state ? `RESUME ROUND #${playNum}` : (clearedCount > 0 ? `CONTINUE (#${playNum})` : "START NEW RUN");
-  addButton(250, 212, 460, 56, playLabel, () => {
-    if (app.state) { app.screen = "play"; } else { startLevel(playIdx, true); }
-  }, PAL.GOLD, PAL.BG, PAL.WHITE, "PRESS [ENTER] OR CLICK TO PLAY");
-
-  addButton(250, 280, 224, 54, `DAILY (#${dailyId})`, () => startLevel(Math.min(LEVELS.length - 1, dailyId - 1), true), PAL.STONE, PAL.GOLD, PAL.GOLD, "TODAY'S FEATURED LIE");
-  addButton(486, 280, 224, 54, "WORLDS & ROUNDS", () => { app.screen = "select"; }, PAL.STONE, PAL.WHITE, PAL.WHITE, "12 WORLDS [L]");
-
-  addButton(250, 346, 224, 52, "HALL OF SHAME", () => { app.screen = "shame"; }, PAL.STONE, PAL.CORAL, PAL.CORAL, "TOP DEATH TRAPS [H]");
-  addButton(486, 346, 224, 52, "SETTINGS & KEYS", () => { app.screen = "pause"; }, PAL.STONE, PAL.WHITE, PAL.GOLD, "AUDIO & REBINDS [ESC]");
-
-  if (app.state) {
-    addButton(365, 410, 230, 34, "RESTART FROM ROUND #1", () => startLevel(0, true), PAL.BG, PAL.CORAL, PAL.CORAL);
-  }
+  addButton(46, 412, 280, 44, `DAILY TRIAL (#${dailyId})`, () => startLevel(Math.min(LEVELS.length - 1, dailyId - 1), true), PAL.STONE, PAL.GOLD, PAL.GOLD);
+  addButton(340, 412, 280, 44, "HALL OF SHAME [H]", () => { app.screen = "shame"; }, PAL.STONE, PAL.CORAL, PAL.CORAL);
+  addButton(634, 412, 280, 44, "SETTINGS & KEYS [ESC]", () => { app.screen = "pause"; }, PAL.STONE, PAL.WHITE, PAL.WHITE);
+  drawPixelText(ctx, app.narratorText, 480, 518, 2, PAL.WHITE, "center");
 }
 
 function renderLevelSelect() {
@@ -4086,10 +4930,16 @@ function renderVictoryScreen() {
 
 function render(alpha) {
   uiButtons.length = 0;
+  if (app.hasTouch) touchEl.classList.toggle("active", app.screen === "play");
+  canvas.style.cursor = (app.screen === "g2play" && app.g2 && app.g2.invertedCursor && app.g2.failTicks === 0) ? "none" : "pointer";
+
   if (app.screen === "title") renderTitleScreen();
   else if (app.screen === "select") renderLevelSelect();
   else if (app.screen === "shame") renderHallOfShame();
   else if (app.screen === "victory") renderVictoryScreen();
+  else if (app.screen === "g2play") renderMindGame();
+  else if (app.screen === "g2select") renderMindSelect();
+  else if (app.screen === "g2win") renderMindWin();
   else if (app.screen === "pause" && !app.state) renderPauseMenu();
   else if ((app.screen === "play" || app.screen === "pause") && app.state) {
     ctx.save();
@@ -4118,6 +4968,7 @@ function render(alpha) {
 let lastTime = performance.now(), accumulator = 0;
 function tickGame() {
   app.uiTick++;
+  if (app.fakeAlertTicks > 0) app.fakeAlertTicks--;
   if (app.eyeMoodTicks > 0) {
     app.eyeMoodTicks--;
     if (app.eyeMoodTicks === 0) app.eyeMood = "watch";
@@ -4128,6 +4979,10 @@ function tickGame() {
   }
   if (app.shakeTicks > 0) app.shakeTicks--;
   if (app.deathFlashTicks > 0) app.deathFlashTicks--;
+  if (app.screen === "g2play" && !app.showClipPanel && !app.solverOverlay) {
+    tickMindGame();
+    return;
+  }
   if (app.screen !== "play" || !app.state || app.showClipPanel || app.solverOverlay) return;
 
   app.prevPlayerPos = { x: app.state.player.x, y: app.state.player.y };
