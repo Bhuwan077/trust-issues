@@ -3552,6 +3552,13 @@ function handleWinTransition() {
   }
 }
 
+function openPauseMenu() {
+  if (app.screen === "play" && app.state) {
+    app.state.pauseOpenedThisLevel = true;
+    stepSimulation(app.state, { left: false, right: false, jump: false, pause: true }, app.persistStore);
+  }
+  app.screen = "pause";
+}
 function shareCurrentLevelCode() {
   const lvl = LEVELS[app.currentLevelIndex].id;
   const code = `TI-${String(lvl).padStart(3, "0")}`;
@@ -3640,9 +3647,7 @@ window.addEventListener("keydown", e => {
     if (app.solverOverlay) { app.solverOverlay = null; return; }
     if (app.showClipPanel) { app.showClipPanel = false; return; }
     if (app.screen === "play") {
-      app.state.pauseOpenedThisLevel = true;
-      stepSimulation(app.state, { left: false, right: false, jump: false, pause: true }, app.persistStore);
-      app.screen = "pause";
+      openPauseMenu();
     } else if (app.screen === "pause") {
       app.screen = app.state ? "play" : "title";
     } else if (app.screen === "select" || app.screen === "shame") {
@@ -4040,13 +4045,24 @@ function renderEntities(state, alpha) {
     ctx.fillStyle = PAL.GOLD; ctx.beginPath(); ctx.arc(c.x, c.y + bob, 8, 0, Math.PI * 2); ctx.fill();
   }
 
-  // Secret Letter collectible
+  // Secret collectible (clean golden diamond)
   if (state.levelDef.secretLetter && !state.secretCollected) {
     const sl = state.levelDef.secretLetter;
-    const sx = sl.col * TILE + 6, sy = sl.row * TILE + 6 + Math.sin(state.tick * 0.1) * 2;
-    ctx.fillStyle = PAL.BG; ctx.fillRect(sx - 2, sy - 2, 22, 22);
-    ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 2; ctx.strokeRect(sx - 2, sy - 2, 22, 22);
-    drawPixelText(ctx, sl.char, sx + 9, sy + 1, 2, PAL.GOLD, "center");
+    const cx = sl.col * TILE + 15;
+    const cy = sl.row * TILE + 15 + Math.sin(state.tick * 0.1) * 2;
+    ctx.save();
+    ctx.fillStyle = PAL.GOLD;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - 8);
+    ctx.lineTo(cx + 8, cy);
+    ctx.lineTo(cx, cy + 8);
+    ctx.lineTo(cx - 8, cy);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = PAL.WHITE;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
   }
 
   // Riddle UI & Pads
@@ -4280,7 +4296,7 @@ function renderHUD(state) {
   drawPixelText(ctx, `Deaths: ${shownLvlD}`, 352, 15, 2, PAL.CORAL, "left", null, 130);
 
   addButton(754, 10, 96, 26, "Restart [R]", () => startLevel(app.currentLevelIndex, false), PAL.STONE, PAL.WHITE, PAL.BORDER);
-  addButton(856, 10, 88, 26, "Pause [Esc]", () => { app.screen = "pause"; }, PAL.STONE, PAL.WHITE, PAL.BORDER);
+  addButton(856, 10, 88, 26, "Pause [Esc]", openPauseMenu, PAL.STONE, PAL.WHITE, PAL.BORDER);
 
   if (app.fakeAlertTicks > 0) {
     ctx.fillStyle = PAL.CORAL; ctx.fillRect(180, 48, 600, 36);
