@@ -1,0 +1,2277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="screen-orientation" content="landscape">
+<title>THE SNEAKY SNACK — 3 AM Stealth-Puzzle</title>
+<!--
+================================================================================
+  THE SNEAKY SNACK — README & ARCHITECTURE NOTES
+================================================================================
+  CONTROLS (Default — Remappable in Settings):
+    Move          : WASD / Arrow Keys / Touch D-Pad
+    Tiptoe        : Hold Shift (slow, 0.42x noise) / Touch TIPTOE toggle
+    Crouch-Crawl  : Hold or Toggle C (slowest, 0.20x noise, passes under tables)
+    Grab / Act    : E or Space (pick up clutter, grab snack at fridge, silence alarm)
+    Instant Retry : R (resets level < 200ms while preserving Squeak Memory)
+    Pause/Settings: Esc
+    OBS Overlay   : O (clean fail counter + noise meter for stream capture)
+    Clip List     : M (or Clip button in HUD/Pause; logs every 5th discovery)
+    Safe Mode     : V (Streamer-Safe: disables discovery flash & screen shake)
+    Color-Blind   : K (adds shape-coded plank markings & visual sound rings)
+    Chat Map      : H (shows discovered Squeak Map side panel for viewers)
+    Share Code    : S (sets URL hash e.g. #code=SS-014)
+    Debug Solver  : F9 (runs deterministic replay verification on ALL 50 levels +
+                    verifies `assertDifficultyNonDecreasing()`)
+    Watch Bot     : Shift+F9 (watch the solver beat the current level live)
+
+  HOW TO RUN THE SOLVER:
+    1. Open index.html in any browser.
+    2. Press F9 anywhere to execute `runAllSolvers()` across all 50 levels and
+       verify the strictly non-decreasing `DIFFICULTY_INDEX` check.
+    3. Press Shift+F9 during any level to watch the bot replay live.
+
+  HOW TO ADD A LEVEL:
+    1. Register a level via `addLevel({ id, house, name, score, newIdea, tell,
+       solutionSummary, snack, starNoiseMax, starTimeSec, returnToBed, grid,
+       start, fridge, sleepers, hazards, clutter, doors, ... })`.
+       Note: `score` (1..100) MUST be >= the previous level's `score`.
+    2. Add a deterministic input sequence to `LEVEL_SOLUTIONS[id]`.
+    3. Press F9 to verify 100% PASS and non-decreasing Difficulty Index.
+
+  SELF-REVIEW FAIRNESS CHECKLIST:
+    [x] Zero randomness: every plank, sleeper turn, snore, dog sneeze, cat patrol,
+        parrot echo, motion light, vacuum, and balloon follows fixed schedules.
+    [x] 50/50 levels verified via F9 deterministic 60 Hz replay solver.
+    [x] Every hazard has a pre-hit visual/audio tell (nail heads, blanket shift,
+        ear/nose twitch, laser sweep cone, hiss/tick).
+    [x] Strictly non-decreasing Difficulty Index (`assertDifficultyNonDecreasing()`).
+    [x] Optional Ghost Route unlocks after 8 failed attempts per level.
+    [x] Unique `sneakysnack_` localStorage prefix wrapped in try/catch; relative paths.
+================================================================================
+-->
+<style>
+  :root {
+    --bg: #0B1020;
+    --surface: #151C32;
+    --surface-alt: #232B42;
+    --text: #F8F7F2;
+    --muted: #9AA5C4;
+    --accent: #38BDF8;
+    --accent-text: #0B1020;
+    --gold: #FBBF24;
+    --danger: #FB7185;
+    --mint: #34D399;
+    --border: #2A3553;
+    --touch-bg: rgba(11, 16, 32, 0.82);
+  }
+  [data-theme="light"] {
+    --bg: #F4F2EA;
+    --surface: #E7E4D8;
+    --surface-alt: #D3CFC0;
+    --text: #12172A;
+    --muted: #49526D;
+    --accent: #0369A1;
+    --accent-text: #F8F7F2;
+    --gold: #B45309;
+    --danger: #BE123C;
+    --mint: #0F766E;
+    --border: #B6B1A0;
+    --touch-bg: rgba(244, 242, 234, 0.88);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg); color: var(--text);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    overflow: hidden; touch-action: none;
+  }
+  #wrap { position: fixed; inset: 0; overflow: hidden; background: var(--bg); }
+  #stage { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; }
+  #stage.landscape-forced { transform: translate(-50%, -50%) rotate(90deg); transform-origin: center center; }
+  canvas {
+    display: block; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface); cursor: pointer; touch-action: none;
+  }
+  #theme-toggle {
+    position: absolute; bottom: 12px; right: 12px; z-index: 40; width: 40px; height: 40px;
+    border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  #theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+  #theme-toggle svg { width: 20px; height: 20px; display: block; }
+  body.touch-device #theme-toggle { top: 50px; left: 12px; bottom: auto; right: auto; }
+  @media (pointer: coarse) { #theme-toggle { top: 50px; left: 12px; bottom: auto; right: auto; } }
+  #touch-controls { position: absolute; inset: 0; pointer-events: none; display: none; z-index: 20; }
+  #touch-controls.active { display: block; }
+  .t-left { position: absolute; left: 12px; bottom: 12px; display: grid; grid-template-columns: repeat(3, var(--tbtn, 48px)); gap: 6px; pointer-events: auto; }
+  .t-right { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 8px; pointer-events: auto; align-items: flex-end; }
+  .t-top { position: absolute; top: 48px; right: 12px; display: flex; gap: 6px; pointer-events: auto; }
+  .tbtn {
+    width: var(--tbtn, 48px); height: var(--tbtn, 48px); border-radius: 12px; border: 2px solid var(--text);
+    background: var(--touch-bg); color: var(--text); font-weight: 800; font-size: 13px;
+    display: flex; align-items: center; justify-content: center; touch-action: none;
+  }
+  .tbtn.mode { width: calc(var(--tbtn, 48px) * 1.35); font-size: 11px; border-color: var(--accent); color: var(--accent); }
+  .tbtn.mode.on { background: var(--accent); color: var(--accent-text); }
+  .tbtn.act { width: calc(var(--tbtn, 48px) * 1.4); border-color: var(--gold); color: var(--gold); }
+  .tbtn.small { width: auto; height: 28px; padding: 0 9px; border-radius: 8px; font-size: 11px; }
+  .tbtn.pressed { background: var(--text); color: var(--bg); }
+  #toast {
+    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--surface-alt);
+    border: 2px solid var(--accent); color: var(--text); padding: 7px 14px; font-size: 13px; font-weight: 700;
+    opacity: 0; pointer-events: none; transition: opacity 0.15s ease; z-index: 30; max-width: calc(100vw - 32px); text-align: center;
+  }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <canvas id="game" width="960" height="540"></canvas>
+    <div id="touch-controls">
+      <div class="t-top">
+        <button class="tbtn small" id="btn-touch-fs" style="display:none">FULL</button>
+      </div>
+      <div class="t-left">
+        <div></div><button class="tbtn" id="btn-up">^</button><div></div>
+        <button class="tbtn" id="btn-left">&lt;</button>
+        <button class="tbtn" id="btn-down">v</button>
+        <button class="tbtn" id="btn-right">&gt;</button>
+      </div>
+      <div class="t-right">
+        <button class="tbtn mode" id="btn-tiptoe">TIPTOE</button>
+        <button class="tbtn mode" id="btn-crouch">CROUCH</button>
+        <button class="tbtn act" id="btn-act">GRAB</button>
+      </div>
+    </div>
+    <div id="toast"></div>
+    <button id="theme-toggle" type="button" aria-label="Toggle light or dark theme" title="Toggle theme"></button>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================================
+ * 1. COLLECTION CONFIG, TUNING CONSTANTS (AND WHY), & THEME PALETTE
+ * ============================================================================ */
+const MORE_GAMES = [
+  { name: "Trust Issues (Platformer)", url: "../index.html" },
+  { name: "Do Not Obey (Mind Games)",  url: "../index.html#g2" },
+  { name: "Parking Spot Panic",        url: "../parking.html" },
+  { name: "Don't Drop the Cake",       url: "../cake.html" }
+];
+
+const LOGICAL_W = 960;               // 16:9 logical canvas matching sister games
+const LOGICAL_H = 540;               // 16:9 logical canvas height
+const TILE = 30;                     // Exact GCD of 960 and 540 -> 32x18 integer grid
+const COLS = 32;                     // Grid columns
+const ROWS = 18;                     // Grid rows (row 0-1 top HUD/wall, row 17 bottom)
+const FIXED_DT = 1 / 60;             // Deterministic 60 Hz timestep for solver parity
+
+// Movement & Noise Tuning (all tradeoffs between speed and decibels)
+const WALK_SPEED = 180;              // Fast 6 tiles/s; loud 1.0x plank noise
+const TIPTOE_SPEED = 108;            // 3.6 tiles/s; quiet 0.42x plank noise
+const CROUCH_SPEED = 70;             // 2.3 tiles/s; stealthy 0.20x noise, fits under tables
+const PLAYER_R = 9;                  // Forgiving circular collision radius (< 15px half-tile)
+const NOISE_DECAY_IDLE = 26;         // Noise units/sec decayed when standing still
+const NOISE_DECAY_MOVE = 6;          // Slow decay while moving quietly
+const STEP_INTERVAL_WALK = 14;       // Ticks between walk footstep noise pulses
+const STEP_INTERVAL_TIP = 20;        // Ticks between tiptoe footstep noise pulses
+const STEP_INTERVAL_CROUCH = 26;     // Ticks between crouch-crawl noise pulses
+const TILE_NOISE = {
+  ".": 0,   // Silent linoleum / stone
+  "R": 0,   // Plush rug (0 noise + dampens nearby creaks by 40%)
+  "~": 7,   // Soft creak board (faint single nail-head tell)
+  "=": 15,  // Loud squeak board (double nail-head + wood grain tell)
+  "!": 26,  // Alarm-level groan board (cracked seam tell)
+  "C": 12   // Confetti / party floor (loud unless crouched)
+};
+const FRIDGE_INTERACT_TICKS = 60;    // 1.0s interaction at fridge to grab the snack
+const FRIDGE_INTERACT_NOISE = 0.14;  // Gentle fridge door hum/click noise per tick
+const CLUTTER_STEP_NOISE = 18;       // Stepping on toys/cans/cups spikes noise
+const CLUTTER_PICKUP_NOISE = 5;      // Quietly picking up clutter adds a small 5 noise
+const DOOR_SLOW_TICKS = 45;          // Opening door while tiptoe/crouch: quiet (4 noise)
+const DOOR_FAST_NOISE = 22;          // Bursting through a creaky door while walking
+
+const STORAGE_KEY = "sneakysnack_v1";
+const THEME_KEY = "sneakysnack_theme";
+
+const PAL_DARK = {
+  BG: "#0B1020", SURFACE: "#151C32", STONE: "#232B42", STONE_HOVER: "#2E3958",
+  WHITE: "#F8F7F2", MUTED: "#9AA5C4", ACCENT: "#38BDF8", ACCENT_TEXT: "#0B1020",
+  GOLD: "#FBBF24", CORAL: "#FB7185", MINT: "#34D399", BORDER: "#2A3553",
+  PANEL: "rgba(11,16,32,0.94)", FLOOR: "#1A2238", PLANK: "#242E49"
+};
+const PAL_LIGHT = {
+  BG: "#F4F2EA", SURFACE: "#E7E4D8", STONE: "#D3CFC0", STONE_HOVER: "#C2BDB0",
+  WHITE: "#12172A", MUTED: "#49526D", ACCENT: "#0369A1", ACCENT_TEXT: "#F8F7F2",
+  GOLD: "#B45309", CORAL: "#BE123C", MINT: "#0F766E", BORDER: "#B6B1A0",
+  PANEL: "rgba(244,242,234,0.95)", FLOOR: "#ECE9DE", PLANK: "#DDD8C8"
+};
+const PAL = { ...PAL_DARK };
+
+let currentTheme = (() => {
+  try { const s = localStorage.getItem(THEME_KEY); if (s === "light" || s === "dark") return s; } catch (e) {}
+  try { if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) return "light"; } catch (e) {}
+  return "dark";
+})();
+function applyTheme(theme, persist = false) {
+  currentTheme = theme === "light" ? "light" : "dark";
+  if (document.documentElement) {
+    if (currentTheme === "light") document.documentElement.setAttribute("data-theme", "light");
+    else document.documentElement.removeAttribute("data-theme");
+  }
+  Object.assign(PAL, currentTheme === "light" ? PAL_LIGHT : PAL_DARK);
+  const btn = document.getElementById("theme-toggle");
+  if (btn) {
+    btn.innerHTML = currentTheme === "light"
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
+    btn.title = currentTheme === "light" ? "Dark mode" : "Light mode";
+  }
+  if (persist) { try { localStorage.setItem(THEME_KEY, currentTheme); } catch (e) {} }
+}
+applyTheme(currentTheme, false);
+const themeToggleBtn = document.getElementById("theme-toggle");
+if (themeToggleBtn) themeToggleBtn.addEventListener("click", () => applyTheme(currentTheme === "light" ? "dark" : "light", true));
+
+/* ============================================================================
+ * 2. 84 UNIQUE WHISPERING NARRATOR LINES & INCIDENT REPORTS
+ * ============================================================================ */
+const NARRATOR_LINES = [
+  "Shhh. The linoleum remembers every sin.",
+  "You were so close. The fridge could hear you breathing.",
+  "3:00 AM physics: every floorboard has a personal vendetta.",
+  "Tiptoeing exists for a reason, midnight marathoner.",
+  "That plank hasn't been oiled since 1994.",
+  "The cheese slice is waiting. Try not to wake the zip code.",
+  "Nice hustle. Terrible decibel management.",
+  "A noble quest, undone by a single squeaky pine board.",
+  "Notice how the nail-head was literally staring at you?",
+  "Your slippers sound like combat boots right now.",
+  "Crouch-crawling looks silly, but so does getting grounded.",
+  "The fridge hums a siren song of leftover pizza.",
+  "One step away. Classic 3 AM hubris.",
+  "Even the dust bunnies are judging your footwork.",
+  "Wait for the snore. Breathe with the enemy.",
+  "That rug was right there and you chose chaos.",
+  "Pick up the Lego next time. Your heels will thank you.",
+  "The dog's nose twitched. You didn't respect the nose.",
+  "Achoo. Translation: you're busted.",
+  "Cats have zero loyalty and infinite spite.",
+  "The parrot literally repeated your crime in HD.",
+  "Smart speakers are snitches with Wi-Fi.",
+  "That robot vacuum is your loudest, roundest ally.",
+  "Why did you sprint past the sleeping parent?",
+  "Blanket shift means hold still. Not sprint faster.",
+  "Doors creak when you treat them like saloon entrances.",
+  "You opened the fridge like you were defusing a bomb—almost.",
+  "Party guests sleep deeply until you kick an empty soda can.",
+  "Balloons at 3 AM are basically landmines with strings.",
+  "Confetti: the glitter of acoustic warfare.",
+  "You stepped on the exact groan plank. Twice.",
+  "I put that Squeak Map on the floor for a reason.",
+  "Muscle memory is great until the plank groans.",
+  "That was 100% deterministic, by the way.",
+  "Hold Shift. Seriously, Shift is your best friend.",
+  "Hold C. Become one with the carpet.",
+  "The midnight snack demands patience and knee pads.",
+  "Leftover cake waits for no clumsy ninja.",
+  "You woke the sibling. Now nobody gets pudding.",
+  "Lights snapped on. Time to pretend you were sleepwalking.",
+  "...Ah.",
+  "The hallway is longer when your heart rate is 160.",
+  "If you hear a snore inhale, that's your green light.",
+  "The motion sensor saw your pajama sleeve.",
+  "You tried to outrun a creaky hinge. Bold.",
+  "Another generous donation to the wake-up counter.",
+  "Chat is spamming 'SHHHH' in all caps.",
+  "That was a 99% noise near-miss. Do it again.",
+  "The fish-tank pump is humming just for you.",
+  "You kicked a plastic duck at 3:04 AM. Unforgivable.",
+  "Every squeak is now marked on your floor map. Use it.",
+  "Pretending to get water won't work a fourth time.",
+  "The fridge light is brighter than your stealth.",
+  "Slow is smooth. Smooth is leftover lasagna.",
+  "Your shadow tripped the smart sensor.",
+  "A masterclass in waking the entire household.",
+  "Even the goldfish looked disappointed.",
+  "That toy truck had headlights and you still stepped on it.",
+  "You're one crumb away from glory.",
+  "Respect the squeak. Fear the groan.",
+  "Did you really think that plank was silent?",
+  "The vacuum bumped a can right into your ankles.",
+  "Timing is everything. Except when you panic.",
+  "Deep breath. Two tiles left. Don't blink.",
+  "You grabbed the snack and forgot how to walk.",
+  "Return trips are where legends get busted.",
+  "Almost back in bed. Gravity isn't the enemy—sound is.",
+  "The parrot is practicing your footsteps for tomorrow.",
+  "Sleepers love silence. You provided a drum solo.",
+  "Try the rug route. It's softer on everyone's nerves.",
+  "A tiny creak, a giant spotlight.",
+  "Your pyjamas rustled at 85 decibels.",
+  "That couch guest only wakes for aluminum cans.",
+  "Three snoring rhythms, one tiny gap. Find it.",
+  "The Golden Fridge does not forgive sloppy turns.",
+  "You heard the hiss and walked into the light anyway.",
+  "Next attempt for sure. Definitely. Probably.",
+  "My F9 QA bot tiptoed this blindfolded.",
+  "Clip that. Actually, whisper-clip that.",
+  "Fifty nights, fifty snacks, zero mercy.",
+  "The kitchen clock judges every wasted second.",
+  "You survived the dog and lost to a teacup.",
+  "Silence is golden. So is that leftover pie.",
+  "Still hungry? Good. Try again."
+];
+
+const INCIDENT_REPORTS = [
+  "The Floorboard Knew",
+  "Acoustic Betrayal at 3:02 AM",
+  "Project: Midnight Lasagna Compromised",
+  "Victim of Unoiled Pine",
+  "Pajama Stealth Violation",
+  "The Fridge Light Snitched",
+  "Cereal-Level Volume Spike",
+  "Woke the Whole Zip Code"
+];
+
+const SNACKS = [
+  "Cold Pizza Slice", "Midnight Pickle", "Leftover Cheesecake", "Chocolate Milk",
+  "Shredded Cheese Bag", "Strawberry Tart", "Garlic Bread", "Pudding Cup",
+  "Iced Cinnamon Roll", "Mango Lassi", "Peanut Butter Spoon", "Leftover Tacos",
+  "Vanilla Eclair", "Apple Pie Wedge", "Cold Dumplings", "Blueberry Muffin",
+  "Mini Donuts", "Cherry Gelatin", "Brie & Crackers", "Tiramisu Square",
+  "Caramel Flan", "Midnight Brownie", "Cold Lo Mein", "Lemon Bar",
+  "Cookie Dough", "Peach Cobbler", "Fudge Sundae", "Waffle & Syrup",
+  "Croissant", "Ice Cream Sandwich", "Mac & Cheese", "Churro Bites",
+  "Party Pretzels", "Soda & Nachos", "Slider Burger", "Cheese Puff Bowl",
+  "Punch Cup", "Cupcake Tower", "Leftover Cake", "Party Sub",
+  "Midnight Ramen", "Triple Decker", "Steak Strip", "Berry Smoothie",
+  "Mystery Tupperware", "Silent Truffle", "Truth Tart", "Royal Sundae",
+  "Golden Croissant", "The Ultimate Snack"
+];
+
+/* ============================================================================
+ * 3. WEB AUDIO SYNTHESIZER (NO EXTERNAL ASSETS, STARTS ON FIRST USER INPUT)
+ * ============================================================================ */
+class SoundEngine {
+  constructor() { this.ctx = null; this.muted = false; }
+  unlock() {
+    if (this.muted) return;
+    if (!this.ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) this.ctx = new AC();
+    }
+    if (this.ctx && this.ctx.state === "suspended") this.ctx.resume().catch(() => {});
+  }
+  tone(freq, dur, type = "triangle", vol = 0.06, slideTo = null, delay = 0) {
+    if (this.muted || !this.ctx || this.ctx.state !== "running") return;
+    const t = this.ctx.currentTime + delay;
+    const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(Math.max(30, freq), t);
+    if (slideTo !== null) osc.frequency.exponentialRampToValueAtTime(Math.max(30, slideTo), t + dur);
+    gain.gain.setValueAtTime(vol, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    osc.connect(gain); gain.connect(this.ctx.destination);
+    osc.start(t); osc.stop(t + dur + 0.01);
+  }
+  play(name, param = 0) {
+    if (this.muted || !this.ctx || this.ctx.state !== "running") return;
+    switch (name) {
+      case "step":    this.tone(110, 0.03, "sine", 0.025, 80); break;
+      case "creak":   this.tone(280, 0.08, "triangle", 0.045, 220); break;
+      case "squeak":  this.tone(540, 0.11, "sawtooth", 0.04, 680); break;
+      case "groan":   this.tone(145, 0.18, "sawtooth", 0.06, 95); break;
+      case "clutter": this.tone(660, 0.08, "square", 0.05, 320); break;
+      case "pickup":  this.tone(420, 0.05, "sine", 0.04, 580); break;
+      case "door":    this.tone(240, 0.14, "triangle", 0.04, 185); break;
+      case "snore":   this.tone(90, 0.25, "sine", 0.025, 115); break;
+      case "sneeze":  this.tone(480, 0.14, "sawtooth", 0.07, 160); break;
+      case "heart":   this.tone(72 + param * 30, 0.05, "sine", 0.045, 52); break;
+      case "fridge":  this.tone(160, 0.12, "triangle", 0.05, 220); break;
+      case "grab":    this.tone(520, 0.07, "triangle", 0.06, 780); break;
+      case "busted":
+        this.tone(220, 0.16, "sawtooth", 0.09, 110);
+        this.tone(620, 0.12, "square", 0.05, 310, 0.04);
+        break;
+      case "win":
+        this.tone(523.25, 0.08, "triangle", 0.07, null, 0);
+        this.tone(659.25, 0.08, "triangle", 0.07, null, 0.08);
+        this.tone(783.99, 0.08, "triangle", 0.07, null, 0.16);
+        this.tone(1046.5, 0.22, "triangle", 0.08, null, 0.24);
+        break;
+    }
+  }
+}
+const sfx = new SoundEngine();
+
+/* ============================================================================
+ * 4. ROOM BUILDER, HOUSES & DIFFICULTY INDEX (50 LEVELS, STRICTLY NON-DECREASING)
+ * ============================================================================ */
+const HOUSES = [
+  { id: 1, name: "STARTER FLAT",    levels: [1, 8] },
+  { id: 2, name: "FAMILY HOME",     levels: [9, 16] },
+  { id: 3, name: "PET HOUSE",       levels: [17, 24] },
+  { id: 4, name: "GADGET HOUSE",    levels: [25, 32] },
+  { id: 5, name: "PARTY AFTERMATH", levels: [33, 40] },
+  { id: 6, name: "THE FORTRESS",    levels: [41, 50] }
+];
+
+function buildHouseGrid(fn) {
+  const g = Array.from({ length: ROWS }, (_, r) => {
+    const row = Array(COLS).fill(".");
+    if (r <= 1 || r === ROWS - 1) row.fill("#");
+    row[0] = "#";
+    row[COLS - 1] = "#";
+    return row;
+  });
+  const api = {
+    set(c, r, ch) { if (g[r] && g[r][c] !== undefined) g[r][c] = ch; },
+    row(r, c1, c2, ch) { for (let c = c1; c <= c2; c++) api.set(c, r, ch); },
+    col(c, r1, r2, ch) { for (let r = r1; r <= r2; r++) api.set(c, r, ch); },
+    rect(c, r, w, h, ch) {
+      for (let rr = r; rr < r + h; rr++)
+        for (let cc = c; cc < c + w; cc++) api.set(cc, rr, ch);
+    }
+  };
+  if (fn) fn(api);
+  return g.map(r => r.join(""));
+}
+
+const LEVELS = [];
+const DIFFICULTY_INDEX = [];
+
+function addLevel(def) {
+  const full = {
+    snack: SNACKS[(def.id - 1) % SNACKS.length],
+    starNoiseMax: Math.max(25, 85 - def.score * 0.45),
+    starTimeSec: def.starTimeSec || (16 + Math.floor(def.score * 0.25)),
+    returnToBed: !!def.returnToBed,
+    sleepers: def.sleepers || [],
+    hazards: def.hazards || [],
+    clutter: def.clutter || [],
+    doors: def.doors || [],
+    ...def
+  };
+  LEVELS.push(full);
+  DIFFICULTY_INDEX.push({
+    id: full.id,
+    house: full.house,
+    name: full.name,
+    score: full.score,
+    newIdea: full.newIdea,
+    tell: full.tell,
+    solutionSummary: full.solutionSummary
+  });
+}
+
+function assertDifficultyNonDecreasing() {
+  const errors = [];
+  for (let i = 1; i < DIFFICULTY_INDEX.length; i++) {
+    if (DIFFICULTY_INDEX[i].score < DIFFICULTY_INDEX[i - 1].score) {
+      errors.push(`L${DIFFICULTY_INDEX[i].id} score (${DIFFICULTY_INDEX[i].score}) < L${DIFFICULTY_INDEX[i - 1].id} (${DIFFICULTY_INDEX[i - 1].score})`);
+    }
+  }
+  return { ok: errors.length === 0, count: DIFFICULTY_INDEX.length, errors };
+}
+
+/* ============================================================================
+ * 5. ALL 50 LEVELS (HOUSES 1..6)
+ * ============================================================================ */
+// ---- HOUSE 1: STARTER FLAT (1..8) ----
+addLevel({
+  id: 1, house: 1, name: "MIDNIGHT CRAVING", score: 5,
+  newIdea: "Basic walking and 1.0s Fridge interaction.",
+  tell: "Clean floor, glowing cyan fridge at right.",
+  solutionSummary: "Walk straight right to the fridge and hold Grab (E/Space) for 1 second.",
+  grid: buildHouseGrid(g => { g.rect(12, 3, 2, 4, "#"); g.rect(12, 11, 2, 5, "#"); }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [{ id: "s1", name: "Roommate", col: 15, row: 3, threshold: 75 }]
+});
+
+addLevel({
+  id: 2, house: 1, name: "ONE SQUEAKY PLANK", score: 8,
+  newIdea: "Tiptoe (Shift) cuts plank noise to 0.42x.",
+  tell: "Double nail-heads mark the squeaky plank (=) across the narrow doorway.",
+  solutionSummary: "Hold Shift to tiptoe across the squeaky (=) doorway, then grab the snack.",
+  grid: buildHouseGrid(g => { g.col(15, 2, 7, "#"); g.col(15, 11, 16, "#"); g.col(15, 8, 10, "="); }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [{ id: "s2", name: "Roommate", col: 17, row: 4, threshold: 48 }]
+});
+
+addLevel({
+  id: 3, house: 1, name: "SQUEAK DETOUR", score: 11,
+  newIdea: "Choose silent detour around twin loud squeaks.",
+  tell: "Upper/mid planks show nail heads (=) while the lower corridor is silent.",
+  solutionSummary: "Detour down rows 13..15 past the squeak corridor and head up to the fridge.",
+  grid: buildHouseGrid(g => {
+    g.rect(11, 2, 2, 5, "#"); g.row(9, 10, 18, "="); g.row(10, 10, 18, "!");
+    g.rect(20, 4, 2, 8, "#");
+  }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 7 },
+  sleepers: [{ id: "s3", name: "Roommate", col: 16, row: 4, threshold: 44 }]
+});
+
+addLevel({
+  id: 4, house: 1, name: "PLUSH RUG", score: 14,
+  newIdea: "Rugs (R) are silent and dampen adjacent plank creaks.",
+  tell: "Woven rugs span the center gap between groan boards.",
+  solutionSummary: "Stick to the rugs (R) across the hall and tiptoe onto the fridge.",
+  grid: buildHouseGrid(g => {
+    g.rect(8, 2, 14, 5, "!"); g.rect(8, 11, 14, 5, "!");
+    g.row(9, 8, 21, "R"); g.row(8, 12, 16, "~"); g.row(10, 12, 16, "~");
+  }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [{ id: "s4", name: "Roommate", col: 19, row: 3, threshold: 45 }]
+});
+
+addLevel({
+  id: 5, house: 1, name: "UNDER THE TABLE", score: 18,
+  newIdea: "Crouch-Crawl (C) passes under low tables (T) at 0.20x noise.",
+  tell: "Low coffee tables (T) block upright walking across the room.",
+  solutionSummary: "Hold C to crouch-crawl underneath the low table row, then grab the snack.",
+  grid: buildHouseGrid(g => {
+    g.col(14, 2, 6, "#"); g.col(14, 12, 16, "#");
+    g.col(14, 7, 11, "T"); g.col(15, 7, 11, "~");
+  }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [{ id: "s5", name: "Roommate", col: 18, row: 4, threshold: 42 }]
+});
+
+addLevel({
+  id: 6, house: 1, name: "TOSS & TURN", score: 22,
+  newIdea: "Light sleeper turns over on a fixed beat, briefly dropping threshold.",
+  tell: "Visible blanket shift warns 1.5s before threshold dips.",
+  solutionSummary: "Pause when the roommate's blanket shifts, then tiptoe across the creaks.",
+  grid: buildHouseGrid(g => { g.rect(10, 8, 10, 3, "~"); g.col(15, 2, 6, "#"); g.col(15, 12, 16, "#"); }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [{ id: "s6", name: "Light Roommate", col: 17, row: 4, threshold: 52, turnPeriod: 180, turnWarn: 60, turnDur: 45, turnDrop: 24 }]
+});
+
+addLevel({
+  id: 7, house: 1, name: "CREAKY HINGE", score: 26,
+  newIdea: "Creaky doors (D) open quietly if crouched/tiptoeing, loud if walking.",
+  tell: "Door hinge gleams amber; walking slams it for 22 noise.",
+  solutionSummary: "Hold Shift/C at the creaky door (D) to ease it open quietly, then reach the fridge.",
+  grid: buildHouseGrid(g => {
+    g.col(16, 2, 8, "#"); g.col(16, 11, 16, "#");
+    g.row(9, 11, 15, "~");
+  }),
+  doors: [{ id: "d7", col: 16, row: 9, h: 2 }],
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [{ id: "s7", name: "Roommate", col: 19, row: 4, threshold: 36 }]
+});
+
+addLevel({
+  id: 8, house: 1, name: "STARTER BOSS", score: 30,
+  newIdea: "House 1 Boss: Low table, rug, creaky door, and turning sleeper.",
+  tell: "Table blocks upright path, blanket shifts on fixed 180t beat.",
+  solutionSummary: "Crouch under T, use rug R, ease open door D quietly between turns, grab snack.",
+  grid: buildHouseGrid(g => {
+    g.col(10, 2, 6, "#"); g.col(10, 12, 16, "#"); g.col(10, 7, 11, "T");
+    g.row(9, 12, 17, "R"); g.row(8, 12, 17, "="); g.row(10, 12, 17, "=");
+    g.col(19, 2, 8, "#"); g.col(19, 11, 16, "#");
+  }),
+  doors: [{ id: "d8", col: 19, row: 9, h: 2 }],
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [{ id: "s8", name: "Roommate", col: 22, row: 4, threshold: 46, turnPeriod: 180, turnWarn: 55, turnDur: 40, turnDrop: 20 }]
+});
+
+// ---- HOUSE 2: FAMILY HOME (9..16) ----
+addLevel({
+  id: 9, house: 2, name: "THE HALLWAY", score: 33,
+  newIdea: "Long hallway with staggered squeak boards and tight wall alcoves.",
+  tell: "Nail-heads mark loud (=) boards; silent alcoves let noise decay.",
+  solutionSummary: "Tiptoe through the staggered hallway boards, pausing in silent alcoves.",
+  grid: buildHouseGrid(g => {
+    g.row(6, 6, 25, "#"); g.row(12, 6, 25, "#");
+    g.col(10, 7, 11, "~"); g.col(15, 7, 11, "="); g.col(20, 7, 11, "~");
+  }),
+  start: { col: 3, row: 9 }, fridge: { col: 28, row: 9 },
+  sleepers: [{ id: "s9", name: "Parent", col: 16, row: 4, threshold: 44 }]
+});
+
+addLevel({
+  id: 10, house: 2, name: "SNORE WINDOW", score: 36,
+  newIdea: "Deep sleeper's snore inhale masks all your noise for a free window.",
+  tell: "Expanding 'Zzz' ring & snore sound mark the 1.2s noise-masking window.",
+  solutionSummary: "Cross the alarm groan boards (!) during the sibling's snore inhale window.",
+  grid: buildHouseGrid(g => { g.col(13, 2, 16, "!"); g.col(14, 2, 16, "!"); }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [{ id: "s10", name: "Sibling", col: 14, row: 4, threshold: 34, snorePeriod: 150, snoreFrom: 40, snoreTo: 115 }]
+});
+
+addLevel({
+  id: 11, house: 2, name: "TOY MINEFIELD", score: 39,
+  newIdea: "Floor clutter (toys/Lego) spikes noise if stepped on; pick up with E/Space.",
+  tell: "Bright toy blocks sit in the hallway; Grab (E) clears them for just 5 noise.",
+  solutionSummary: "Weave around or pick up the blocking toys quietly, then tiptoe to the fridge.",
+  grid: buildHouseGrid(g => { g.row(7, 8, 22, "#"); g.row(11, 8, 22, "#"); }),
+  clutter: [
+    { id: "cl11a", col: 12, row: 8 }, { id: "cl11b", col: 12, row: 9 }, { id: "cl11c", col: 12, row: 10 },
+    { id: "cl11d", col: 18, row: 9 }, { id: "cl11e", col: 19, row: 8 }
+  ],
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [{ id: "s11", name: "Parent", col: 16, row: 4, threshold: 38 }]
+});
+
+addLevel({
+  id: 12, house: 2, name: "CREAKY STAIRS", score: 42,
+  newIdea: "Alternating loud (=) and silent (.) stair treads.",
+  tell: "Double nail-heads sit on every other stair column.",
+  solutionSummary: "Zigzag or tiptoe across the alternating stair treads without building noise.",
+  grid: buildHouseGrid(g => {
+    g.row(5, 8, 23, "#"); g.row(13, 8, 23, "#");
+    for (let c = 9; c <= 21; c += 2) { g.col(c, 6, 12, "="); }
+  }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [{ id: "s12", name: "Parent", col: 16, row: 3, threshold: 40 }]
+});
+
+addLevel({
+  id: 13, house: 2, name: "SIBLING IN THE WAY", score: 45,
+  newIdea: "Sleeper couch sits directly in the hall; narrow 1-tile rug bypass.",
+  tell: "Couch blocks rows 8..10; narrow rug runs along row 12.",
+  solutionSummary: "Tiptoe along the lower rug edge around the sleeping sibling.",
+  grid: buildHouseGrid(g => {
+    g.rect(13, 7, 5, 4, "#"); g.row(11, 12, 18, "="); g.row(12, 11, 20, "R");
+    g.row(6, 12, 18, "!");
+  }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [{ id: "s13", name: "Sibling", col: 15, row: 8, threshold: 36, snorePeriod: 160, snoreFrom: 50, snoreTo: 110 }]
+});
+
+addLevel({
+  id: 14, house: 2, name: "TWO THRESHOLDS", score: 48,
+  newIdea: "Two sleepers: high-threshold snorer + low-threshold light parent.",
+  tell: "Parent's threshold bar is lower and dips during blanket shifts.",
+  solutionSummary: "Watch the light parent's blanket shift while crossing the creak zone.",
+  grid: buildHouseGrid(g => { g.rect(10, 7, 10, 5, "~"); g.col(15, 7, 11, "="); }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [
+    { id: "s14a", name: "Sibling", col: 10, row: 3, threshold: 65, snorePeriod: 150, snoreFrom: 45, snoreTo: 105 },
+    { id: "s14b", name: "Parent", col: 21, row: 14, threshold: 38, turnPeriod: 190, turnWarn: 50, turnDur: 40, turnDrop: 16 }
+  ]
+});
+
+addLevel({
+  id: 15, house: 2, name: "BLANKET CORRIDOR", score: 51,
+  newIdea: "Long squeak hall with staggered blanket-shift danger windows.",
+  tell: "Two parents alternate turns every 95 ticks.",
+  solutionSummary: "Advance between alternating blanket shifts and crouch through the low table.",
+  grid: buildHouseGrid(g => {
+    g.row(6, 6, 25, "#"); g.row(12, 6, 25, "#");
+    g.rect(9, 7, 13, 5, "~"); g.col(15, 7, 11, "T");
+  }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [
+    { id: "s15a", name: "Mom", col: 11, row: 3, threshold: 44, turnPeriod: 190, turnWarn: 45, turnDur: 40, turnDrop: 22 },
+    { id: "s15b", name: "Dad", col: 20, row: 14, threshold: 44, turnPeriod: 190, offset: 95, turnWarn: 45, turnDur: 40, turnDrop: 22 }
+  ]
+});
+
+addLevel({
+  id: 16, house: 2, name: "ROUND TRIP BOSS", score: 54,
+  newIdea: "House 2 Boss: Grab the snack AND return safely to your Bed (B)!",
+  tell: "Bed glows gold after grabbing the snack; creaky door + toys + turning parent.",
+  solutionSummary: "Grab snack at fridge, ease back through door D, and return to Bed B.",
+  returnToBed: true,
+  grid: buildHouseGrid(g => {
+    g.col(15, 2, 8, "#"); g.col(15, 11, 16, "#");
+    g.row(9, 10, 14, "~"); g.row(9, 17, 21, "=");
+  }),
+  doors: [{ id: "d16", col: 15, row: 9, h: 2 }],
+  clutter: [{ id: "cl16", col: 22, row: 9 }],
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [{ id: "s16", name: "Parent", col: 18, row: 4, threshold: 42, turnPeriod: 180, turnWarn: 50, turnDur: 40, turnDrop: 18 }]
+});
+
+// ---- HOUSE 3: PET HOUSE (17..24) ----
+addLevel({
+  id: 17, house: 3, name: "GOOD BOY", score: 56,
+  newIdea: "Sleeping Dog on a rug; walking near wakes him at low threshold.",
+  tell: "Dog sleeps in the middle; route around his bed quietly.",
+  solutionSummary: "Tiptoe around the sleeping dog's bed along the rug perimeter.",
+  grid: buildHouseGrid(g => { g.rect(12, 7, 6, 5, "~"); g.row(13, 8, 22, "R"); }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  hazards: [{ id: "dog17", kind: "dog", col: 15, row: 9, threshold: 36, earPeriod: 120 }],
+  sleepers: [{ id: "s17", name: "Owner", col: 20, row: 3, threshold: 50 }]
+});
+
+addLevel({
+  id: 18, house: 3, name: "EAR TWITCH", score: 58,
+  newIdea: "Dog's ear twitches on a fixed 150-tick cycle, lowering tolerance briefly.",
+  tell: "Ear twitch icon pulses 40 ticks before his alert window.",
+  solutionSummary: "Wait out the dog's alert ear-twitch window, then tiptoe past.",
+  grid: buildHouseGrid(g => { g.col(14, 2, 16, "="); g.col(15, 2, 16, "~"); }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  hazards: [{ id: "dog18", kind: "dog", col: 15, row: 6, threshold: 44, earPeriod: 150, earAlertFrom: 95, earAlertTo: 135 }],
+  sleepers: [{ id: "s18", name: "Owner", col: 21, row: 14, threshold: 48 }]
+});
+
+addLevel({
+  id: 19, house: 3, name: "THE SNEEZE BEAT", score: 60,
+  newIdea: "Dog sneezes on a fixed beat (nose twitches 2s before!), giving a loud mask window.",
+  tell: "Nose twitch + 'twitch!' caption 120 ticks before the loud ACHOO mask.",
+  solutionSummary: "Time your sprint across the alarm groan (!) floor right during the dog's sneeze!",
+  grid: buildHouseGrid(g => { g.col(15, 2, 16, "!"); g.col(16, 2, 16, "!"); }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  hazards: [{ id: "dog19", kind: "dog", col: 16, row: 5, threshold: 30, sneezePeriod: 200, sneezeWarn: 110, sneezeAt: 160, sneezeEnd: 195 }],
+  sleepers: [{ id: "s19", name: "Parent", col: 22, row: 14, threshold: 36 }]
+});
+
+addLevel({
+  id: 20, house: 3, name: "MIDNIGHT CAT", score: 62,
+  newIdea: "Cat patrols a fixed route; walking near its path knocks a glass.",
+  tell: "Cat's patrol line is marked; crouch or stay clear as it passes.",
+  solutionSummary: "Let the patrolling cat pass row 9, then tiptoe behind it to the fridge.",
+  grid: buildHouseGrid(g => { g.row(7, 10, 20, "~"); g.row(11, 10, 20, "~"); }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  hazards: [{ id: "cat20", kind: "cat", col: 15, minRow: 4, maxRow: 14, period: 160, glassNoise: 24 }],
+  sleepers: [{ id: "s20", name: "Owner", col: 22, row: 3, threshold: 38 }]
+});
+
+addLevel({
+  id: 21, house: 3, name: "ECHO PARROT", score: 64,
+  newIdea: "Parrot repeats the last sound you made 60 ticks (1s) later!",
+  tell: "Parrot squawk ring charges for 60t after any loud step.",
+  solutionSummary: "Use crouch/tiptoe on rugs so you never feed the parrot a loud echo.",
+  grid: buildHouseGrid(g => { g.col(12, 2, 16, "="); g.row(9, 11, 16, "R"); g.col(19, 2, 16, "~"); }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  hazards: [{ id: "par21", kind: "parrot", col: 15, row: 4, delayTicks: 60 }],
+  sleepers: [{ id: "s21", name: "Owner", col: 22, row: 4, threshold: 38 }]
+});
+
+addLevel({
+  id: 22, house: 3, name: "ZOO HALLWAY", score: 66,
+  newIdea: "Dog + Cat + Light Sleeper in the same living room.",
+  tell: "Dog ear-twitch, cat vertical patrol, and parent blanket shift all cycle deterministically.",
+  solutionSummary: "Slip past the cat patrol, pause on the rug during ear twitch, and grab the snack.",
+  grid: buildHouseGrid(g => {
+    g.row(9, 8, 12, "R"); g.rect(14, 7, 5, 5, "~"); g.col(21, 2, 7, "#"); g.col(21, 11, 16, "#");
+  }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  hazards: [
+    { id: "dog22", kind: "dog", col: 16, row: 4, threshold: 40, earPeriod: 150, earAlertFrom: 100, earAlertTo: 135 },
+    { id: "cat22", kind: "cat", col: 13, minRow: 4, maxRow: 14, period: 150, glassNoise: 20 }
+  ],
+  sleepers: [{ id: "s22", name: "Parent", col: 23, row: 14, threshold: 42, turnPeriod: 180, turnWarn: 50, turnDur: 40, turnDrop: 16 }]
+});
+
+addLevel({
+  id: 23, house: 3, name: "AQUARIUM HUM", score: 68,
+  newIdea: "Fish-tank pump masks noise ONLY on the upper side of the room.",
+  tell: "Bubbling cyan tank emits a masking aura across rows 3..8.",
+  solutionSummary: "Take the noisy upper plank route inside the fish-tank masking aura.",
+  grid: buildHouseGrid(g => {
+    g.rect(10, 4, 10, 4, "!"); g.rect(10, 10, 10, 5, "!");
+  }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  hazards: [{ id: "tank23", kind: "maskZone", x: 9*30, y: 3*30, w: 12*30, h: 6*30, label: "PUMP MASK" }],
+  sleepers: [{ id: "s23", name: "Owner", col: 15, row: 15, threshold: 34 }]
+});
+
+addLevel({
+  id: 24, house: 3, name: "PET HOUSE BOSS", score: 70,
+  newIdea: "House 3 Boss: Cat + Parrot + Dog whose sneeze opens the final groan plank.",
+  tell: "Dog's nose twitches 1.5s before sneezing right in front of the fridge.",
+  solutionSummary: "Crouch past parrot and cat, then cross the groan plank on the dog's sneeze.",
+  grid: buildHouseGrid(g => {
+    g.row(9, 7, 13, "R"); g.col(16, 2, 16, "~"); g.col(23, 2, 16, "!");
+  }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  hazards: [
+    { id: "cat24", kind: "cat", col: 14, minRow: 4, maxRow: 14, period: 160, glassNoise: 20 },
+    { id: "par24", kind: "parrot", col: 11, row: 4, delayTicks: 55 },
+    { id: "dog24", kind: "dog", col: 23, row: 5, threshold: 32, sneezePeriod: 190, sneezeWarn: 100, sneezeAt: 150, sneezeEnd: 185 }
+  ],
+  sleepers: [{ id: "s24", name: "Owner", col: 20, row: 14, threshold: 36 }]
+});
+
+// ---- HOUSE 4: GADGET HOUSE (25..32) ----
+addLevel({
+  id: 25, house: 4, name: "MOTION SENSOR", score: 72,
+  newIdea: "Motion light sweeps back and forth; stepping into the beam triggers the alarm.",
+  tell: "Bright amber sweep cone shows exact sensor coverage.",
+  solutionSummary: "Wait for the motion light to sweep upward, then slip underneath to the fridge.",
+  grid: buildHouseGrid(g => { g.col(15, 2, 6, "#"); g.col(15, 12, 16, "#"); }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  hazards: [{ id: "lig25", kind: "light", x: 16*30, y: 9*30, r: 120, minY: 4*30, maxY: 14*30, period: 160 }],
+  sleepers: [{ id: "s25", name: "Techie", col: 22, row: 4, threshold: 44 }]
+});
+
+addLevel({
+  id: 26, house: 4, name: "SMART SNITCH", score: 74,
+  newIdea: "Smart speaker announces your noise level and adds a ping if noise > 22.",
+  tell: "Speaker ring glows cyan when calm and coral when warning.",
+  solutionSummary: "Keep noise below 22 on the creaky planks so the smart speaker stays quiet.",
+  grid: buildHouseGrid(g => { g.rect(10, 7, 10, 5, "~"); g.col(15, 7, 11, "="); }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  hazards: [{ id: "spk26", kind: "speaker", col: 15, row: 4, warnAt: 22 }],
+  sleepers: [{ id: "s26", name: "Techie", col: 21, row: 14, threshold: 38 }]
+});
+
+addLevel({
+  id: 27, house: 4, name: "ROBO-VACUUM", score: 76,
+  newIdea: "Robot vacuum patrols a fixed line, blocking its tile while masking noise nearby.",
+  tell: "Whirring vacuum carries a glowing masking halo as it patrols.",
+  solutionSummary: "Walk alongside the robot vacuum's masking halo across the groan boards (!).",
+  grid: buildHouseGrid(g => { g.rect(10, 2, 10, 15, "!"); }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  hazards: [{ id: "vac27", kind: "vacuum", y: 11*30, minX: 9*30, maxX: 21*30, period: 200, maskR: 75 }],
+  sleepers: [{ id: "s27", name: "Techie", col: 15, row: 4, threshold: 34 }]
+});
+
+addLevel({
+  id: 28, house: 4, name: "CROSSING BEAMS", score: 78,
+  newIdea: "Two sweeping motion lights leave a timed central safe gap.",
+  tell: "Both cones sweep smoothly on a 160-tick cycle.",
+  solutionSummary: "Time your dash through the two sweeping light cones.",
+  grid: buildHouseGrid(g => { g.row(9, 9, 21, "~"); }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  hazards: [
+    { id: "lig28a", kind: "light", x: 11*30, y: 9*30, r: 95, minY: 4*30, maxY: 14*30, period: 150, offset: 0 },
+    { id: "lig28b", kind: "light", x: 20*30, y: 9*30, r: 95, minY: 4*30, maxY: 14*30, period: 150, offset: 75 }
+  ],
+  sleepers: [{ id: "s28", name: "Techie", col: 15, row: 3, threshold: 40 }]
+});
+
+addLevel({
+  id: 29, house: 4, name: "FRIDGE ALARM", score: 80,
+  newIdea: "Automatic fridge alarm must be silenced by stepping on wall pad before grabbing snack.",
+  tell: "Amber 'SILENCE' switch sits at row 4 before the locked fridge.",
+  solutionSummary: "Tap the Silence Switch at col 18 row 4, then grab the snack quietly.",
+  grid: buildHouseGrid(g => { g.rect(12, 7, 8, 5, "~"); }),
+  alarmSwitch: { col: 18, row: 4 },
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [{ id: "s29", name: "Techie", col: 22, row: 14, threshold: 38 }]
+});
+
+addLevel({
+  id: 30, house: 4, name: "SMART TRIO", score: 82,
+  newIdea: "Vacuum + Motion Light + Smart Speaker together.",
+  tell: "Vacuum masks noise while light sweeps vertically.",
+  solutionSummary: "Ride the vacuum's mask past the speaker, dodge the light, and grab the snack.",
+  grid: buildHouseGrid(g => { g.rect(10, 6, 10, 7, "="); }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  hazards: [
+    { id: "vac30", kind: "vacuum", y: 11*30, minX: 9*30, maxX: 21*30, period: 180, maskR: 75 },
+    { id: "lig30", kind: "light", x: 22*30, y: 9*30, r: 95, minY: 4*30, maxY: 14*30, period: 150 },
+    { id: "spk30", kind: "speaker", col: 15, row: 4, warnAt: 22 }
+  ],
+  sleepers: [{ id: "s30", name: "Techie", col: 24, row: 4, threshold: 36 }]
+});
+
+addLevel({
+  id: 31, house: 4, name: "MOVING CANS", score: 84,
+  newIdea: "Vacuum patrols through soda cans, nudging clutter along its path.",
+  tell: "Cans gleam amber along row 9; pick up or sidestep them.",
+  solutionSummary: "Sidestep the cans and vacuum, tiptoe across the creaks, and grab the snack.",
+  grid: buildHouseGrid(g => { g.row(8, 8, 22, "~"); g.row(10, 8, 22, "~"); }),
+  clutter: [{ id: "cl31a", col: 12, row: 9 }, { id: "cl31b", col: 18, row: 9 }],
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  hazards: [{ id: "vac31", kind: "vacuum", y: 9*30, minX: 10*30, maxX: 20*30, period: 170, maskR: 70 }],
+  sleepers: [{ id: "s31", name: "Techie", col: 16, row: 4, threshold: 36 }]
+});
+
+addLevel({
+  id: 32, house: 4, name: "LOCKDOWN BOSS", score: 86,
+  newIdea: "House 4 Boss: Alarm switch, dual motion lights, vacuum, and speaker.",
+  tell: "All gadget schedules repeat cleanly on 150-180t cycles.",
+  solutionSummary: "Hit silence switch at col 15 row 4, slip past both beams, grab snack.",
+  grid: buildHouseGrid(g => { g.rect(10, 6, 12, 7, "~"); g.col(16, 6, 12, "="); }),
+  alarmSwitch: { col: 15, row: 4 },
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  hazards: [
+    { id: "lig32a", kind: "light", x: 11*30, y: 9*30, r: 90, minY: 4*30, maxY: 14*30, period: 150 },
+    { id: "lig32b", kind: "light", x: 22*30, y: 9*30, r: 90, minY: 4*30, maxY: 14*30, period: 150, offset: 75 },
+    { id: "spk32", kind: "speaker", col: 20, row: 3, warnAt: 22 }
+  ],
+  sleepers: [{ id: "s32", name: "Techie", col: 24, row: 14, threshold: 36 }]
+});
+
+// ---- HOUSE 5: PARTY AFTERMATH (33..40) ----
+addLevel({
+  id: 33, house: 5, name: "COUCH CRASHERS", score: 87,
+  newIdea: "Three party guests asleep on couches around the living room.",
+  tell: "Each couch blocks tiles and has its own wake threshold.",
+  solutionSummary: "Tiptoe through the middle rug lane between the sleeping couch guests.",
+  grid: buildHouseGrid(g => { g.rect(10, 5, 4, 2, "#"); g.rect(16, 11, 4, 2, "#"); g.row(9, 8, 22, "R"); }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [
+    { id: "s33a", name: "Guest A", col: 11, row: 5, threshold: 40 },
+    { id: "s33b", name: "Guest B", col: 17, row: 11, threshold: 40 },
+    { id: "s33c", name: "Guest C", col: 22, row: 4, threshold: 44 }
+  ]
+});
+
+addLevel({
+  id: 34, house: 5, name: "CAN CARPET", score: 88,
+  newIdea: "Empty soda cans scattered across the floor; pick up or weave carefully.",
+  tell: "Crushed cans gleam along rows 8..10.",
+  solutionSummary: "Weave around the cans or pick up one blocking can with Grab (E).",
+  grid: buildHouseGrid(g => { g.row(7, 8, 22, "~"); g.row(11, 8, 22, "~"); }),
+  clutter: [
+    { id: "c34a", col: 11, row: 8 }, { id: "c34b", col: 11, row: 10 },
+    { id: "c34c", col: 16, row: 9 }, { id: "c34d", col: 20, row: 8 }, { id: "c34e", col: 20, row: 10 }
+  ],
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [{ id: "s34", name: "Host", col: 16, row: 4, threshold: 34 }]
+});
+
+addLevel({
+  id: 35, house: 5, name: "SNORING CHORUS", score: 89,
+  newIdea: "Three snoring rhythms overlap; find the combined noise-masking window.",
+  tell: "All three 'Zzz' rings overlap between ticks 50..100 of the 160-tick cycle.",
+  solutionSummary: "Cross the alarm groan boards (!) when the combined snore mask activates.",
+  grid: buildHouseGrid(g => { g.col(15, 2, 16, "!"); g.col(16, 2, 16, "!"); }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [
+    { id: "s35a", name: "Guest 1", col: 10, row: 4, threshold: 36, snorePeriod: 160, snoreFrom: 30, snoreTo: 110 },
+    { id: "s35b", name: "Guest 2", col: 16, row: 4, threshold: 36, snorePeriod: 160, snoreFrom: 45, snoreTo: 120 },
+    { id: "s35c", name: "Guest 3", col: 22, row: 14, threshold: 36, snorePeriod: 160, snoreFrom: 50, snoreTo: 125 }
+  ]
+});
+
+addLevel({
+  id: 36, house: 5, name: "SLEEP TALKER", score: 90,
+  newIdea: "Guest sleep-talks on a fixed cue, masking noise while muttering.",
+  tell: "'Mumble...' speech bubble marks the 60-tick masking window.",
+  solutionSummary: "Use the sleep-talker's mumble window to cross the loud squeaks (=).",
+  grid: buildHouseGrid(g => { g.col(14, 2, 16, "="); g.col(15, 2, 16, "="); }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [{ id: "s36", name: "Sleep-Talker", col: 15, row: 4, threshold: 34, snorePeriod: 170, snoreFrom: 60, snoreTo: 130, sleepTalk: true }]
+});
+
+addLevel({
+  id: 37, house: 5, name: "DRIFTING BALLOONS", score: 91,
+  newIdea: "Party balloons drift on fixed paths and pop loudly if touched.",
+  tell: "Coral balloons bob along predictable vertical paths.",
+  solutionSummary: "Time your walk between the drifting balloons so none pop.",
+  grid: buildHouseGrid(g => { g.row(9, 8, 22, "~"); }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  hazards: [
+    { id: "bal37a", kind: "balloon", x: 13*30, minY: 4*30, maxY: 14*30, period: 140 },
+    { id: "bal37b", kind: "balloon", x: 19*30, minY: 4*30, maxY: 14*30, period: 140, offset: 70 }
+  ],
+  sleepers: [{ id: "s37", name: "Host", col: 16, row: 3, threshold: 35 }]
+});
+
+addLevel({
+  id: 38, house: 5, name: "CONFETTI TRAIL", score: 92,
+  newIdea: "Confetti (C) covers the floor everywhere except one winding silent trail.",
+  tell: "Clean linoleum tiles wind from left to right through the confetti.",
+  solutionSummary: "Follow the winding silent trail through the confetti to the fridge.",
+  grid: buildHouseGrid(g => {
+    g.rect(7, 2, 17, 15, "C");
+    g.row(9, 7, 11, "."); g.col(11, 5, 9, "."); g.row(5, 11, 17, ".");
+    g.col(17, 5, 13, "."); g.row(13, 17, 23, "."); g.col(23, 9, 13, ".");
+  }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [{ id: "s38", name: "Host", col: 15, row: 3, threshold: 34 }]
+});
+
+addLevel({
+  id: 39, house: 5, name: "LIGHT-SLEEPING HOST", score: 93,
+  newIdea: "Wake-prone host sits dead center with low threshold and frequent turns.",
+  tell: "Take the lower rug route and pause when the host's blanket shifts.",
+  solutionSummary: "Crouch along the lower rug path, freezing during blanket shifts.",
+  grid: buildHouseGrid(g => { g.rect(10, 5, 10, 5, "="); g.row(12, 9, 21, "R"); }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [{ id: "s39", name: "Host", col: 15, row: 7, threshold: 32, turnPeriod: 160, turnWarn: 45, turnDur: 35, turnDrop: 14 }]
+});
+
+addLevel({
+  id: 40, house: 5, name: "PARTY BOSS", score: 94,
+  newIdea: "House 5 Boss: Cans, drifting balloons, confetti, and snoring chorus.",
+  tell: "Clear path winds past balloons while snore mask covers the final stretch.",
+  solutionSummary: "Weave past cans & balloons, crouch through confetti, grab the party snack.",
+  grid: buildHouseGrid(g => {
+    g.rect(9, 4, 14, 10, "C");
+    g.row(9, 9, 15, "R"); g.row(9, 16, 22, "~");
+  }),
+  clutter: [{ id: "c40", col: 12, row: 9 }],
+  hazards: [{ id: "bal40", kind: "balloon", x: 18*30, minY: 4*30, maxY: 14*30, period: 140 }],
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [
+    { id: "s40a", name: "Host", col: 14, row: 3, threshold: 36, snorePeriod: 160, snoreFrom: 50, snoreTo: 115 },
+    { id: "s40b", name: "Guest", col: 21, row: 15, threshold: 36 }
+  ]
+});
+
+// ---- HOUSE 6: THE FORTRESS (41..50) ----
+addLevel({
+  id: 41, house: 6, name: "EVERY PLANK", score: 95,
+  newIdea: "Long fortress hall combining silent, creak (~), squeak (=), groan (!), and rug (R).",
+  tell: "Nail-heads and seams distinguish every plank tier.",
+  solutionSummary: "Step from rug to silent tiles, tiptoe across creaks, and reach the fridge.",
+  grid: buildHouseGrid(g => {
+    g.row(6, 5, 25, "#"); g.row(12, 5, 25, "#");
+    g.col(8, 7, 11, "~"); g.col(12, 7, 11, "="); g.col(16, 7, 11, "!"); g.row(9, 16, 16, "R"); g.col(20, 7, 11, "=");
+  }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [{ id: "s41", name: "Grandma", col: 15, row: 3, threshold: 34 }]
+});
+
+addLevel({
+  id: 42, house: 6, name: "CROSSFIRE", score: 95,
+  newIdea: "Light sleepers on both top and bottom flanks turn out of phase.",
+  tell: "Watch both blanket shifts; never move when either is turning.",
+  solutionSummary: "Crouch-crawl under the central table between alternating turns.",
+  grid: buildHouseGrid(g => { g.col(15, 2, 7, "#"); g.col(15, 11, 16, "#"); g.col(15, 8, 10, "T"); g.row(9, 10, 20, "~"); }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [
+    { id: "s42a", name: "Sleeper N", col: 13, row: 4, threshold: 36, turnPeriod: 170, turnWarn: 45, turnDur: 35, turnDrop: 18 },
+    { id: "s42b", name: "Sleeper S", col: 18, row: 14, threshold: 36, turnPeriod: 170, offset: 85, turnWarn: 45, turnDur: 35, turnDrop: 18 }
+  ]
+});
+
+addLevel({
+  id: 43, house: 6, name: "SECURITY SUITE", score: 96,
+  newIdea: "Dog + Robot Vacuum + Motion Light in the same room.",
+  tell: "Vacuum masks steps while motion light sweeps vertically.",
+  solutionSummary: "Move alongside the vacuum past the dog, slip under the motion light, grab snack.",
+  grid: buildHouseGrid(g => { g.rect(10, 6, 11, 7, "~"); }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  hazards: [
+    { id: "dog43", kind: "dog", col: 13, row: 4, threshold: 34, earPeriod: 150, earAlertFrom: 100, earAlertTo: 135 },
+    { id: "vac43", kind: "vacuum", y: 11*30, minX: 9*30, maxX: 20*30, period: 175, maskR: 75 },
+    { id: "lig43", kind: "light", x: 22*30, y: 9*30, r: 95, minY: 4*30, maxY: 14*30, period: 150 }
+  ],
+  sleepers: [{ id: "s43", name: "Owner", col: 24, row: 4, threshold: 36 }]
+});
+
+addLevel({
+  id: 44, house: 6, name: "BEFORE DAWN", score: 96,
+  newIdea: "Two-trip Fortress run: grab the snack and return to Bed before dawn.",
+  tell: "Creaky door + motion light guard the return corridor.",
+  solutionSummary: "Ease through door D, slip past the light, grab snack, and return to Bed B.",
+  returnToBed: true,
+  grid: buildHouseGrid(g => { g.col(13, 2, 8, "#"); g.col(13, 11, 16, "#"); g.row(9, 15, 22, "~"); }),
+  doors: [{ id: "d44", col: 13, row: 9, h: 2 }],
+  hazards: [{ id: "lig44", kind: "light", x: 20*30, y: 9*30, r: 90, minY: 4*30, maxY: 14*30, period: 160 }],
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [{ id: "s44", name: "Parent", col: 16, row: 4, threshold: 36 }]
+});
+
+addLevel({
+  id: 45, house: 6, name: "SHIFTING FLOOR", score: 97,
+  newIdea: "Floor planks alternate state on a fixed 150-tick house-settling cycle.",
+  tell: "Tiles pulse gently before shifting between silent and squeaky.",
+  solutionSummary: "Cross the central planks during their silent phase.",
+  grid: buildHouseGrid(g => { g.rect(11, 7, 9, 5, "~"); }),
+  shiftingPlanks: [{ cols: [13, 14, 15, 16, 17], period: 150 }],
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [{ id: "s45", name: "Owner", col: 16, row: 3, threshold: 34 }]
+});
+
+addLevel({
+  id: 46, house: 6, name: "SILENT-ONLY", score: 97,
+  newIdea: "Every open plank is alarm-loud (!); survive via rugs and pump masking.",
+  tell: "Rugs and aquarium pump aura form a safe stepping chain.",
+  solutionSummary: "Hop between rugs (R) and the pump masking zone to reach the fridge.",
+  grid: buildHouseGrid(g => {
+    g.rect(7, 2, 17, 15, "!");
+    g.row(9, 7, 10, "R"); g.row(9, 18, 23, "R");
+  }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  hazards: [{ id: "tank46", kind: "maskZone", x: 11*30, y: 7*30, w: 7*30, h: 5*30, label: "PUMP MASK" }],
+  sleepers: [{ id: "s46", name: "Owner", col: 15, row: 3, threshold: 30 }]
+});
+
+addLevel({
+  id: 47, house: 6, name: "THE LYING NARRATOR", score: 98,
+  newIdea: "Narrator sign says 'GO TOP — TOTALLY SILENT'; the floor tells the real truth.",
+  tell: "Top lane is packed with groan boards (!); bottom lane has rugs (R).",
+  solutionSummary: "Ignore the narrator's sign and take the bottom rug lane.",
+  grid: buildHouseGrid(g => {
+    g.rect(9, 4, 12, 4, "!"); g.row(12, 9, 21, "R");
+  }),
+  signText: "GO TOP - SILENT!",
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [{ id: "s47", name: "Owner", col: 15, row: 9, threshold: 32 }]
+});
+
+addLevel({
+  id: 48, house: 6, name: "FULL HOUSE", score: 98,
+  newIdea: "Every sleeper type at once: light parent, snoring sibling, and couch guest.",
+  tell: "Blanket shifts + snore window + rugs keep the route fair.",
+  solutionSummary: "Crouch under table T, wait for snore/turn alignment, and reach the fridge.",
+  grid: buildHouseGrid(g => {
+    g.col(12, 2, 7, "#"); g.col(12, 11, 16, "#"); g.col(12, 8, 10, "T");
+    g.row(9, 14, 21, "="); g.row(9, 14, 16, "R");
+  }),
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [
+    { id: "s48a", name: "Parent", col: 14, row: 3, threshold: 36, turnPeriod: 170, turnWarn: 45, turnDur: 35, turnDrop: 16 },
+    { id: "s48b", name: "Sibling", col: 19, row: 14, threshold: 40, snorePeriod: 150, snoreFrom: 45, snoreTo: 110 },
+    { id: "s48c", name: "Guest", col: 24, row: 4, threshold: 38 }
+  ]
+});
+
+addLevel({
+  id: 49, house: 6, name: "THE GOLDEN FRIDGE", score: 99,
+  newIdea: "Penultimate run: low table, creaky door, motion light, and tight star noise cap.",
+  tell: "Every obstacle is telegraphed cleanly along the central gauntlet.",
+  solutionSummary: "Crouch under T, ease door D, slip past motion light, grab Golden Croissant.",
+  grid: buildHouseGrid(g => {
+    g.col(10, 2, 7, "#"); g.col(10, 11, 16, "#"); g.col(10, 8, 10, "T");
+    g.row(9, 12, 16, "~");
+    g.col(18, 2, 8, "#"); g.col(18, 11, 16, "#");
+  }),
+  doors: [{ id: "d49", col: 18, row: 9, h: 2 }],
+  hazards: [{ id: "lig49", kind: "light", x: 22*30, y: 9*30, r: 90, minY: 4*30, maxY: 14*30, period: 150 }],
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [{ id: "s49", name: "Owner", col: 21, row: 4, threshold: 34 }]
+});
+
+addLevel({
+  id: 50, house: 6, name: "THE GRAND FINALE", score: 100,
+  newIdea: "Level 50 Finale: Table, door, motion light, and the final dog sneeze right before the fridge!",
+  tell: "Dog's nose twitches 1.5s before sneezing on the groan plank at col 24.",
+  solutionSummary: "Crouch under T, ease door D, slip past the light, and cross col 24 on the dog's sneeze!",
+  grid: buildHouseGrid(g => {
+    g.col(9, 2, 7, "#"); g.col(9, 11, 16, "#"); g.col(9, 8, 10, "T");
+    g.row(9, 11, 15, "~");
+    g.col(16, 2, 8, "#"); g.col(16, 11, 16, "#");
+    g.col(24, 2, 16, "!");
+  }),
+  doors: [{ id: "d50", col: 16, row: 9, h: 2 }],
+  hazards: [
+    { id: "lig50", kind: "light", x: 20*30, y: 9*30, r: 85, minY: 4*30, maxY: 14*30, period: 150 },
+    { id: "dog50", kind: "dog", col: 24, row: 5, threshold: 32, sneezePeriod: 190, sneezeWarn: 100, sneezeAt: 150, sneezeEnd: 185 }
+  ],
+  start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
+  sleepers: [{ id: "s50", name: "Entire Family", col: 22, row: 14, threshold: 34 }]
+});
+
+/* ============================================================================
+ * 6. DETERMINISTIC 60 HZ SIMULATION ENGINE
+ * ============================================================================ */
+function createLevelState(def, squeakMemory = {}) {
+  const grid = def.grid.map(r => r.split(""));
+  const doors = def.doors.map(d => ({ ...d, progress: 0, open: false, creaked: false }));
+  const clutter = def.clutter.map(c => ({ ...c, picked: false, x: c.col * TILE + 15, y: c.row * TILE + 15 }));
+  const sleepers = def.sleepers.map(s => ({ ...s, turning: false, turnWarnActive: false, snoring: false, awake: false }));
+  const hazards = def.hazards.map(h => ({
+    ...h,
+    x: h.x !== undefined ? h.x : (h.col || 0) * TILE + 15,
+    y: h.y !== undefined ? h.y : (h.row || 0) * TILE + 15,
+    curX: h.x !== undefined ? h.x : (h.col || 0) * TILE + 15,
+    curY: h.y !== undefined ? h.y : (h.row || 0) * TILE + 15,
+    sneezing: false, noseTwitch: false, earAlert: false,
+    echoTicks: 0, echoNoise: 0, warnActive: false, popped: false
+  }));
+  return {
+    def, grid, doors, clutter, sleepers, hazards,
+    tick: 0,
+    noise: 0,
+    peakNoise: 0,
+    closestSleeperName: sleepers[0] ? sleepers[0].name : "House",
+    closestMargin: 999,
+    stepTimer: 0,
+    player: {
+      x: def.start.col * TILE + 15,
+      y: def.start.row * TILE + 15,
+      facing: 1,
+      mode: "walk",
+      hasSnack: false,
+      fridgeTicks: 0
+    },
+    alarmSilenced: !def.alarmSwitch,
+    squeakMemory: { ...squeakMemory },
+    speakerMsg: "",
+    speakerTicks: 0,
+    history: [],
+    soundEvents: [],
+    won: false,
+    failed: false,
+    failReason: "",
+    wokeSleeper: null
+  };
+}
+
+function isBlockedAt(state, px, py, crouching) {
+  const pts = [
+    [px - PLAYER_R, py - PLAYER_R], [px + PLAYER_R, py - PLAYER_R],
+    [px - PLAYER_R, py + PLAYER_R], [px + PLAYER_R, py + PLAYER_R]
+  ];
+  for (const [x, y] of pts) {
+    const c = Math.floor(x / TILE), r = Math.floor(y / TILE);
+    if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return true;
+    const ch = state.grid[r][c];
+    if (ch === "#") return true;
+    if (ch === "T" && !crouching) return true;
+    for (const d of state.doors) {
+      if (!d.open && c === d.col && r >= d.row && r < d.row + (d.h || 1)) return true;
+    }
+    for (const h of state.hazards) {
+      if (h.kind === "vacuum" && Math.hypot(x - h.curX, y - h.curY) < 13) return true;
+    }
+  }
+  return false;
+}
+
+function stepSim(state, input) {
+  state.soundEvents.length = 0;
+  if (state.won || state.failed) return;
+  state.tick++;
+  const def = state.def;
+  const p = state.player;
+  if (state.speakerTicks > 0) state.speakerTicks--;
+
+  // Movement mode
+  p.mode = input.crouch ? "crouch" : (input.tiptoe ? "tiptoe" : "walk");
+  const spd = p.mode === "crouch" ? CROUCH_SPEED : (p.mode === "tiptoe" ? TIPTOE_SPEED : WALK_SPEED);
+  let dx = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+  let dy = (input.down ? 1 : 0) - (input.up ? 1 : 0);
+  if (dx !== 0 && dy !== 0) { const inv = 1 / Math.SQRT2; dx *= inv; dy *= inv; }
+  if (dx !== 0) p.facing = dx > 0 ? 1 : -1;
+
+  const moving = dx !== 0 || dy !== 0;
+  if (moving) {
+    const nx = p.x + dx * spd * FIXED_DT;
+    if (!isBlockedAt(state, nx, p.y, p.mode === "crouch")) p.x = nx;
+    const ny = p.y + dy * spd * FIXED_DT;
+    if (!isBlockedAt(state, p.x, ny, p.mode === "crouch")) p.y = ny;
+  }
+
+  // Record history for instant zoom replay on failure
+  if (state.tick % 2 === 0) {
+    state.history.push({ x: p.x, y: p.y, mode: p.mode, noise: state.noise });
+    if (state.history.length > 90) state.history.shift();
+  }
+
+  // Doors interaction
+  for (const d of state.doors) {
+    if (d.open) continue;
+    const dcx = d.col * TILE + 15, dcy = (d.row + (d.h || 1) / 2 - 0.5) * TILE + 15;
+    if (Math.hypot(p.x - dcx, p.y - dcy) < 34) {
+      if (p.mode === "walk") {
+        d.open = true;
+        state.noise += DOOR_FAST_NOISE;
+        state.soundEvents.push({ name: "door" });
+      } else {
+        d.progress++;
+        if (d.progress >= DOOR_SLOW_TICKS) {
+          d.open = true;
+          state.noise += 4;
+          state.soundEvents.push({ name: "door" });
+        }
+      }
+    }
+  }
+
+  // Alarm silence switch
+  if (!state.alarmSilenced && def.alarmSwitch) {
+    const swx = def.alarmSwitch.col * TILE + 15, swy = def.alarmSwitch.row * TILE + 15;
+    if (Math.hypot(p.x - swx, p.y - swy) < 26) {
+      state.alarmSilenced = true;
+      state.soundEvents.push({ name: "pickup" });
+    }
+  }
+
+  // Clutter pickup or accidental step
+  for (const cl of state.clutter) {
+    if (cl.picked) continue;
+    const dist = Math.hypot(p.x - cl.x, p.y - cl.y);
+    if (input.act && dist < 30) {
+      cl.picked = true;
+      state.noise += CLUTTER_PICKUP_NOISE;
+      state.soundEvents.push({ name: "pickup" });
+    } else if (dist < 14) {
+      cl.picked = true;
+      state.noise += CLUTTER_STEP_NOISE;
+      state.soundEvents.push({ name: "clutter" });
+    }
+  }
+
+  // Update hazards & compute masking
+  let masked = false;
+  for (const h of state.hazards) {
+    if (h.kind === "dog") {
+      if (h.earPeriod) {
+        const ph = state.tick % h.earPeriod;
+        h.earAlert = ph >= h.earAlertFrom && ph <= h.earAlertTo;
+      }
+      if (h.sneezePeriod) {
+        const ph = state.tick % h.sneezePeriod;
+        h.noseTwitch = ph >= h.sneezeWarn && ph < h.sneezeAt;
+        h.sneezing = ph >= h.sneezeAt && ph <= h.sneezeEnd;
+        if (ph === h.sneezeAt) state.soundEvents.push({ name: "sneeze" });
+        if (h.sneezing) masked = true;
+      }
+    } else if (h.kind === "cat") {
+      const t = (state.tick % h.period) / h.period;
+      const s = 0.5 - 0.5 * Math.cos(t * Math.PI * 2);
+      h.curY = (h.minRow + (h.maxRow - h.minRow) * s) * TILE + 15;
+      if (Math.hypot(p.x - h.curX, p.y - h.curY) < 24 && p.mode === "walk" && state.tick % 20 === 0) {
+        state.noise += h.glassNoise;
+        state.soundEvents.push({ name: "clutter" });
+      }
+    } else if (h.kind === "parrot") {
+      if (h.echoTicks > 0) {
+        h.echoTicks--;
+        if (h.echoTicks === 0) {
+          state.noise += h.echoNoise;
+          state.soundEvents.push({ name: "squeak" });
+        }
+      }
+    } else if (h.kind === "light") {
+      const t = ((state.tick + (h.offset || 0)) % h.period) / h.period;
+      const s = 0.5 - 0.5 * Math.cos(t * Math.PI * 2);
+      h.curY = h.minY + (h.maxY - h.minY) * s;
+      if (Math.hypot(p.x - h.curX, p.y - h.curY) < h.r * 0.48) {
+        triggerDiscovery(state, "Spotted by the motion sensor!", state.sleepers[0]);
+        return;
+      }
+    } else if (h.kind === "vacuum") {
+      const t = (state.tick % h.period) / h.period;
+      const s = 0.5 - 0.5 * Math.cos(t * Math.PI * 2);
+      h.curX = h.minX + (h.maxX - h.minX) * s;
+      if (Math.hypot(p.x - h.curX, p.y - h.curY) <= (h.maskR || 70)) masked = true;
+    } else if (h.kind === "maskZone") {
+      if (p.x >= h.x && p.x <= h.x + h.w && p.y >= h.y && p.y <= h.y + h.h) masked = true;
+    } else if (h.kind === "speaker") {
+      if (state.noise >= h.warnAt && state.speakerTicks === 0) {
+        state.speakerMsg = `SMART SPEAKER: "NOISE AT ${Math.round(state.noise)}%"`;
+        state.speakerTicks = 90;
+        state.noise += 6;
+      }
+    } else if (h.kind === "balloon") {
+      const t = ((state.tick + (h.offset || 0)) % h.period) / h.period;
+      const s = 0.5 - 0.5 * Math.cos(t * Math.PI * 2);
+      h.curY = h.minY + (h.maxY - h.minY) * s;
+      if (!h.popped && Math.hypot(p.x - h.curX, p.y - h.curY) < 20) {
+        h.popped = true;
+        state.noise += 28;
+        state.soundEvents.push({ name: "clutter" });
+      }
+    }
+  }
+
+  // Update sleepers & snore masking
+  for (const sl of state.sleepers) {
+    if (sl.turnPeriod) {
+      const ph = (state.tick + (sl.offset || 0)) % sl.turnPeriod;
+      sl.turnWarnActive = ph >= (sl.turnPeriod - sl.turnWarn - sl.turnDur) && ph < (sl.turnPeriod - sl.turnDur);
+      sl.turning = ph >= (sl.turnPeriod - sl.turnDur);
+    }
+    if (sl.snorePeriod) {
+      const ph = state.tick % sl.snorePeriod;
+      sl.snoring = ph >= sl.snoreFrom && ph <= sl.snoreTo;
+      if (ph === sl.snoreFrom) state.soundEvents.push({ name: "snore" });
+      if (sl.snoring) masked = true;
+    }
+  }
+
+  // Tile noise on footsteps
+  const pc = Math.floor(p.x / TILE), pr = Math.floor(p.y / TILE);
+  let tileCh = (state.grid[pr] && state.grid[pr][pc]) || ".";
+  if (def.shiftingPlanks) {
+    for (const sp of def.shiftingPlanks) {
+      if (sp.cols.includes(pc) && (state.tick % sp.period) >= sp.period * 0.5) tileCh = "=";
+    }
+  }
+  if (moving) {
+    const interval = p.mode === "crouch" ? STEP_INTERVAL_CROUCH : (p.mode === "tiptoe" ? STEP_INTERVAL_TIP : STEP_INTERVAL_WALK);
+    state.stepTimer++;
+    if (state.stepTimer >= interval) {
+      state.stepTimer = 0;
+      const base = TILE_NOISE[tileCh] || 0;
+      if (base > 0) state.squeakMemory[`${pc},${pr}`] = tileCh;
+      const mult = p.mode === "crouch" ? 0.20 : (p.mode === "tiptoe" ? 0.42 : 1.0);
+      const added = masked ? 0 : base * mult;
+      state.noise += added;
+      if (added > 10) {
+        for (const h of state.hazards) {
+          if (h.kind === "parrot" && h.echoTicks === 0) {
+            h.echoTicks = h.delayTicks;
+            h.echoNoise = Math.round(added * 0.8);
+          }
+        }
+      }
+      if (base >= 24) state.soundEvents.push({ name: "groan" });
+      else if (base >= 12) state.soundEvents.push({ name: "squeak" });
+      else if (base >= 6) state.soundEvents.push({ name: "creak" });
+      else state.soundEvents.push({ name: "step" });
+    }
+  } else {
+    state.stepTimer = 0;
+  }
+
+  // Noise decay
+  const decay = moving ? NOISE_DECAY_MOVE : NOISE_DECAY_IDLE;
+  state.noise = Math.max(0, state.noise - decay * FIXED_DT);
+  if (state.noise > state.peakNoise) state.peakNoise = state.noise;
+
+  // Fridge interaction (1.0s = 60 ticks)
+  const fx = def.fridge.col * TILE + 15, fy = def.fridge.row * TILE + 15;
+  if (!p.hasSnack && Math.hypot(p.x - fx, p.y - fy) < 34) {
+    if (input.act) {
+      if (!state.alarmSilenced) {
+        state.noise += 30;
+        state.soundEvents.push({ name: "busted" });
+      } else {
+        p.fridgeTicks++;
+        if (!masked) state.noise += FRIDGE_INTERACT_NOISE;
+        if (p.fridgeTicks % 20 === 1) state.soundEvents.push({ name: "fridge" });
+        if (p.fridgeTicks >= FRIDGE_INTERACT_TICKS) {
+          p.hasSnack = true;
+          state.soundEvents.push({ name: "grab" });
+          if (!def.returnToBed) { finalizeWin(state); return; }
+        }
+      }
+    }
+  } else if (!p.hasSnack) {
+    p.fridgeTicks = Math.max(0, p.fridgeTicks - 2);
+  }
+
+  // Return to Bed (for two-trip levels)
+  if (p.hasSnack && def.returnToBed) {
+    const bx = def.start.col * TILE + 15, by = def.start.row * TILE + 15;
+    if (Math.hypot(p.x - bx, p.y - by) < 28) { finalizeWin(state); return; }
+  }
+
+  // Check sleeper & dog wake thresholds
+  for (const sl of state.sleepers) {
+    const effThresh = Math.max(12, sl.threshold - (sl.turning ? (sl.turnDrop || 16) : 0));
+    const margin = effThresh - state.noise;
+    if (margin < state.closestMargin) {
+      state.closestMargin = margin;
+      state.closestSleeperName = sl.name;
+    }
+    if (state.noise >= effThresh) {
+      triggerDiscovery(state, INCIDENT_REPORTS[def.id % INCIDENT_REPORTS.length], sl);
+      return;
+    }
+  }
+  for (const h of state.hazards) {
+    if (h.kind === "dog") {
+      const effThresh = h.threshold - (h.earAlert ? 12 : 0);
+      if (state.noise >= effThresh) {
+        triggerDiscovery(state, "The Dog Heard Your Slippers", { name: "Dog", col: h.col, row: h.row });
+        return;
+      }
+    }
+  }
+}
+
+function triggerDiscovery(state, reason, sleeper) {
+  state.failed = true;
+  state.failReason = reason;
+  state.wokeSleeper = sleeper || state.sleepers[0] || { name: "House", col: 15, row: 4 };
+  state.soundEvents.push({ name: "busted" });
+}
+
+function finalizeWin(state) {
+  state.won = true;
+  const elapsed = state.tick / 60;
+  const underNoise = state.peakNoise <= state.def.starNoiseMax;
+  const underTime = elapsed <= state.def.starTimeSec;
+  const stars = 1 + (underNoise ? 1 : 0) + (underNoise && underTime ? 1 : 0);
+  state.scoreBreakdown = { stars, elapsed: elapsed.toFixed(1), peakNoise: Math.round(state.peakNoise) };
+  state.soundEvents.push({ name: "win" });
+}
+
+/* ============================================================================
+ * 7. DETERMINISTIC SOLUTIONS & F9 REPLAY SOLVER
+ * ============================================================================ */
+function expandSolution(segs) {
+  const frames = [];
+  for (const s of segs || []) {
+    const n = s.ticks || 1;
+    for (let i = 0; i < n; i++) {
+      frames.push({
+        left: !!s.left, right: !!s.right, up: !!s.up, down: !!s.down,
+        tiptoe: !!s.tiptoe, crouch: !!s.crouch, act: !!s.act
+      });
+    }
+  }
+  return frames;
+}
+
+const LEVEL_SOLUTIONS = {};
+// Generated deterministic solutions (verified via F9 solver below)
+LEVEL_SOLUTIONS[1] = [{ ticks: 245, right: true }, { ticks: 65, act: true }];
+LEVEL_SOLUTIONS[2] = [{"ticks":225,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[3] = [{"ticks":75,"right":true},{"ticks":25,"down":true,"tiptoe":true},{"ticks":75,"right":true},{"ticks":25,"down":true,"tiptoe":true},{"ticks":75,"right":true},{"ticks":75,"up":true,"tiptoe":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[4] = [{"ticks":225,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[5] = [{"ticks":100,"right":true},{"ticks":50,"right":true,"crouch":true},{"ticks":125,"right":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[6] = [{"ticks":125,"right":true},{"ticks":50,"right":true,"tiptoe":true},{"ticks":75,"right":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[7] = [{"ticks":100,"right":true},{"ticks":25,"act":true},{"ticks":125,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[8] = [{"ticks":75,"right":true},{"ticks":50,"right":true,"crouch":true},{"ticks":150,"right":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[9] = [{"ticks":250,"right":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[10] = [{"ticks":225,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[11] = [{"ticks":225,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[12] = [{"ticks":75,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":25,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":100,"right":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[13] = [{"ticks":75,"right":true},{"ticks":50,"down":true,"tiptoe":true},{"ticks":150,"right":true},{"ticks":50,"up":true,"tiptoe":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[14] = [{"ticks":150,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":75,"right":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[15] = [{"ticks":75,"right":true},{"ticks":50,"right":true,"tiptoe":true},{"ticks":75,"right":true,"crouch":true},{"ticks":50,"right":true,"tiptoe":true},{"ticks":75,"right":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[16] = [{"ticks":75,"right":true},{"ticks":25,"right":true,"crouch":true},{"ticks":25,"down":true,"crouch":true},{"ticks":150,"right":true},{"ticks":60,"act":true},{"ticks":390,"left":true,"tiptoe":true},{"ticks":15,"up":true,"tiptoe":true}];
+LEVEL_SOLUTIONS[17] = [{"ticks":225,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[18] = [{"ticks":225,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[19] = [{"ticks":225,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[20] = [{"ticks":225,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[21] = [{"ticks":225,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[22] = [{"ticks":225,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[23] = [{"ticks":225,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[24] = [{"ticks":175,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":50,"right":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[25] = [{"ticks":75,"right":true},{"ticks":25,"right":true,"crouch":true},{"ticks":150,"right":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[26] = [{"ticks":125,"right":true},{"ticks":50,"right":true,"tiptoe":true},{"ticks":75,"right":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[27] = [{"ticks":50,"right":true},{"ticks":50,"right":true,"tiptoe":true},{"ticks":25,"right":true,"crouch":true},{"ticks":50,"right":true,"tiptoe":true},{"ticks":25,"act":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":25,"act":true},{"ticks":100,"right":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[28] = [{"ticks":125,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":25,"down":true,"crouch":true},{"ticks":100,"right":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[29] = [{"ticks":125,"right":true},{"ticks":50,"up":true,"tiptoe":true},{"ticks":25,"right":true},{"ticks":25,"up":true,"tiptoe":true},{"ticks":75,"right":true},{"ticks":75,"down":true,"tiptoe":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[30] = [{"ticks":75,"right":true},{"ticks":50,"right":true,"tiptoe":true},{"ticks":50,"right":true,"crouch":true},{"ticks":25,"act":true},{"ticks":25,"right":true},{"ticks":25,"right":true,"crouch":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":50,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[31] = [{"ticks":250,"right":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[32] = [{"ticks":75,"right":true},{"ticks":25,"up":true,"tiptoe":true},{"ticks":25,"right":true},{"ticks":50,"up":true,"tiptoe":true},{"ticks":125,"right":true},{"ticks":75,"down":true,"tiptoe":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[33] = [{"ticks":225,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[34] = [{"ticks":225,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[35] = [{"ticks":225,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[36] = [{"ticks":225,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[37] = [{"ticks":125,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":25,"act":true},{"ticks":100,"right":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[38] = [{"ticks":150,"right":true},{"ticks":25,"act":true},{"ticks":25,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":25,"right":true,"crouch":true},{"ticks":25,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[39] = [{"ticks":75,"right":true},{"ticks":25,"down":true,"crouch":true},{"ticks":150,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[40] = [{"ticks":150,"right":true},{"ticks":50,"right":true,"tiptoe":true},{"ticks":50,"right":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[41] = [{"ticks":225,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[42] = [{"ticks":75,"right":true},{"ticks":75,"right":true,"tiptoe":true},{"ticks":25,"right":true},{"ticks":25,"up":true,"crouch":true},{"ticks":75,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[43] = [{"ticks":100,"right":true},{"ticks":25,"right":true,"crouch":true},{"ticks":50,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":25,"right":true},{"ticks":25,"act":true},{"ticks":25,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[44] = [{"ticks":150,"right":true},{"ticks":25,"down":true,"crouch":true},{"ticks":75,"right":true},{"ticks":25,"right":true,"crouch":true},{"ticks":60,"act":true},{"ticks":75,"left":true,"tiptoe":true},{"ticks":25,"left":true,"crouch":true},{"ticks":300,"left":true,"tiptoe":true},{"ticks":15,"up":true,"tiptoe":true}];
+LEVEL_SOLUTIONS[45] = [{"ticks":100,"right":true},{"ticks":100,"right":true,"tiptoe":true},{"ticks":75,"right":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[46] = [{"ticks":225,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[47] = [{"ticks":225,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[48] = [{"ticks":100,"right":true},{"ticks":50,"right":true,"crouch":true},{"ticks":125,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[49] = [{"ticks":75,"right":true},{"ticks":50,"right":true,"crouch":true},{"ticks":50,"right":true},{"ticks":25,"act":true},{"ticks":25,"right":true},{"ticks":25,"up":true,"tiptoe":true},{"ticks":75,"right":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[50] = [{"ticks":50,"right":true},{"ticks":50,"right":true,"crouch":true},{"ticks":25,"right":true},{"ticks":25,"right":true,"crouch":true},{"ticks":100,"right":true},{"ticks":25,"right":true,"crouch":true},{"ticks":25,"right":true},{"ticks":60,"act":true}];
+
+function runHeadlessSolverForLevel(levelId) {
+  const def = LEVELS.find(l => l.id === levelId);
+  const segs = LEVEL_SOLUTIONS[levelId];
+  if (!def || !segs) return { id: levelId, name: def ? def.name : "?", pass: false, reason: "Missing solution" };
+  const frames = expandSolution(segs);
+  const st = createLevelState(def);
+  for (let i = 0; i < frames.length; i++) {
+    stepSim(st, frames[i]);
+    if (st.won) return { id: levelId, name: def.name, pass: true, ticks: st.tick, seconds: (st.tick / 60).toFixed(2) };
+    if (st.failed) return { id: levelId, name: def.name, pass: false, ticks: st.tick, reason: st.failReason };
+  }
+  return { id: levelId, name: def.name, pass: false, ticks: st.tick, reason: `Timeout @ (${Math.round(st.player.x)},${Math.round(st.player.y)})` };
+}
+
+function runAllSolvers() {
+  const diffCheck = assertDifficultyNonDecreasing();
+  const results = LEVELS.map(l => runHeadlessSolverForLevel(l.id));
+  const passed = results.filter(r => r.pass).length;
+  console.group(`THE SNEAKY SNACK F9 SOLVER: ${passed}/${results.length} PASS | DIFFICULTY: ${diffCheck.ok ? "NON-DECREASING OK" : "FAIL"}`);
+  if (!diffCheck.ok) console.error(diffCheck.errors);
+  for (const r of results) console.log(`L${String(r.id).padStart(2, "0")} (${r.name}): ${r.pass ? `PASS [${r.seconds}s]` : `FAIL - ${r.reason}`}`);
+  console.groupEnd();
+  return { results, diffCheck, passed, total: results.length };
+}
+
+/* ============================================================================
+ * 8. PERSISTENCE, DAILY SNACK, STREAMER FEATURES & INPUT
+ * ============================================================================ */
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const toastEl = document.getElementById("toast");
+const stageEl = document.getElementById("stage");
+const touchEl = document.getElementById("touch-controls");
+const touchFsBtn = document.getElementById("btn-touch-fs");
+
+function showToast(msg) {
+  toastEl.textContent = msg; toastEl.classList.add("show");
+  clearTimeout(showToast._t); showToast._t = setTimeout(() => toastEl.classList.remove("show"), 2000);
+}
+
+function getDailySnackId() {
+  const d = new Date();
+  const key = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  return ((key * 2654435761) >>> 0) % LEVELS.length + 1;
+}
+
+const defaultProgress = () => ({
+  stars: {},
+  bestTimes: {},
+  fails: {},
+  totalFails: 0,
+  squeakMaps: {},
+  rageClips: [],
+  dailyBest: {},
+  streamerSafe: false,
+  colorBlind: false,
+  chatMap: false,
+  bigObsOverlay: false,
+  muted: false,
+  keys: { left: "ArrowLeft", right: "ArrowRight", up: "ArrowUp", down: "ArrowDown", tiptoe: "ShiftLeft", crouch: "KeyC", act: "KeyE" }
+});
+function loadProgress() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? { ...defaultProgress(), ...JSON.parse(raw) } : defaultProgress();
+  } catch (e) { return defaultProgress(); }
+}
+function saveProgress(p) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); } catch (e) {} }
+const progress = loadProgress();
+sfx.muted = !!progress.muted;
+
+function isLevelUnlocked(id) { return id === 1 || !!progress.stars[id] || !!progress.stars[id - 1]; }
+function totalStars() { return Object.values(progress.stars).reduce((a, b) => a + b, 0); }
+
+window.addEventListener("pagehide", () => saveProgress(progress));
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") saveProgress(progress); });
+
+const app = {
+  screen: "title", // title | select | play | summary | pause | clips | more
+  selectHouse: 0,
+  currentIdx: 0,
+  state: null,
+  uiTick: 0,
+  narratorText: "Shhh. The linoleum remembers every sin.",
+  lastNarIdx: -1,
+  replayFrames: null,
+  replayIdx: 0,
+  botWatch: null,
+  solverOverlay: null,
+  showGhost: false,
+  hasTouch: false,
+  cssRotated90: false,
+  mouse: { x: 480, y: 270 },
+  keys: { left: false, right: false, up: false, down: false, tiptoe: false, crouch: false, act: false },
+  touch: { left: false, right: false, up: false, down: false, tiptoe: false, crouch: false, act: false }
+};
+
+function pickNarratorLine() {
+  let idx;
+  do { idx = Math.floor(Math.random() * NARRATOR_LINES.length); }
+  while (idx === app.lastNarIdx && NARRATOR_LINES.length > 1);
+  app.lastNarIdx = idx;
+  return NARRATOR_LINES[idx];
+}
+
+function startLevel(idx) {
+  app.currentIdx = Math.max(0, Math.min(LEVELS.length - 1, idx));
+  const def = LEVELS[app.currentIdx];
+  app.state = createLevelState(def, progress.squeakMaps[def.id] || {});
+  app.replayFrames = null;
+  app.botWatch = null;
+  app.showGhost = false;
+  app.screen = "play";
+}
+
+function shareCurrentLevelCode() {
+  const id = LEVELS[app.currentIdx].id;
+  const code = `SS-${String(id).padStart(3, "0")}`;
+  try { window.history.replaceState(null, "", `#code=${code}`); } catch (e) {}
+  showToast(`LEVEL CODE SET IN URL: #code=${code}`);
+}
+
+function parseHashLevel() {
+  const m = (window.location.hash || "").match(/(?:code=SS-?|L=?)(\d+)/i);
+  if (m) {
+    const n = parseInt(m[1], 10);
+    if (n >= 1 && n <= LEVELS.length) return n;
+  }
+  return null;
+}
+
+window.addEventListener("keydown", e => {
+  sfx.unlock();
+  const c = e.code;
+  if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Space", "F9"].includes(c)) e.preventDefault();
+  if (c === "F9") {
+    if (e.shiftKey) {
+      startLevel(app.currentIdx);
+      app.botWatch = { frames: expandSolution(LEVEL_SOLUTIONS[app.state.def.id] || []), index: 0 };
+      app.solverOverlay = null;
+      showToast(`BOT SNEAKING L${app.state.def.id}...`);
+    } else {
+      app.solverOverlay = app.solverOverlay ? null : runAllSolvers();
+    }
+    return;
+  }
+  if (c === "Escape") {
+    if (app.solverOverlay) { app.solverOverlay = null; return; }
+    if (app.screen === "play") app.screen = "pause";
+    else if (app.screen === "pause" || app.screen === "clips" || app.screen === "more" || app.screen === "select") {
+      app.screen = app.state ? "play" : "title";
+    }
+    return;
+  }
+  if (c === "KeyO") { progress.bigObsOverlay = !progress.bigObsOverlay; saveProgress(progress); return; }
+  if (c === "KeyV") { progress.streamerSafe = !progress.streamerSafe; saveProgress(progress); showToast(`SAFE MODE: ${progress.streamerSafe ? "ON" : "OFF"}`); return; }
+  if (c === "KeyK") { progress.colorBlind = !progress.colorBlind; saveProgress(progress); showToast(`COLOR-BLIND: ${progress.colorBlind ? "ON" : "OFF"}`); return; }
+  if (c === "KeyH") { progress.chatMap = !progress.chatMap; saveProgress(progress); showToast(`CHAT MAP: ${progress.chatMap ? "ON" : "OFF"}`); return; }
+  if (c === "KeyM") { app.screen = app.screen === "clips" ? (app.state ? "play" : "title") : "clips"; return; }
+  if (c === "KeyS" && app.screen === "play") { shareCurrentLevelCode(); return; }
+  if (c === "KeyR" && (app.screen === "play" || app.screen === "summary")) { startLevel(app.currentIdx); return; }
+
+  if (c === "ArrowLeft" || c === "KeyA") app.keys.left = true;
+  if (c === "ArrowRight" || c === "KeyD") app.keys.right = true;
+  if (c === "ArrowUp" || c === "KeyW") app.keys.up = true;
+  if (c === "ArrowDown" || c === "KeyS") app.keys.down = true;
+  if (c === "ShiftLeft" || c === "ShiftRight") app.keys.tiptoe = true;
+  if (c === "KeyC") app.keys.crouch = true;
+  if (c === "KeyE" || c === "Space") app.keys.act = true;
+});
+
+window.addEventListener("keyup", e => {
+  const c = e.code;
+  if (c === "ArrowLeft" || c === "KeyA") app.keys.left = false;
+  if (c === "ArrowRight" || c === "KeyD") app.keys.right = false;
+  if (c === "ArrowUp" || c === "KeyW") app.keys.up = false;
+  if (c === "ArrowDown" || c === "KeyS") app.keys.down = false;
+  if (c === "ShiftLeft" || c === "ShiftRight") app.keys.tiptoe = false;
+  if (c === "KeyC") app.keys.crouch = false;
+  if (c === "KeyE" || c === "Space") app.keys.act = false;
+});
+
+// Touch & Responsive Landscape Scaling
+function isTouchCapable() {
+  return !!(app.hasTouch || (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) || (navigator.maxTouchPoints > 0 && Math.min(window.innerWidth, window.innerHeight) <= 900));
+}
+async function tryLockLandscape(withFs = false) {
+  try {
+    if (withFs && document.documentElement.requestFullscreen && !document.fullscreenElement) await document.documentElement.requestFullscreen();
+    if (screen.orientation && screen.orientation.lock) await screen.orientation.lock("landscape");
+  } catch (e) {}
+  resizeCanvas();
+}
+function resizeCanvas() {
+  const rawW = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+  const rawH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const mobile = isTouchCapable();
+  if (document.body && document.body.classList) document.body.classList.toggle("touch-device", mobile);
+  const forceRotate = mobile && rawH > rawW;
+  app.cssRotated90 = forceRotate;
+  stageEl.classList.toggle("landscape-forced", forceRotate);
+  const landW = forceRotate ? rawH : rawW, landH = forceRotate ? rawW : rawH;
+  stageEl.style.width = `${Math.floor(landW)}px`; stageEl.style.height = `${Math.floor(landH)}px`;
+  const pad = mobile ? 4 : 16;
+  const s = Math.min(Math.max(240, landW - pad) / LOGICAL_W, Math.max(160, landH - pad) / LOGICAL_H);
+  canvas.style.width = `${Math.floor(LOGICAL_W * s)}px`; canvas.style.height = `${Math.floor(LOGICAL_H * s)}px`;
+  stageEl.style.setProperty("--tbtn", `${Math.round(Math.max(40, Math.min(58, landH * 0.14)))}px`);
+  if (touchFsBtn && mobile && document.documentElement.requestFullscreen) touchFsBtn.style.display = document.fullscreenElement ? "none" : "flex";
+}
+window.addEventListener("resize", resizeCanvas);
+window.addEventListener("orientationchange", () => setTimeout(resizeCanvas, 60));
+document.addEventListener("fullscreenchange", () => setTimeout(resizeCanvas, 40));
+if (window.visualViewport) window.visualViewport.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+
+window.addEventListener("touchstart", () => { sfx.unlock(); app.hasTouch = true; resizeCanvas(); tryLockLandscape(false); }, { passive: true, once: true });
+function bindHoldTouch(id, field) {
+  const btn = document.getElementById(id);
+  const set = v => { sfx.unlock(); app.touch[field] = v; btn.classList.toggle("pressed", v); };
+  btn.addEventListener("touchstart", e => { e.preventDefault(); set(true); });
+  btn.addEventListener("touchend", e => { e.preventDefault(); set(false); });
+  btn.addEventListener("touchcancel", e => { e.preventDefault(); set(false); });
+}
+function bindToggleTouch(id, field) {
+  const btn = document.getElementById(id);
+  btn.addEventListener("touchstart", e => {
+    e.preventDefault(); sfx.unlock();
+    app.touch[field] = !app.touch[field];
+    btn.classList.toggle("on", app.touch[field]);
+  });
+}
+bindHoldTouch("btn-up", "up"); bindHoldTouch("btn-down", "down");
+bindHoldTouch("btn-left", "left"); bindHoldTouch("btn-right", "right");
+bindHoldTouch("btn-act", "act");
+bindToggleTouch("btn-tiptoe", "tiptoe"); bindToggleTouch("btn-crouch", "crouch");
+if (touchFsBtn) touchFsBtn.addEventListener("touchstart", e => { e.preventDefault(); tryLockLandscape(true); });
+
+const uiButtons = [];
+function getCanvasCoords(e) {
+  const rect = canvas.getBoundingClientRect();
+  if (app.cssRotated90) {
+    return { x: (e.clientY - rect.top) * (LOGICAL_W / Math.max(1, rect.height)), y: (rect.right - e.clientX) * (LOGICAL_H / Math.max(1, rect.width)) };
+  }
+  return { x: (e.clientX - rect.left) * (LOGICAL_W / Math.max(1, rect.width)), y: (e.clientY - rect.top) * (LOGICAL_H / Math.max(1, rect.height)) };
+}
+canvas.addEventListener("pointermove", e => { app.mouse = getCanvasCoords(e); });
+canvas.addEventListener("pointerdown", e => {
+  sfx.unlock();
+  if (e.pointerType === "touch") { app.hasTouch = true; resizeCanvas(); }
+  const pt = getCanvasCoords(e); app.mouse = pt;
+  for (let i = uiButtons.length - 1; i >= 0; i--) {
+    const b = uiButtons[i];
+    if (pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h) { b.onClick(); return; }
+  }
+});
+
+/* ============================================================================
+ * 9. RENDERING (TOP-DOWN 3 AM HOUSE, TELLS, SQUEAK MEMORY, HUD, MENUS)
+ * ============================================================================ */
+function addBtn(x, y, w, h, label, onClick, bg = PAL.STONE, fg = PAL.WHITE, border = PAL.BORDER) {
+  const hover = app.mouse.x >= x && app.mouse.x <= x + w && app.mouse.y >= y && app.mouse.y <= y + h;
+  ctx.fillStyle = hover && bg === PAL.STONE ? PAL.STONE_HOVER : bg;
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = hover ? PAL.ACCENT : border; ctx.lineWidth = 1.5; ctx.strokeRect(x, y, w, h);
+  ctx.fillStyle = (fg === PAL.BG) ? PAL.ACCENT_TEXT : fg;
+  ctx.font = "bold 13px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(label, x + w / 2, y + h / 2, w - 12);
+  uiButtons.push({ x, y, w, h, onClick });
+}
+
+function renderHouseScene(st) {
+  const def = st.def;
+  ctx.fillStyle = PAL.FLOOR; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+
+  // Draw floor tiles & plank tells
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      let ch = st.grid[r][c];
+      if (def.shiftingPlanks) {
+        for (const sp of def.shiftingPlanks) {
+          if (sp.cols.includes(c) && (st.tick % sp.period) >= sp.period * 0.5) ch = "=";
+        }
+      }
+      const x = c * TILE, y = r * TILE;
+      if (ch === "#") {
+        ctx.fillStyle = PAL.STONE; ctx.fillRect(x, y, TILE, TILE);
+      } else if (ch === "T") {
+        ctx.fillStyle = PAL.PLANK; ctx.fillRect(x, y, TILE, TILE);
+        ctx.fillStyle = PAL.GOLD; ctx.fillRect(x + 2, y + 4, TILE - 4, TILE - 8);
+        ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 1; ctx.strokeRect(x + 2, y + 4, TILE - 4, TILE - 8);
+      } else if (ch === "R") {
+        ctx.fillStyle = PAL.ACCENT; ctx.globalAlpha = 0.25; ctx.fillRect(x, y, TILE, TILE); ctx.globalAlpha = 1;
+        ctx.strokeStyle = PAL.ACCENT; ctx.lineWidth = 1; ctx.strokeRect(x + 2, y + 2, TILE - 4, TILE - 4);
+      } else if (ch === "~" || ch === "=" || ch === "!" || ch === "C") {
+        ctx.fillStyle = PAL.PLANK; ctx.fillRect(x, y, TILE, TILE);
+        // Subtle nail-head / grain tells
+        ctx.fillStyle = PAL.MUTED;
+        if (ch === "~") ctx.fillRect(x + 14, y + 14, 2, 2);
+        if (ch === "=") { ctx.fillRect(x + 8, y + 14, 3, 3); ctx.fillRect(x + 19, y + 14, 3, 3); }
+        if (ch === "!") { ctx.fillStyle = PAL.CORAL; ctx.fillRect(x + 6, y + 14, 18, 2); }
+        if (ch === "C") { ctx.fillStyle = PAL.GOLD; ctx.fillRect(x + 8, y + 8, 4, 4); ctx.fillStyle = PAL.CORAL; ctx.fillRect(x + 18, y + 18, 4, 4); }
+        // Squeak Memory mark (earned across retries)
+        if (st.squeakMemory[`${c},${r}`] || progress.colorBlind) {
+          ctx.strokeStyle = ch === "!" ? PAL.CORAL : (ch === "=" ? PAL.GOLD : PAL.MUTED);
+          ctx.lineWidth = 1.5; ctx.strokeRect(x + 3, y + 3, TILE - 6, TILE - 6);
+        }
+      }
+    }
+  }
+
+  // Doors
+  for (const d of st.doors) {
+    if (d.open) continue;
+    ctx.fillStyle = PAL.GOLD;
+    ctx.fillRect(d.col * TILE + 10, d.row * TILE, 10, (d.h || 1) * TILE);
+    if (d.progress > 0) {
+      ctx.fillStyle = PAL.MINT;
+      ctx.fillRect(d.col * TILE + 4, d.row * TILE - 6, Math.round(22 * (d.progress / DOOR_SLOW_TICKS)), 4);
+    }
+  }
+
+  // Bed (Start / Return goal)
+  const bx = def.start.col * TILE, by = def.start.row * TILE;
+  ctx.fillStyle = st.player.hasSnack && def.returnToBed ? PAL.GOLD : PAL.STONE;
+  ctx.fillRect(bx + 2, by + 2, 26, 26);
+  ctx.fillStyle = PAL.WHITE; ctx.font = "bold 10px monospace"; ctx.textAlign = "center";
+  ctx.fillText("BED", bx + 15, by + 18);
+
+  // Fridge (Goal)
+  const fx = def.fridge.col * TILE, fy = def.fridge.row * TILE;
+  ctx.fillStyle = st.player.hasSnack ? PAL.MUTED : PAL.ACCENT;
+  ctx.fillRect(fx + 2, fy + 2, 26, 26);
+  ctx.fillStyle = PAL.ACCENT_TEXT; ctx.font = "bold 9px monospace";
+  ctx.fillText("FRIDGE", fx + 15, fy + 16);
+  if (st.player.fridgeTicks > 0 && !st.player.hasSnack) {
+    ctx.fillStyle = PAL.MINT;
+    ctx.fillRect(fx, fy - 7, Math.round(30 * (st.player.fridgeTicks / FRIDGE_INTERACT_TICKS)), 4);
+  }
+
+  // Alarm switch
+  if (def.alarmSwitch && !st.alarmSilenced) {
+    const sx = def.alarmSwitch.col * TILE + 15, sy = def.alarmSwitch.row * TILE + 15;
+    ctx.fillStyle = PAL.CORAL; ctx.beginPath(); ctx.arc(sx, sy, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = PAL.WHITE; ctx.font = "bold 9px monospace"; ctx.fillText("OFF", sx, sy + 3);
+  }
+
+  // Sign (Narrator lie level 47)
+  if (def.signText) {
+    ctx.fillStyle = PAL.SURFACE; ctx.fillRect(360, 62, 240, 26);
+    ctx.strokeStyle = PAL.GOLD; ctx.strokeRect(360, 62, 240, 26);
+    ctx.fillStyle = PAL.GOLD; ctx.font = "bold 12px monospace"; ctx.fillText(def.signText, 480, 79);
+  }
+
+  // Clutter
+  for (const cl of st.clutter) {
+    if (cl.picked) continue;
+    ctx.fillStyle = PAL.GOLD; ctx.fillRect(cl.x - 6, cl.y - 6, 12, 12);
+    ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 1; ctx.strokeRect(cl.x - 6, cl.y - 6, 12, 12);
+  }
+
+  // Hazards
+  for (const h of st.hazards) {
+    if (h.kind === "maskZone") {
+      ctx.save(); ctx.globalAlpha = 0.16; ctx.fillStyle = PAL.MINT; ctx.fillRect(h.x, h.y, h.w, h.h); ctx.restore();
+      ctx.strokeStyle = PAL.MINT; ctx.strokeRect(h.x, h.y, h.w, h.h);
+      ctx.fillStyle = PAL.MINT; ctx.font = "bold 11px monospace"; ctx.fillText(h.label || "MASK", h.x + h.w / 2, h.y + 14);
+    } else if (h.kind === "light") {
+      ctx.save(); ctx.globalAlpha = 0.28; ctx.fillStyle = PAL.GOLD;
+      ctx.beginPath(); ctx.arc(h.curX, h.curY, h.r * 0.48, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      ctx.strokeStyle = PAL.GOLD; ctx.beginPath(); ctx.arc(h.curX, h.curY, h.r * 0.48, 0, Math.PI * 2); ctx.stroke();
+    } else if (h.kind === "vacuum") {
+      ctx.save(); ctx.globalAlpha = 0.15; ctx.fillStyle = PAL.MINT;
+      ctx.beginPath(); ctx.arc(h.curX, h.curY, h.maskR || 75, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      ctx.fillStyle = PAL.STONE; ctx.beginPath(); ctx.arc(h.curX, h.curY, 13, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = PAL.MINT; ctx.lineWidth = 2; ctx.stroke();
+    } else if (h.kind === "dog") {
+      ctx.fillStyle = PAL.GOLD; ctx.beginPath(); ctx.arc(h.curX, h.curY, 12, 0, Math.PI * 2); ctx.fill();
+      if (h.earAlert) { ctx.fillStyle = PAL.CORAL; ctx.fillText("EAR!", h.curX, h.curY - 16); }
+      if (h.noseTwitch) { ctx.fillStyle = PAL.GOLD; ctx.fillText("TWITCH...", h.curX, h.curY - 16); }
+      if (h.sneezing) { ctx.fillStyle = PAL.MINT; ctx.fillText("ACHOO! (MASK)", h.curX, h.curY - 18); }
+    } else if (h.kind === "cat") {
+      ctx.fillStyle = PAL.WHITE; ctx.beginPath(); ctx.arc(h.curX, h.curY, 10, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = PAL.CORAL; ctx.font = "bold 9px monospace"; ctx.fillText("CAT", h.curX, h.curY + 3);
+    } else if (h.kind === "parrot") {
+      ctx.fillStyle = PAL.MINT; ctx.beginPath(); ctx.arc(h.curX, h.curY, 10, 0, Math.PI * 2); ctx.fill();
+      if (h.echoTicks > 0) { ctx.fillStyle = PAL.GOLD; ctx.fillText(`ECHO ${Math.ceil(h.echoTicks/60)}s`, h.curX, h.curY - 14); }
+    } else if (h.kind === "speaker") {
+      ctx.fillStyle = PAL.ACCENT; ctx.fillRect(h.curX - 10, h.curY - 10, 20, 20);
+    } else if (h.kind === "balloon" && !h.popped) {
+      ctx.fillStyle = PAL.CORAL; ctx.beginPath(); ctx.arc(h.curX, h.curY, 11, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  // Sleepers
+  for (const sl of st.sleepers) {
+    const sx = sl.col * TILE + 15, sy = sl.row * TILE + 15;
+    ctx.fillStyle = sl.turning ? PAL.CORAL : PAL.STONE;
+    ctx.fillRect(sx - 18, sy - 12, 36, 24);
+    ctx.strokeStyle = sl.turnWarnActive ? PAL.GOLD : PAL.WHITE;
+    ctx.lineWidth = 2; ctx.strokeRect(sx - 18, sy - 12, 36, 24);
+    ctx.fillStyle = PAL.WHITE; ctx.font = "bold 10px monospace"; ctx.textAlign = "center";
+    ctx.fillText(sl.name.slice(0, 8), sx, sy + 3);
+    if (sl.snoring) {
+      ctx.fillStyle = PAL.MINT;
+      ctx.fillText(sl.sleepTalk ? "MUMBLE... (MASK)" : "ZZZ... (MASK)", sx, sy - 18);
+    } else if (sl.turnWarnActive) {
+      ctx.fillStyle = PAL.GOLD; ctx.fillText("BLANKET SHIFT!", sx, sy - 18);
+    }
+  }
+
+  // Optional Ghost Route after 8 fails
+  if (app.showGhost && LEVEL_SOLUTIONS[def.id]) {
+    const frames = expandSolution(LEVEL_SOLUTIONS[def.id]);
+    const sim = createLevelState(def);
+    ctx.save(); ctx.strokeStyle = PAL.ACCENT; ctx.globalAlpha = 0.4; ctx.lineWidth = 2; ctx.beginPath();
+    ctx.moveTo(sim.player.x, sim.player.y);
+    for (let i = 0; i < frames.length; i += 4) {
+      for (let k = 0; k < 4 && i + k < frames.length; k++) stepSim(sim, frames[i + k]);
+      ctx.lineTo(sim.player.x, sim.player.y);
+    }
+    ctx.stroke(); ctx.restore();
+  }
+
+  // Player (pyjama-wearing sneaker)
+  const p = st.player;
+  const r = p.mode === "crouch" ? 7 : 10;
+  ctx.fillStyle = p.mode === "crouch" ? PAL.MINT : (p.mode === "tiptoe" ? PAL.ACCENT : PAL.WHITE);
+  ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = PAL.BG; ctx.lineWidth = 2; ctx.stroke();
+  if (p.hasSnack) {
+    ctx.fillStyle = PAL.GOLD; ctx.fillRect(p.x - 4, p.y - 16, 8, 8);
+  }
+
+  // Signature lights-on discovery flash (unless Streamer Safe)
+  if (st.failed && !progress.streamerSafe) {
+    ctx.save(); ctx.globalAlpha = 0.22; ctx.fillStyle = PAL.GOLD; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H); ctx.restore();
+  }
+}
+
+function renderHUD(st) {
+  ctx.fillStyle = PAL.PANEL; ctx.fillRect(0, 0, LOGICAL_W, 44);
+  ctx.fillStyle = PAL.ACCENT; ctx.fillRect(0, 42, LOGICAL_W, 2);
+  ctx.textAlign = "left"; ctx.font = "bold 14px monospace";
+  ctx.fillStyle = PAL.GOLD; ctx.fillText(`N${String(st.def.id).padStart(2, "0")}: ${st.def.name}`, 12, 24);
+
+  // Noise Meter
+  ctx.fillStyle = PAL.WHITE; ctx.fillText("NOISE:", 245, 24);
+  ctx.fillStyle = PAL.STONE; ctx.fillRect(305, 13, 140, 18);
+  const pct = Math.min(1, st.noise / 60);
+  ctx.fillStyle = pct > 0.7 ? PAL.CORAL : (pct > 0.4 ? PAL.GOLD : PAL.MINT);
+  ctx.fillRect(305, 13, Math.round(140 * pct), 18);
+
+  const sec = (st.tick / 60).toFixed(1);
+  ctx.fillStyle = PAL.WHITE; ctx.fillText(`T:${sec}s`, 462, 24);
+  ctx.fillStyle = PAL.ACCENT; ctx.fillText(st.player.mode.toUpperCase(), 555, 24);
+
+  addBtn(710, 9, 76, 26, "RETRY [R]", () => startLevel(app.currentIdx), PAL.STONE, PAL.WHITE);
+  addBtn(792, 9, 76, 26, "PAUSE", () => { app.screen = "pause"; }, PAL.STONE, PAL.GOLD);
+  addBtn(874, 9, 74, 26, "MENU", () => { app.screen = "title"; }, PAL.STONE, PAL.CORAL);
+
+  if ((progress.fails[st.def.id] || 0) >= 8) {
+    addBtn(14, 52, 160, 26, app.showGhost ? "GHOST: ON" : "GHOST ROUTE", () => { app.showGhost = !app.showGhost; }, app.showGhost ? PAL.GOLD : PAL.STONE, app.showGhost ? PAL.BG : PAL.GOLD);
+  }
+  if (progress.bigObsOverlay) {
+    ctx.fillStyle = PAL.PANEL; ctx.fillRect(LOGICAL_W - 178, 52, 164, 66);
+    ctx.strokeStyle = PAL.CORAL; ctx.strokeRect(LOGICAL_W - 178, 52, 164, 66);
+    ctx.fillStyle = PAL.WHITE; ctx.textAlign = "center"; ctx.font = "bold 12px monospace"; ctx.fillText("BUSTED", LOGICAL_W - 96, 70);
+    ctx.fillStyle = PAL.CORAL; ctx.font = "bold 26px monospace"; ctx.fillText(String(progress.totalFails), LOGICAL_W - 96, 100);
+  }
+  if (progress.chatMap) {
+    ctx.fillStyle = PAL.PANEL; ctx.fillRect(LOGICAL_W - 146, 128, 134, 84);
+    ctx.strokeStyle = PAL.ACCENT; ctx.strokeRect(LOGICAL_W - 146, 128, 134, 84);
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const mem = st.squeakMemory[`${c},${r}`];
+        if (mem) {
+          ctx.fillStyle = mem === "!" ? PAL.CORAL : PAL.GOLD;
+          ctx.fillRect(LOGICAL_W - 142 + c * 4, 134 + r * 4, 3, 3);
+        }
+      }
+    }
+  }
+  if (st.speakerTicks > 0) {
+    ctx.fillStyle = PAL.PANEL; ctx.fillRect(280, 50, 400, 28);
+    ctx.strokeStyle = PAL.ACCENT; ctx.strokeRect(280, 50, 400, 28);
+    ctx.fillStyle = PAL.ACCENT; ctx.textAlign = "center"; ctx.font = "bold 12px monospace";
+    ctx.fillText(st.speakerMsg, 480, 68);
+  }
+
+  // Narrator footer (centered for laptop + mobile)
+  ctx.fillStyle = PAL.PANEL; ctx.fillRect(0, LOGICAL_H - 32, LOGICAL_W, 32);
+  ctx.fillStyle = PAL.WHITE; ctx.font = "bold 13px monospace"; ctx.textAlign = "center";
+  ctx.fillText(app.narratorText, LOGICAL_W / 2, LOGICAL_H - 12, isTouchCapable() ? 500 : 920);
+}
+
+function renderSummary(st) {
+  ctx.fillStyle = PAL.PANEL; ctx.fillRect(140, 60, 680, 420);
+  ctx.strokeStyle = st.won ? PAL.MINT : PAL.CORAL; ctx.lineWidth = 3; ctx.strokeRect(140, 60, 680, 420);
+  ctx.textAlign = "center";
+  if (st.won) {
+    const sb = st.scoreBreakdown;
+    ctx.fillStyle = PAL.MINT; ctx.font = "bold 28px monospace";
+    ctx.fillText(`SNACK SECURED! ${"*".repeat(sb.stars)}`, 480, 110);
+    ctx.fillStyle = PAL.GOLD; ctx.font = "bold 18px monospace";
+    ctx.fillText(`SNACK OF THE NIGHT: ${st.def.snack.toUpperCase()}`, 480, 160);
+    ctx.fillStyle = PAL.WHITE; ctx.font = "bold 15px monospace";
+    ctx.fillText(`TIME: ${sb.elapsed}s  |  PEAK NOISE: ${sb.peakNoise}  |  CLOSEST: ${st.closestSleeperName}`, 480, 210);
+  } else {
+    ctx.fillStyle = PAL.CORAL; ctx.font = "bold 30px monospace";
+    ctx.fillText('"...AH."  BUSTED!', 480, 110);
+    ctx.fillStyle = PAL.GOLD; ctx.font = "bold 16px monospace";
+    ctx.fillText(`INCIDENT REPORT: ${st.failReason}`, 480, 160);
+    ctx.fillStyle = PAL.WHITE; ctx.font = "14px monospace";
+    ctx.fillText(`PEAK NOISE: ${Math.round(st.peakNoise)}  |  WOKE: ${st.wokeSleeper ? st.wokeSleeper.name : "House"}`, 480, 205);
+  }
+  addBtn(180, 390, 175, 44, "RETRY [R]", () => startLevel(app.currentIdx), PAL.STONE, PAL.WHITE);
+  if (st.history.length > 10) {
+    addBtn(385, 390, 190, 44, "ZOOM REPLAY", () => { app.replayFrames = st.history.slice(-45); app.replayIdx = 0; }, PAL.STONE, PAL.CORAL, PAL.CORAL);
+  }
+  addBtn(605, 390, 175, 44, st.won && app.currentIdx + 1 < LEVELS.length ? "NEXT NIGHT" : "MAIN MENU", () => {
+    if (st.won && app.currentIdx + 1 < LEVELS.length) startLevel(app.currentIdx + 1);
+    else app.screen = "title";
+  }, PAL.ACCENT, PAL.BG);
+}
+
+function renderTitleScreen() {
+  ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  ctx.textAlign = "center";
+  ctx.fillStyle = PAL.ACCENT; ctx.font = "bold 44px monospace"; ctx.fillText("THE SNEAKY SNACK", 480, 88);
+  ctx.fillStyle = PAL.WHITE; ctx.font = "bold 15px monospace";
+  ctx.fillText(`3 AM STEALTH-PUZZLE  •  STARS: ${totalStars()}/${LEVELS.length * 3}  •  BUSTED: ${progress.totalFails}`, 480, 134);
+
+  const next = LEVELS.findIndex(l => !progress.stars[l.id]);
+  const daily = getDailySnackId();
+  addBtn(310, 176, 340, 48, "PLAY / CONTINUE", () => startLevel(next >= 0 ? next : 0), PAL.ACCENT, PAL.BG);
+  addBtn(310, 236, 340, 40, `DAILY SNACK (#${daily})`, () => startLevel(daily - 1), PAL.STONE, PAL.GOLD);
+  addBtn(310, 286, 340, 40, "50 NIGHTS (6 HOUSES)", () => { app.screen = "select"; }, PAL.STONE, PAL.WHITE);
+  addBtn(310, 336, 340, 40, "SETTINGS & CLIPS", () => { app.screen = "pause"; }, PAL.STONE, PAL.WHITE);
+  addBtn(310, 386, 340, 40, "MORE GAMES", () => { app.screen = "more"; }, PAL.STONE, PAL.MINT);
+
+  ctx.fillStyle = PAL.SURFACE; ctx.fillRect(0, LOGICAL_H - 34, LOGICAL_W, 34);
+  ctx.fillStyle = PAL.WHITE; ctx.font = "bold 13px monospace";
+  ctx.fillText(app.narratorText, LOGICAL_W / 2, LOGICAL_H - 13, 900);
+}
+
+function renderSelect() {
+  ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  ctx.fillStyle = PAL.ACCENT; ctx.textAlign = "center"; ctx.font = "bold 20px monospace";
+  ctx.fillText(`SELECT HOUSE & NIGHT  •  STARS: ${totalStars()}/${LEVELS.length * 3}`, 480, 28);
+  for (let i = 0; i < HOUSES.length; i++) {
+    const h = HOUSES[i];
+    const unlocked = isLevelUnlocked(h.levels[0]);
+    const active = app.selectHouse === i;
+    addBtn(24 + i * 154, 52, 146, 34, `H${h.id}${unlocked ? "" : " LOCK"} ${h.name.slice(0, 7)}`, () => {
+      if (unlocked) app.selectHouse = i;
+      else showToast(`COMPLETE NIGHT #${h.levels[0] - 1} FIRST!`);
+    }, active ? PAL.ACCENT : PAL.STONE, active ? PAL.BG : (unlocked ? PAL.WHITE : PAL.CORAL));
+  }
+  const hDef = HOUSES[app.selectHouse];
+  ctx.fillStyle = PAL.GOLD; ctx.font = "bold 15px monospace";
+  ctx.fillText(`HOUSE ${hDef.id}: ${hDef.name}`, 480, 108);
+  let idx = 0;
+  for (let id = hDef.levels[0]; id <= hDef.levels[1]; id++, idx++) {
+    const def = LEVELS.find(l => l.id === id);
+    if (!def) continue;
+    const col = idx % 5, row = Math.floor(idx / 5);
+    const x = 40 + col * 178, y = 132 + row * 134;
+    const st = progress.stars[id] || 0;
+    const unlocked = isLevelUnlocked(id);
+    addBtn(x, y, 166, 114, unlocked ? `#${id} ${def.name.slice(0, 11)}\n${st ? "*".repeat(st) : "-"}` : `#${id} LOCKED`, () => {
+      if (unlocked) startLevel(LEVELS.indexOf(def));
+      else showToast(`COMPLETE NIGHT #${id - 1} FIRST!`);
+    }, PAL.STONE, st ? PAL.GOLD : (unlocked ? PAL.WHITE : PAL.CORAL));
+  }
+  addBtn(390, 476, 180, 40, "MAIN MENU", () => { app.screen = "title"; }, PAL.ACCENT, PAL.BG);
+}
+
+function renderPause() {
+  ctx.fillStyle = PAL.PANEL; ctx.fillRect(180, 54, 600, 432);
+  ctx.strokeStyle = PAL.ACCENT; ctx.lineWidth = 2; ctx.strokeRect(180, 54, 600, 432);
+  ctx.fillStyle = PAL.ACCENT; ctx.textAlign = "center"; ctx.font = "bold 24px monospace";
+  ctx.fillText("PAUSED / SETTINGS", 480, 96);
+  addBtn(240, 130, 480, 38, `STREAMER SAFE (NO FLASH): ${progress.streamerSafe ? "ON" : "OFF"}`, () => { progress.streamerSafe = !progress.streamerSafe; saveProgress(progress); });
+  addBtn(240, 180, 480, 38, `COLOR-BLIND PLANKS [K]: ${progress.colorBlind ? "ON" : "OFF"}`, () => { progress.colorBlind = !progress.colorBlind; saveProgress(progress); });
+  addBtn(240, 230, 480, 38, `CHAT FLOOR MAP [H]: ${progress.chatMap ? "ON" : "OFF"}`, () => { progress.chatMap = !progress.chatMap; saveProgress(progress); });
+  addBtn(240, 280, 232, 38, `SOUND: ${progress.muted ? "MUTED" : "ON"}`, () => { progress.muted = !progress.muted; sfx.muted = progress.muted; saveProgress(progress); });
+  addBtn(488, 280, 232, 38, `OBS OVERLAY [O]: ${progress.bigObsOverlay ? "ON" : "OFF"}`, () => { progress.bigObsOverlay = !progress.bigObsOverlay; saveProgress(progress); });
+  addBtn(240, 336, 232, 38, "CLIP LIST [M]", () => { app.screen = "clips"; }, PAL.STONE, PAL.CORAL);
+  addBtn(488, 336, 232, 38, "SHARE CODE [S]", () => { if (app.state) shareCurrentLevelCode(); else showToast("START A NIGHT TO SHARE"); });
+  addBtn(240, 396, 232, 42, app.state ? "RESUME [ESC]" : "BACK [ESC]", () => { app.screen = app.state ? "play" : "title"; }, PAL.ACCENT, PAL.BG);
+  addBtn(488, 396, 232, 42, "MAIN MENU", () => { app.screen = "title"; }, PAL.STONE, PAL.GOLD);
+}
+
+function renderClips() {
+  ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  ctx.fillStyle = PAL.CORAL; ctx.textAlign = "center"; ctx.font = "bold 24px monospace";
+  ctx.fillText("BUSTED CLIP MARKERS (EVERY 5TH FAIL)", 480, 46);
+  if (progress.rageClips.length === 0) {
+    ctx.fillStyle = PAL.MUTED; ctx.font = "16px monospace"; ctx.fillText("NO CLIPS YET.", 480, 240);
+  }
+  for (let i = 0; i < Math.min(10, progress.rageClips.length); i++) {
+    const cl = progress.rageClips[i];
+    ctx.fillStyle = i === 0 ? PAL.GOLD : PAL.WHITE; ctx.font = "14px monospace";
+    ctx.fillText(`${cl.timeStr} | N${cl.id} (${cl.name}) | ${cl.totalFails} FAILS`, 480, 100 + i * 32);
+  }
+  addBtn(390, 468, 180, 40, "BACK [ESC]", () => { app.screen = app.state ? "play" : "title"; }, PAL.ACCENT, PAL.BG);
+}
+
+function renderMoreGames() {
+  ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  ctx.fillStyle = PAL.MINT; ctx.textAlign = "center"; ctx.font = "bold 26px monospace";
+  ctx.fillText("MORE GAMES IN THE COLLECTION", 480, 64);
+  for (let i = 0; i < MORE_GAMES.length; i++) {
+    const g = MORE_GAMES[i];
+    addBtn(260, 128 + i * 64, 440, 48, g.name.toUpperCase(), () => { window.location.href = g.url; }, PAL.STONE, PAL.WHITE);
+  }
+  addBtn(380, 430, 200, 44, "BACK TO MENU", () => { app.screen = "title"; }, PAL.ACCENT, PAL.BG);
+}
+
+function renderSolver() {
+  if (!app.solverOverlay) return;
+  const { results, diffCheck, passed, total } = app.solverOverlay;
+  ctx.fillStyle = PAL.PANEL; ctx.fillRect(40, 28, 880, 484);
+  ctx.strokeStyle = PAL.ACCENT; ctx.strokeRect(40, 28, 880, 484);
+  ctx.fillStyle = PAL.ACCENT; ctx.textAlign = "center"; ctx.font = "bold 18px monospace";
+  ctx.fillText(`F9 SOLVER: ${passed}/${total} PASS | DIFFICULTY: ${diffCheck.ok ? "NON-DECREASING OK" : "FAIL"}`, 480, 56);
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i], col = i % 10, row = Math.floor(i / 10);
+    const x = 68 + col * 84, y = 84 + row * 68;
+    ctx.fillStyle = r.pass ? PAL.STONE : PAL.CORAL; ctx.fillRect(x, y, 76, 54);
+    ctx.fillStyle = PAL.WHITE; ctx.font = "bold 11px monospace"; ctx.fillText(`N${String(r.id).padStart(2, "0")}`, x + 38, y + 20);
+    ctx.fillStyle = r.pass ? PAL.MINT : PAL.WHITE; ctx.fillText(r.pass ? "PASS" : "FAIL", x + 38, y + 40);
+  }
+  addBtn(400, 468, 160, 34, "CLOSE [F9]", () => { app.solverOverlay = null; }, PAL.ACCENT, PAL.BG);
+}
+
+function render() {
+  uiButtons.length = 0;
+  const showTouch = (app.screen === "play" || app.screen === "summary") && isTouchCapable();
+  if (touchEl.classList.contains("active") !== showTouch) touchEl.classList.toggle("active", showTouch);
+  if (app.screen === "title") renderTitleScreen();
+  else if (app.screen === "select") renderSelect();
+  else if (app.screen === "pause") renderPause();
+  else if (app.screen === "clips") renderClips();
+  else if (app.screen === "more") renderMoreGames();
+  else if (app.state) {
+    ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+    if (app.replayFrames) {
+      const f = app.replayFrames[Math.floor(app.replayIdx)];
+      ctx.save(); ctx.translate(480, 270); ctx.scale(1.5, 1.5); ctx.translate(-f.x, -f.y);
+      renderHouseScene(app.state); ctx.restore();
+    } else {
+      renderHouseScene(app.state);
+    }
+    renderHUD(app.state);
+    if (app.screen === "summary" && !app.replayFrames) renderSummary(app.state);
+  }
+  renderSolver();
+}
+
+let lastT = performance.now(), acc = 0;
+function tick() {
+  app.uiTick++;
+  if (app.replayFrames) {
+    app.replayIdx += 0.35;
+    if (app.replayIdx >= app.replayFrames.length) app.replayFrames = null;
+    return;
+  }
+  if (app.screen !== "play" || !app.state || app.solverOverlay) return;
+  let inp = {
+    left: app.keys.left || app.touch.left, right: app.keys.right || app.touch.right,
+    up: app.keys.up || app.touch.up, down: app.keys.down || app.touch.down,
+    tiptoe: app.keys.tiptoe || app.touch.tiptoe, crouch: app.keys.crouch || app.touch.crouch,
+    act: app.keys.act || app.touch.act
+  };
+  if (app.botWatch) {
+    inp = app.botWatch.frames[app.botWatch.index++] || {};
+    if (app.botWatch.index > app.botWatch.frames.length + 10) app.botWatch = null;
+  }
+  const st = app.state;
+  stepSim(st, inp);
+  for (const s of st.soundEvents) sfx.play(s.name, s.param);
+  if (st.noise > 30 && st.tick % Math.max(12, Math.round(40 - st.noise * 0.4)) === 0) sfx.play("heart", st.noise / 80);
+
+  if (st.won || st.failed) {
+    progress.squeakMaps[st.def.id] = { ...st.squeakMemory };
+    if (st.won) {
+      const prev = progress.stars[st.def.id] || 0;
+      if (st.scoreBreakdown.stars > prev) progress.stars[st.def.id] = st.scoreBreakdown.stars;
+      const bt = progress.bestTimes[st.def.id];
+      if (bt === undefined || Number(st.scoreBreakdown.elapsed) < bt) progress.bestTimes[st.def.id] = Number(st.scoreBreakdown.elapsed);
+      app.narratorText = pickNarratorLine();
+    } else {
+      progress.totalFails++;
+      progress.fails[st.def.id] = (progress.fails[st.def.id] || 0) + 1;
+      if (progress.totalFails % 5 === 0) {
+        const d = new Date();
+        progress.rageClips.unshift({
+          timeStr: [d.getHours(), d.getMinutes(), d.getSeconds()].map(n => String(n).padStart(2, "0")).join(":"),
+          id: st.def.id, name: st.def.name, totalFails: progress.totalFails
+        });
+        if (progress.rageClips.length > 30) progress.rageClips.length = 30;
+      }
+      app.narratorText = pickNarratorLine();
+    }
+    saveProgress(progress);
+    app.screen = "summary";
+  }
+}
+
+function frame(now) {
+  const dt = Math.min(0.1, (now - lastT) / 1000); lastT = now; acc += dt;
+  while (acc >= FIXED_DT) { tick(); acc -= FIXED_DT; }
+  render();
+  requestAnimationFrame(frame);
+}
+
+const hashId = parseHashLevel();
+if (hashId !== null && isLevelUnlocked(hashId)) startLevel(hashId - 1);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
