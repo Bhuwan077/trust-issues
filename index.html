@@ -3599,9 +3599,11 @@ function handleDeathTransition() {
   }
   spawnDeathParticles(app.state.player.x, app.state.player.y);
   if (!progress.streamerSafe) app.deathFlashTicks = 5;
+  if (window.DeathMusic) window.DeathMusic.onDeath();
 }
 
 function handleWinTransition() {
+  if (window.DeathMusic) window.DeathMusic.onWin();
   const def = app.state.levelDef;
   const elapsed = app.state.tick / 60;
   progress.cleared[def.id] = true;
@@ -3771,7 +3773,7 @@ window.addEventListener("keydown", e => {
     if (matchesAction(code, "left")) app.keys.left = true;
     if (matchesAction(code, "right")) app.keys.right = true;
     if (matchesAction(code, "jump")) app.keys.jump = true;
-    if (code === progress.keys.restart) { startLevel(app.currentLevelIndex, false); return; }
+    if (code === progress.keys.restart) { if (window.DeathMusic) window.DeathMusic.stop(); startLevel(app.currentLevelIndex, false); return; }
   }
 
   if (app.screen === "title" && (code === "Enter" || code === "Space")) startLevel(0, true);
@@ -4398,7 +4400,7 @@ function renderHUD(state) {
   ctx.strokeStyle = PAL.BORDER; ctx.lineWidth = 1.5; ctx.strokeRect(320, 6, 632, 34);
   drawPixelText(ctx, `Deaths: ${shownLvlD}`, 352, 15, 2, PAL.CORAL, "left", null, 130);
 
-  addButton(786, 10, 76, 26, "RETRY", () => startLevel(app.currentLevelIndex, false), PAL.STONE, PAL.WHITE, PAL.BORDER);
+  addButton(786, 10, 76, 26, "RETRY", () => { if (window.DeathMusic) window.DeathMusic.stop(); startLevel(app.currentLevelIndex, false); }, PAL.STONE, PAL.WHITE, PAL.BORDER);
   addButton(868, 10, 76, 26, "PAUSE", openPauseMenu, PAL.STONE, PAL.WHITE, PAL.BORDER);
 
   if (app.fakeAlertTicks > 0) {
@@ -4496,6 +4498,7 @@ function failMindLevel(msg) {
   const g2 = app.g2;
   if (!g2 || g2.failTicks > 0) return;
   sfx.play("death");
+  if (window.DeathMusic) window.DeathMusic.onDeath();
   progress.g2TotalFails = (progress.g2TotalFails || 0) + 1;
   progress.g2Fails[g2.def.id] = (progress.g2Fails[g2.def.id] || 0) + 1;
   saveProgress(progress);
@@ -4511,6 +4514,7 @@ function winMindLevel() {
   const g2 = app.g2;
   if (!g2 || g2.failTicks > 0) return;
   sfx.play("riddleWin");
+  if (window.DeathMusic) window.DeathMusic.onWin();
   progress.g2Cleared[g2.def.id] = true;
   saveProgress(progress);
   app.narratorText = `M${String(g2.def.id).padStart(2,"0")} CLEARED. DON'T GET COMFORTABLE.`;
@@ -5372,7 +5376,7 @@ function renderPauseMenu() {
 
   if (app.state) {
     addButton(220, 108, 252, 38, "Resume [Esc]", () => { app.screen = "play"; }, PAL.GOLD, PAL.BG, PAL.GOLD);
-    addButton(488, 108, 252, 38, "Restart [R]", () => { app.screen = "play"; startLevel(app.currentLevelIndex, false); }, PAL.STONE, PAL.CORAL, PAL.BORDER);
+    addButton(488, 108, 252, 38, "Restart [R]", () => { if (window.DeathMusic) window.DeathMusic.stop(); app.screen = "play"; startLevel(app.currentLevelIndex, false); }, PAL.STONE, PAL.CORAL, PAL.BORDER);
   } else {
     addButton(220, 108, 520, 38, "Back to Main Menu [Esc]", () => { app.screen = "title"; }, PAL.GOLD, PAL.BG, PAL.GOLD);
   }
@@ -5558,5 +5562,6 @@ if (hashLvl !== null && isRoundUnlocked(hashLvl)) startLevel(hashLvl - 1, true);
 else if (window.location.hash === "#g2") app.screen = "g2select";
 requestAnimationFrame(frame);
 </script>
+<script src="death_music.js"></script>
 </body>
 </html>

@@ -1208,7 +1208,12 @@ function pickNarratorLine() {
 }
 
 function startCakeLevel(idx) {
-  app.currentIdx = Math.max(0, Math.min(LEVELS.length - 1, idx));
+  const targetIdx = Math.max(0, Math.min(LEVELS.length - 1, idx));
+  if (window.DeathMusic) {
+    if (targetIdx !== app.currentIdx) window.DeathMusic.resetStreak();
+    else window.DeathMusic.stop();
+  }
+  app.currentIdx = targetIdx;
   app.selectVenue = Math.floor(app.currentIdx / 8);
   app.state = createCakeState(LEVELS[app.currentIdx], progress.styleId);
   app.showGhost = false;
@@ -1789,12 +1794,14 @@ function tick() {
       progress.stars[app.state.def.id] = Math.max(progress.stars[app.state.def.id] || 0, sb.stars);
       progress.bestScores[app.state.def.id] = Math.max(progress.bestScores[app.state.def.id] || 0, sb.total);
       saveProgress(progress);
+      if (window.DeathMusic) window.DeathMusic.onWin();
       app.screen = "summary";
     } else if (app.state.failed) {
       progress.fails[app.state.def.id] = (progress.fails[app.state.def.id] || 0) + 1;
       progress.totalFalls++;
       saveProgress(progress);
       app.narratorText = pickNarratorLine();
+      if (window.DeathMusic) window.DeathMusic.onDeath();
       app.screen = "summary";
     }
   }
@@ -1811,5 +1818,6 @@ const hashM = (window.location.hash || "").match(/code=DDC-(\d+)/i);
 if (hashM) { const n = parseInt(hashM[1], 10); if (n >= 1 && n <= LEVELS.length) startCakeLevel(n - 1); }
 requestAnimationFrame(frame);
 </script>
+<script src="death_music.js"></script>
 </body>
 </html>

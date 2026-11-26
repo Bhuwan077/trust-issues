@@ -1493,7 +1493,12 @@ const app = {
 };
 
 function startSpot(idx) {
-  app.currentIdx = Math.max(0, Math.min(LEVELS.length - 1, idx));
+  const targetIdx = Math.max(0, Math.min(LEVELS.length - 1, idx));
+  if (window.DeathMusic) {
+    if (targetIdx !== app.currentIdx) window.DeathMusic.resetStreak();
+    else window.DeathMusic.stop();
+  }
+  app.currentIdx = targetIdx;
   const def = { ...LEVELS[app.currentIdx] };
   if (progress.selectedVehicle && totalStars() >= getVehicleDef(progress.selectedVehicle).starsNeed) {
     def.vehicleId = progress.selectedVehicle;
@@ -1968,12 +1973,14 @@ function tick() {
       progress.stars[app.state.def.id] = Math.max(progress.stars[app.state.def.id] || 0, sb.stars);
       progress.bestScores[app.state.def.id] = Math.max(progress.bestScores[app.state.def.id] || 0, sb.total);
       saveProgress(progress);
+      if (window.DeathMusic) window.DeathMusic.onWin();
       app.screen = "summary";
       sfx.updateEngine(0, false);
     } else if (app.state.timedOut) {
       progress.fails[app.state.def.id] = (progress.fails[app.state.def.id] || 0) + 1;
       progress.totalFails++;
       saveProgress(progress);
+      if (window.DeathMusic) window.DeathMusic.onDeath();
       app.screen = "summary";
       sfx.updateEngine(0, false);
     }
@@ -1993,5 +2000,6 @@ const hashM = (window.location.hash || "").match(/code=PSP-(\d+)/i);
 if (hashM) { const n = parseInt(hashM[1], 10); if (n >= 1 && n <= LEVELS.length) startSpot(n - 1); }
 requestAnimationFrame(frame);
 </script>
+<script src="death_music.js"></script>
 </body>
 </html>

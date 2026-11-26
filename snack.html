@@ -1639,7 +1639,12 @@ function pickNarratorLine() {
 }
 
 function startLevel(idx) {
-  app.currentIdx = Math.max(0, Math.min(LEVELS.length - 1, idx));
+  const targetIdx = Math.max(0, Math.min(LEVELS.length - 1, idx));
+  if (window.DeathMusic) {
+    if (targetIdx !== app.currentIdx) window.DeathMusic.resetStreak();
+    else window.DeathMusic.stop();
+  }
+  app.currentIdx = targetIdx;
   const def = LEVELS[app.currentIdx];
   app.state = createLevelState(def, progress.squeakMaps[def.id] || {});
   app.replayFrames = null;
@@ -2393,6 +2398,7 @@ function tick() {
       const bt = progress.bestTimes[st.def.id];
       if (bt === undefined || Number(st.scoreBreakdown.elapsed) < bt) progress.bestTimes[st.def.id] = Number(st.scoreBreakdown.elapsed);
       app.narratorText = pickNarratorLine();
+      if (window.DeathMusic) window.DeathMusic.onWin();
     } else {
       progress.totalFails++;
       progress.fails[st.def.id] = (progress.fails[st.def.id] || 0) + 1;
@@ -2405,6 +2411,7 @@ function tick() {
         if (progress.rageClips.length > 30) progress.rageClips.length = 30;
       }
       app.narratorText = pickNarratorLine();
+      if (window.DeathMusic) window.DeathMusic.onDeath();
     }
     saveProgress(progress);
     app.screen = "summary";
@@ -2422,5 +2429,6 @@ const hashId = parseHashLevel();
 if (hashId !== null && isLevelUnlocked(hashId)) startLevel(hashId - 1);
 requestAnimationFrame(frame);
 </script>
+<script src="death_music.js"></script>
 </body>
 </html>
