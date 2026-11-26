@@ -3683,6 +3683,7 @@ if (mobileTypeInput) {
       submitTypedRiddleFromUI();
     }
   });
+  mobileTypeInput.addEventListener("blur", () => setTimeout(resizeCanvas, 60));
 }
 
 window.addEventListener("keydown", e => {
@@ -3862,6 +3863,7 @@ canvas.addEventListener("pointerdown", e => {
 });
 
 function resizeCanvas() {
+  if (mobileTypeInput && document.activeElement === mobileTypeInput) return;
   const rawW = window.visualViewport ? window.visualViewport.width : window.innerWidth;
   const rawH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
   const mobile = isTouchCapable();
