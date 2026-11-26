@@ -1462,6 +1462,9 @@ function loadProgress() {
 }
 function saveProgress(p) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); } catch (e) {} }
 const progress = loadProgress();
+function isSpotUnlocked(id) { return id === 1 || !!progress.stars[id] || !!progress.stars[id - 1]; }
+window.addEventListener("pagehide", () => saveProgress(progress));
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") saveProgress(progress); });
 sfx.muted = !!progress.muted;
 
 function totalStars() { return Object.values(progress.stars).reduce((a, b) => a + b, 0); }
@@ -1866,8 +1869,13 @@ function renderSelect() {
   for (let i = 0; i < 40; i++) {
     const col = i % 10, row = Math.floor(i / 10);
     const x = 36 + col * 90, y = 52 + row * 68;
-    const st = progress.stars[i + 1] || 0;
-    addBtn(x, y, 82, 58, `#${i+1}\n${"*".repeat(st)||"-"}`, () => startSpot(i), PAL.STONE, st ? PAL.GOLD : PAL.WHITE, st ? PAL.GOLD : PAL.STONE);
+    const id = i + 1;
+    const st = progress.stars[id] || 0;
+    const unlocked = isSpotUnlocked(id);
+    addBtn(x, y, 82, 58, `#${id}\n${!unlocked ? "LOCK" : ("*".repeat(st)||"-")}`, () => {
+      if (unlocked) startSpot(i);
+      else showToast(`COMPLETE SPOT #${id - 1} FIRST!`);
+    }, PAL.STONE, st ? PAL.GOLD : (unlocked ? PAL.WHITE : PAL.CORAL), st ? PAL.GOLD : PAL.STONE);
   }
   ctx.fillStyle = PAL.WHITE; ctx.font = "bold 14px monospace"; ctx.fillText(`UNLOCKED VEHICLES (BY STARS: ${totalStars()}):`, 480, 340);
   for (let i = 0; i < VEHICLES.length; i++) {
@@ -1901,10 +1909,12 @@ function renderSolver() {
 
 function render() {
   uiButtons.length = 0;
-  touchEl.classList.toggle("active", (app.screen === "play" || app.screen === "summary") && isTouchCapable());
+  const showTouch = (app.screen === "play" || app.screen === "summary") && isTouchCapable();
+  if (touchEl.classList.contains("active") !== showTouch) touchEl.classList.toggle("active", showTouch);
   if (app.screen === "title") renderTitleScreen();
   else if (app.screen === "select") renderSelect();
   else if (app.state) {
+    ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
     ctx.save();
     if (!progress.streamerSafe && app.shakeTicks > 0) ctx.translate((Math.random()-0.5)*8, (Math.random()-0.5)*8);
     if (app.replayFrames) {

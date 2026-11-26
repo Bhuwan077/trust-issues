@@ -3467,15 +3467,28 @@ const progress = loadProgress();
 sfx.muted = !!progress.muted;
 
 function isWorldUnlocked(worldId) {
-  if (progress.sandboxUnlock || worldId === 1) return true;
+  if (worldId === 1) return true;
   const prev = WORLDS.find(w => w.id === worldId - 1);
   if (!prev) return true;
-  let clearedCount = 0;
-  for (let id = prev.rounds[0]; id <= prev.rounds[1]; id++) {
-    if (progress.cleared[id]) clearedCount++;
-  }
-  return clearedCount >= prev.unlockNeed;
+  return !!progress.cleared[prev.rounds[1]];
 }
+
+function isRoundUnlocked(id) {
+  if (id === 1) return true;
+  if (id === 101) return Object.keys(progress.foundSecrets || {}).length >= 12;
+  return !!progress.cleared[id] || !!progress.cleared[id - 1];
+}
+
+function isMindStageUnlocked(idx) {
+  if (idx <= 0) return true;
+  const prev = MIND_LEVELS[idx - 1];
+  return !!(progress.g2Cleared && (progress.g2Cleared[MIND_LEVELS[idx].id] || (prev && progress.g2Cleared[prev.id])));
+}
+
+window.addEventListener("pagehide", () => saveProgress(progress));
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") saveProgress(progress);
+});
 
 const app = {
   screen: "title", // title | play | select | pause | shame | victory | g2play | g2select | g2win
@@ -4337,7 +4350,7 @@ function renderHUD(state) {
   const shownTotD = dOverride ? dOverride.value : progress.totalDeaths;
 
   ctx.save();
-  ctx.globalAlpha = (dOverride && Math.floor(state.tick / 4) % 2 === 0) ? 0.35 : 0.95;
+  ctx.globalAlpha = dOverride ? 0.55 : 0.95;
   ctx.fillStyle = PAL.SURFACE; ctx.fillRect(8, 6, 304, 34);
   ctx.strokeStyle = PAL.BORDER; ctx.lineWidth = 1.5; ctx.strokeRect(8, 6, 304, 34);
   drawPixelText(ctx, `#${String(def.id).padStart(3,"0")} ${def.name}`, 20, 15, 2, PAL.GOLD, "left", null, 282);
@@ -5130,10 +5143,14 @@ function renderMindSelect() {
     const col = i % 4, row = Math.floor(i / 4);
     const x = 48 + col * 220, y = 72 + row * 94;
     const cleared = !!progress.g2Cleared[def.id];
+    const unlocked = isMindStageUnlocked(i);
     const fails = progress.g2Fails[def.id] || 0;
-    addButton(x, y, 204, 78, `M${String(def.id).padStart(2,"0")}${cleared ? " ✓" : ""}`, () => startMindLevel(i),
-      PAL.SURFACE, cleared ? PAL.GOLD : PAL.WHITE, cleared ? PAL.GOLD : PAL.BORDER,
-      `${def.name} (${fails})`);
+    addButton(x, y, 204, 78, `M${String(def.id).padStart(2,"0")}${cleared ? " ✓" : (unlocked ? "" : " 🔒")}`, () => {
+      if (unlocked) startMindLevel(i);
+      else showToast(`COMPLETE M${String(i).padStart(2,"0")} FIRST`);
+    },
+      PAL.SURFACE, cleared ? PAL.GOLD : (unlocked ? PAL.WHITE : PAL.MUTED), cleared ? PAL.GOLD : PAL.BORDER,
+      unlocked ? `${def.name} (${fails})` : "LOCKED");
   }
   addButton(270, 466, 200, 40, "Main Menu", () => { app.screen = "title"; }, PAL.GOLD, PAL.BG, PAL.GOLD);
   addButton(490, 466, 200, 40, "Play Next", () => {
@@ -5258,7 +5275,7 @@ function renderLevelSelect() {
     const x = 30 + col * 152, y = 48 + row * 34;
     addButton(x, y, 144, 28, `W${w.id}${unlocked ? "" : " 🔒"} ${w.name}`, () => {
       if (unlocked) app.selectedWorld = w.id;
-      else showToast(`CLEAR ${WORLDS[i-1].unlockNeed} ROUNDS IN W${w.id-1} FIRST`);
+      else showToast(`COMPLETE ROUND #${WORLDS[i-1].rounds[1]} FIRST`);
     }, active ? PAL.GOLD : PAL.SURFACE, active ? PAL.BG : (unlocked ? PAL.WHITE : PAL.CORAL), active ? PAL.GOLD : PAL.BORDER);
   }
 
@@ -5276,26 +5293,27 @@ function renderLevelSelect() {
     const d = progress.levelDeaths[id] || 0;
     const best = progress.bestTimes[id];
     const isDaily = id === dailyId;
-    const badge = progress.assistedClears[id] ? "[A]" : (progress.cleared[id] ? "✓" : "");
-    const hovered = app.mouse.x >= x && app.mouse.x <= x + 166 && app.mouse.y >= y && app.mouse.y <= y + 112;
+    const unlocked = isRoundUnlocked(id);
+    const badge = !unlocked ? "LOCKED" : (progress.assistedClears[id] ? "[A]" : (progress.cleared[id] ? "✓" : ""));
+    const hovered = unlocked && app.mouse.x >= x && app.mouse.x <= x + 166 && app.mouse.y >= y && app.mouse.y <= y + 112;
     ctx.fillStyle = hovered ? PAL.STONE_HOVER : PAL.SURFACE;
     ctx.fillRect(x, y, 166, 112);
-    ctx.strokeStyle = hovered ? PAL.GOLD : (isDaily || progress.cleared[id] ? PAL.GOLD : PAL.BORDER);
+    ctx.strokeStyle = hovered ? PAL.GOLD : ((unlocked && (isDaily || progress.cleared[id])) ? PAL.GOLD : PAL.BORDER);
     ctx.lineWidth = hovered ? 2 : 1.5; ctx.strokeRect(x, y, 166, 112);
-    drawPixelText(ctx, `#${id} ${isDaily ? "DAILY" : def.type}`, x + 10, y + 10, 1, PAL.GOLD, "left", null, 118);
-    drawPixelText(ctx, badge, x + 156, y + 10, 1, PAL.GOLD, "right");
-    drawPixelText(ctx, def.name, x + 10, y + 34, 2, hovered ? PAL.GOLD : PAL.WHITE, "left", null, 146);
-    drawPixelText(ctx, `Deaths: ${d}`, x + 10, y + 64, 1, PAL.CORAL, "left");
+    drawPixelText(ctx, `#${id} ${unlocked && isDaily ? "DAILY" : def.type}`, x + 10, y + 10, 1, unlocked ? PAL.GOLD : PAL.MUTED, "left", null, 100);
+    drawPixelText(ctx, badge, x + 156, y + 10, 1, unlocked ? PAL.GOLD : PAL.CORAL, "right");
+    drawPixelText(ctx, unlocked ? def.name : "LOCKED", x + 10, y + 34, 2, hovered ? PAL.GOLD : (unlocked ? PAL.WHITE : PAL.MUTED), "left", null, 146);
+    drawPixelText(ctx, `Deaths: ${d}`, x + 10, y + 64, 1, unlocked ? PAL.CORAL : PAL.MUTED, "left");
     drawPixelText(ctx, best !== undefined ? `${best.toFixed(2)}s` : "—", x + 10, y + 86, 1, PAL.MUTED, "left");
     const lvIndex = LEVELS.indexOf(def);
-    uiButtons.push({ x, y, w: 166, h: 112, onClick: () => startLevel(lvIndex, true) });
+    uiButtons.push({ x, y, w: 166, h: 112, onClick: () => {
+      if (unlocked) startLevel(lvIndex, true);
+      else showToast(`COMPLETE ROUND #${id - 1} FIRST`);
+    } });
   }
 
-  addButton(40, 480, 210, 38, progress.sandboxUnlock ? "Sandbox: Open" : "Unlock All Worlds", () => {
-    progress.sandboxUnlock = !progress.sandboxUnlock; saveProgress(progress);
-  }, PAL.SURFACE, PAL.GOLD, PAL.BORDER);
-  addButton(375, 480, 210, 38, "Main Menu", () => { app.screen = "title"; }, PAL.GOLD, PAL.BG, PAL.GOLD);
-  addButton(710, 480, 210, 38, app.state ? "Resume [Esc]" : "Back [Esc]", () => { app.screen = app.state ? "play" : "title"; }, PAL.SURFACE, PAL.WHITE, PAL.BORDER);
+  addButton(210, 480, 240, 38, "Main Menu", () => { app.screen = "title"; }, PAL.GOLD, PAL.BG, PAL.GOLD);
+  addButton(510, 480, 240, 38, app.state ? "Resume [Esc]" : "Back [Esc]", () => { app.screen = app.state ? "play" : "title"; }, PAL.SURFACE, PAL.WHITE, PAL.BORDER);
 }
 
 function renderPauseMenu() {
@@ -5405,7 +5423,8 @@ function renderVictoryScreen() {
 
 function render(alpha) {
   uiButtons.length = 0;
-  touchEl.classList.toggle("active", app.screen === "play" && isTouchCapable());
+  const showTouch = app.screen === "play" && isTouchCapable();
+  if (touchEl.classList.contains("active") !== showTouch) touchEl.classList.toggle("active", showTouch);
   canvas.style.cursor = (app.screen === "g2play" && app.g2 && app.g2.invertedCursor && app.g2.failTicks === 0) ? "none" : "pointer";
 
   if (app.screen === "title") renderTitleScreen();
@@ -5417,19 +5436,16 @@ function render(alpha) {
   else if (app.screen === "g2win") renderMindWin();
   else if (app.screen === "pause" && !app.state) renderPauseMenu();
   else if ((app.screen === "play" || app.screen === "pause") && app.state) {
+    ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
     ctx.save();
     if (!progress.streamerSafe && app.shakeTicks > 0) {
       ctx.translate((Math.random() - 0.5) * app.shakeIntensity * 2, (Math.random() - 0.5) * app.shakeIntensity * 2);
     }
-    ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
     drawAtmosphereAndEye(app.state.player.x + 8, app.state.player.y + 12, 225);
     renderTiles(app.state);
     renderEntities(app.state, alpha);
     renderFakeUI(app.state);
     ctx.restore();
-    if (!progress.streamerSafe && app.deathFlashTicks > 0) {
-      ctx.save(); ctx.globalAlpha = 0.25; ctx.fillStyle = PAL.CORAL; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H); ctx.restore();
-    }
     renderHUD(app.state);
     if (app.screen === "pause") renderPauseMenu();
   }
@@ -5493,7 +5509,7 @@ function frame(now) {
 }
 
 const hashLvl = parseHashLevel();
-if (hashLvl !== null) startLevel(hashLvl - 1, true);
+if (hashLvl !== null && isRoundUnlocked(hashLvl)) startLevel(hashLvl - 1, true);
 requestAnimationFrame(frame);
 </script>
 </body>

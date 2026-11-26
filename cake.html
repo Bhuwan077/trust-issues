@@ -1152,6 +1152,10 @@ function loadProgress() {
 }
 function saveProgress(p) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); } catch (e) {} }
 const progress = loadProgress();
+function isCakeLevelUnlocked(id) { return id === 1 || !!progress.stars[id] || !!progress.stars[id - 1]; }
+function isVenueUnlocked(vIdx) { return vIdx === 0 || isCakeLevelUnlocked(vIdx * 8 + 1); }
+window.addEventListener("pagehide", () => saveProgress(progress));
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") saveProgress(progress); });
 sfx.muted = !!progress.muted;
 
 function totalStars() { return Object.values(progress.stars).reduce((a, b) => a + b, 0); }
@@ -1668,8 +1672,11 @@ function renderSelect() {
     let vs = 0;
     for (let k = 0; k < 8; k++) vs += (progress.stars[v * 8 + k + 1] || 0);
     const active = app.selectVenue === v;
-    addBtn(24 + v * 102, 42, 96, 34, `V${v + 1} (${vs}/24)`, () => { app.selectVenue = v; },
-      active ? PAL.GOLD : PAL.STONE, active ? PAL.BG : (vs > 0 ? PAL.GOLD : PAL.WHITE), active ? PAL.WHITE : PAL.STONE);
+    const vUnlocked = isVenueUnlocked(v);
+    addBtn(24 + v * 102, 42, 96, 34, vUnlocked ? `V${v + 1} (${vs}/24)` : `V${v + 1} LOCK`, () => {
+      if (vUnlocked) app.selectVenue = v;
+      else showToast(`COMPLETE LEVEL #${v * 8} FIRST!`);
+    }, active ? PAL.GOLD : PAL.STONE, active ? PAL.BG : (vUnlocked ? (vs > 0 ? PAL.GOLD : PAL.WHITE) : PAL.CORAL), active ? PAL.WHITE : PAL.STONE);
   }
   ctx.fillStyle = PAL.CORAL; ctx.font = "bold 14px monospace"; ctx.textAlign = "center";
   ctx.fillText(`VENUE ${app.selectVenue + 1}: ${VENUES[app.selectVenue]}`, 480, 96);
@@ -1682,19 +1689,23 @@ function renderSelect() {
     const col = i % 4, row = Math.floor(i / 4);
     const x = 46 + col * 222, y = 114 + row * 102, w = 204, h = 88;
     const st = progress.stars[def.id] || 0;
-    const hover = app.mouse.x >= x && app.mouse.x <= x + w && app.mouse.y >= y && app.mouse.y <= y + h;
-    ctx.fillStyle = hover ? "#3D3B56" : PAL.STONE;
+    const unlocked = isCakeLevelUnlocked(def.id);
+    const hover = unlocked && app.mouse.x >= x && app.mouse.x <= x + w && app.mouse.y >= y && app.mouse.y <= y + h;
+    ctx.fillStyle = hover ? PAL.STONE_HOVER : PAL.STONE;
     ctx.fillRect(x, y - (hover ? 1 : 0), w, h);
     ctx.strokeStyle = hover ? PAL.GOLD : (st ? PAL.GOLD : "#464462");
     ctx.lineWidth = 2; ctx.strokeRect(x, y - (hover ? 1 : 0), w, h);
     ctx.textAlign = "center";
-    ctx.fillStyle = st ? PAL.GOLD : PAL.WHITE; ctx.font = "bold 13px monospace";
-    ctx.fillText(`#${def.id} ${def.name.slice(0, 15)}`, x + w / 2, y + 24);
+    ctx.fillStyle = st ? PAL.GOLD : (unlocked ? PAL.WHITE : PAL.CORAL); ctx.font = "bold 13px monospace";
+    ctx.fillText(unlocked ? `#${def.id} ${def.name.slice(0, 15)}` : `#${def.id} LOCKED`, x + w / 2, y + 24);
     ctx.fillStyle = PAL.MINT; ctx.font = "11px monospace";
     ctx.fillText(`${def.tiersCount} TIERS  •  ${def.timeSec}s`, x + w / 2, y + 48);
     ctx.fillStyle = st ? PAL.GOLD : PAL.CORAL; ctx.font = "bold 13px monospace";
-    ctx.fillText(st ? "*".repeat(st) + "-".repeat(3 - st) : "UNBEATEN", x + w / 2, y + 70);
-    uiButtons.push({ x, y, w, h, onClick: () => startCakeLevel(baseIdx + i) });
+    ctx.fillText(!unlocked ? "LOCKED" : (st ? "*".repeat(st) + "-".repeat(3 - st) : "PLAYABLE"), x + w / 2, y + 70);
+    uiButtons.push({ x, y, w, h, onClick: () => {
+      if (unlocked) startCakeLevel(baseIdx + i);
+      else showToast(`COMPLETE LEVEL #${def.id - 1} FIRST!`);
+    } });
   }
 
   for (let i = 0; i < CAKE_STYLES.length; i++) {
@@ -1730,7 +1741,8 @@ function renderSolver() {
 
 function render() {
   uiButtons.length = 0;
-  touchEl.classList.toggle("active", (app.screen === "play" || app.screen === "summary") && isTouchCapable());
+  const showTouch = (app.screen === "play" || app.screen === "summary") && isTouchCapable();
+  if (touchEl.classList.contains("active") !== showTouch) touchEl.classList.toggle("active", showTouch);
   if (app.screen === "title") renderTitleScreen();
   else if (app.screen === "select") renderSelect();
   else if (app.state) {
