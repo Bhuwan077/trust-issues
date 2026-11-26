@@ -5223,7 +5223,8 @@ function renderTitleScreen() {
 
   const pStat = readExtGameStats("parking_spot_panic_v1");
   const cStat = readExtGameStats("dont_drop_cake_v1");
-  const totalSuffering = progress.totalDeaths + (progress.g2TotalFails || 0) + pStat.fails + cStat.fails;
+  const sStat = readExtGameStats("sneakysnack_v1");
+  const totalSuffering = progress.totalDeaths + (progress.g2TotalFails || 0) + pStat.fails + cStat.fails + sStat.fails;
 
   drawPixelText(ctx, `Trust: ${app.trustScore}%  •  Fails: ${totalSuffering}`, 28, 16, 1, PAL.MUTED, "left");
 
@@ -5246,7 +5247,7 @@ function renderTitleScreen() {
   addButton(260, 230, 214, 22, "Worlds [L]", () => { app.screen = "select"; }, PAL.STONE, PAL.WHITE, PAL.BORDER);
   addButton(486, 230, 214, 22, `Daily #${getDailyRoundId()}`, () => startLevel(Math.min(LEVELS.length - 1, getDailyRoundId() - 1), true), PAL.STONE, PAL.GOLD, PAL.BORDER);
 
-  // ---- OTHER MODES (Clean 3-Column Row) ----
+  // ---- OTHER MODES (Clean 4-Column Row) ----
   const g2Cleared = Object.keys(progress.g2Cleared || {}).length;
   const firstG2 = MIND_LEVELS.findIndex(m => !(progress.g2Cleared && progress.g2Cleared[m.id]));
   const playG2Idx = app.g2 ? app.g2CurrentIdx : (firstG2 >= 0 ? firstG2 : 0);
@@ -5254,36 +5255,42 @@ function renderTitleScreen() {
   const cards = [
     {
       title: "Do Not Obey",
-      meta: `${g2Cleared}/16 Stages • ${progress.g2TotalFails || 0} Fails`,
-      btn: app.g2 ? `Resume M${playG2Idx + 1}` : "Play",
+      meta: `${g2Cleared}/16 • ${progress.g2TotalFails || 0} Fails`,
+      btn: app.g2 ? `Resume` : "Play",
       onClick: () => { if (app.g2) app.screen = "g2play"; else startMindLevel(playG2Idx); },
       subBtn: "Stages",
       onSub: () => { app.screen = "g2select"; }
     },
     {
-      title: "Parking Spot Panic",
-      meta: `${pStat.stars}/120 Stars • ${pStat.fails} Fails`,
+      title: "Parking Panic",
+      meta: `${pStat.stars}/120* • ${pStat.fails} Fails`,
       btn: "Play",
       onClick: () => { window.location.href = "parking.html"; }
     },
     {
-      title: "Don't Drop the Cake",
-      meta: `${cStat.stars}/216 Stars • ${cStat.fails} Drops`,
+      title: "Drop the Cake",
+      meta: `${cStat.stars}/216* • ${cStat.fails} Drops`,
       btn: "Play",
       onClick: () => { window.location.href = "cake.html"; }
+    },
+    {
+      title: "Sneaky Snack",
+      meta: `${sStat.stars}/150* • ${sStat.fails} Busts`,
+      btn: "Play",
+      onClick: () => { window.location.href = "snack.html"; }
     }
   ];
   cards.forEach((c, i) => {
-    const cx = 60 + i * 288, cy = 282, cw = 264, ch = 132;
+    const cx = 36 + i * 226, cy = 282, cw = 212, ch = 132;
     ctx.fillStyle = PAL.SURFACE; ctx.fillRect(cx, cy, cw, ch);
     ctx.strokeStyle = PAL.BORDER; ctx.lineWidth = 1.5; ctx.strokeRect(cx, cy, cw, ch);
-    drawPixelText(ctx, c.title, cx + cw / 2, cy + 16, 2, PAL.WHITE, "center", null, cw - 20);
-    drawPixelText(ctx, c.meta, cx + cw / 2, cy + 44, 1, PAL.MUTED, "center", null, cw - 20);
+    drawPixelText(ctx, c.title, cx + cw / 2, cy + 16, 2, PAL.WHITE, "center", null, cw - 16);
+    drawPixelText(ctx, c.meta, cx + cw / 2, cy + 44, 1, PAL.MUTED, "center", null, cw - 16);
     if (c.subBtn) {
-      addButton(cx + 16, cy + 76, 132, 38, c.btn, c.onClick, PAL.STONE, PAL.GOLD, PAL.BORDER);
-      addButton(cx + 156, cy + 76, 92, 38, c.subBtn, c.onSub, PAL.STONE, PAL.WHITE, PAL.BORDER);
+      addButton(cx + 12, cy + 76, 94, 38, c.btn, c.onClick, PAL.STONE, PAL.GOLD, PAL.BORDER);
+      addButton(cx + 112, cy + 76, 88, 38, c.subBtn, c.onSub, PAL.STONE, PAL.WHITE, PAL.BORDER);
     } else {
-      addButton(cx + 16, cy + 76, cw - 32, 38, c.btn, c.onClick, PAL.STONE, PAL.GOLD, PAL.BORDER);
+      addButton(cx + 12, cy + 76, cw - 24, 38, c.btn, c.onClick, PAL.STONE, PAL.GOLD, PAL.BORDER);
     }
   });
 
@@ -5548,6 +5555,7 @@ function frame(now) {
 
 const hashLvl = parseHashLevel();
 if (hashLvl !== null && isRoundUnlocked(hashLvl)) startLevel(hashLvl - 1, true);
+else if (window.location.hash === "#g2") app.screen = "g2select";
 requestAnimationFrame(frame);
 </script>
 </body>
