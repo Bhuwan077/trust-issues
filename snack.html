@@ -489,12 +489,12 @@ function assertDifficultyNonDecreasing() {
 // ---- HOUSE 1: STARTER FLAT (1..8) ----
 addLevel({
   id: 1, house: 1, name: "MIDNIGHT CRAVING", score: 5,
-  newIdea: "Basic walking and 1.0s Fridge interaction.",
-  tell: "Clean floor, glowing cyan fridge at right.",
-  solutionSummary: "Walk straight right to the fridge and hold Grab (E/Space) for 1 second.",
-  grid: buildHouseGrid(g => { g.rect(12, 3, 2, 4, "#"); g.rect(12, 11, 2, 5, "#"); }),
+  newIdea: "Basic walking, soft creaks (~), and 1.0s Fridge interaction.",
+  tell: "Clean floor with a creak band (~); glowing cyan fridge at right.",
+  solutionSummary: "Walk or tiptoe right to the fridge and hold Grab (E/Space) for 1 second.",
+  grid: buildHouseGrid(g => { g.rect(12, 3, 2, 4, "#"); g.rect(12, 11, 2, 5, "#"); g.col(14, 7, 10, "~"); }),
   start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
-  sleepers: [{ id: "s1", name: "Roommate", col: 15, row: 3, threshold: 75 }]
+  sleepers: [{ id: "s1", name: "Mom", col: 15, row: 3, threshold: 45 }]
 });
 
 addLevel({
@@ -502,9 +502,9 @@ addLevel({
   newIdea: "Tiptoe (Shift) cuts plank noise to 0.42x.",
   tell: "Double nail-heads mark the squeaky plank (=) across the narrow doorway.",
   solutionSummary: "Hold Shift to tiptoe across the squeaky (=) doorway, then grab the snack.",
-  grid: buildHouseGrid(g => { g.col(15, 2, 7, "#"); g.col(15, 11, 16, "#"); g.col(15, 8, 10, "="); }),
+  grid: buildHouseGrid(g => { g.col(15, 2, 7, "#"); g.col(15, 11, 16, "#"); g.col(15, 8, 10, "="); g.col(16, 8, 10, "~"); }),
   start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
-  sleepers: [{ id: "s2", name: "Roommate", col: 17, row: 4, threshold: 48 }]
+  sleepers: [{ id: "s2", name: "Dad", col: 17, row: 4, threshold: 34 }]
 });
 
 addLevel({
@@ -517,7 +517,7 @@ addLevel({
     g.rect(20, 4, 2, 8, "#");
   }),
   start: { col: 3, row: 9 }, fridge: { col: 27, row: 7 },
-  sleepers: [{ id: "s3", name: "Roommate", col: 16, row: 4, threshold: 44 }]
+  sleepers: [{ id: "s3", name: "Mom", col: 16, row: 4, threshold: 32 }]
 });
 
 addLevel({
@@ -530,7 +530,7 @@ addLevel({
     g.row(9, 8, 21, "R"); g.row(8, 12, 16, "~"); g.row(10, 12, 16, "~");
   }),
   start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
-  sleepers: [{ id: "s4", name: "Roommate", col: 19, row: 3, threshold: 45 }]
+  sleepers: [{ id: "s4", name: "Dad", col: 19, row: 3, threshold: 32 }]
 });
 
 addLevel({
@@ -540,20 +540,20 @@ addLevel({
   solutionSummary: "Hold C to crouch-crawl underneath the low table row, then grab the snack.",
   grid: buildHouseGrid(g => {
     g.col(14, 2, 6, "#"); g.col(14, 12, 16, "#");
-    g.col(14, 7, 11, "T"); g.col(15, 7, 11, "~");
+    g.col(14, 7, 11, "T"); g.col(15, 7, 11, "=");
   }),
   start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
-  sleepers: [{ id: "s5", name: "Roommate", col: 18, row: 4, threshold: 42 }]
+  sleepers: [{ id: "s5", name: "Mom", col: 18, row: 4, threshold: 30 }]
 });
 
 addLevel({
   id: 6, house: 1, name: "TOSS & TURN", score: 22,
-  newIdea: "Light sleeper turns over on a fixed beat, briefly dropping threshold.",
+  newIdea: "Light-sleeping Mom turns over on a fixed beat, briefly dropping threshold.",
   tell: "Visible blanket shift warns 1.5s before threshold dips.",
-  solutionSummary: "Pause when the roommate's blanket shifts, then tiptoe across the creaks.",
+  solutionSummary: "Pause when Mom's blanket shifts, then tiptoe across the creaks.",
   grid: buildHouseGrid(g => { g.rect(10, 8, 10, 3, "~"); g.col(15, 2, 6, "#"); g.col(15, 12, 16, "#"); }),
   start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
-  sleepers: [{ id: "s6", name: "Light Roommate", col: 17, row: 4, threshold: 52, turnPeriod: 180, turnWarn: 60, turnDur: 45, turnDrop: 24 }]
+  sleepers: [{ id: "s6", name: "Mom", col: 17, row: 4, threshold: 38, turnPeriod: 180, turnWarn: 60, turnDur: 45, turnDrop: 20 }]
 });
 
 addLevel({
@@ -567,12 +567,12 @@ addLevel({
   }),
   doors: [{ id: "d7", col: 16, row: 9, h: 2 }],
   start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
-  sleepers: [{ id: "s7", name: "Roommate", col: 19, row: 4, threshold: 36 }]
+  sleepers: [{ id: "s7", name: "Dad", col: 19, row: 4, threshold: 28 }]
 });
 
 addLevel({
   id: 8, house: 1, name: "STARTER BOSS", score: 30,
-  newIdea: "House 1 Boss: Low table, rug, creaky door, and turning sleeper.",
+  newIdea: "House 1 Boss: Low table, rug, creaky door, and turning parents.",
   tell: "Table blocks upright path, blanket shifts on fixed 180t beat.",
   solutionSummary: "Crouch under T, use rug R, ease open door D quietly between turns, grab snack.",
   grid: buildHouseGrid(g => {
@@ -582,7 +582,7 @@ addLevel({
   }),
   doors: [{ id: "d8", col: 19, row: 9, h: 2 }],
   start: { col: 3, row: 9 }, fridge: { col: 27, row: 9 },
-  sleepers: [{ id: "s8", name: "Roommate", col: 22, row: 4, threshold: 46, turnPeriod: 180, turnWarn: 55, turnDur: 40, turnDrop: 20 }]
+  sleepers: [{ id: "s8", name: "Mom & Dad", col: 22, row: 4, threshold: 34, turnPeriod: 180, turnWarn: 55, turnDur: 40, turnDrop: 18 }]
 });
 
 // ---- HOUSE 2: FAMILY HOME (9..16) ----
@@ -1506,8 +1506,8 @@ LEVEL_SOLUTIONS[2] = [{"ticks":225,"right":true},{"ticks":25,"right":true,"tipto
 LEVEL_SOLUTIONS[3] = [{"ticks":75,"right":true},{"ticks":25,"down":true,"tiptoe":true},{"ticks":75,"right":true},{"ticks":25,"down":true,"tiptoe":true},{"ticks":75,"right":true},{"ticks":75,"up":true,"tiptoe":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
 LEVEL_SOLUTIONS[4] = [{"ticks":225,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
 LEVEL_SOLUTIONS[5] = [{"ticks":100,"right":true},{"ticks":50,"right":true,"crouch":true},{"ticks":125,"right":true},{"ticks":60,"act":true}];
-LEVEL_SOLUTIONS[6] = [{"ticks":125,"right":true},{"ticks":50,"right":true,"tiptoe":true},{"ticks":75,"right":true},{"ticks":60,"act":true}];
-LEVEL_SOLUTIONS[7] = [{"ticks":100,"right":true},{"ticks":25,"act":true},{"ticks":125,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[6] = [{"ticks":75,"right":true},{"ticks":75,"right":true,"tiptoe":true},{"ticks":25,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":75,"right":true},{"ticks":60,"act":true}];
+LEVEL_SOLUTIONS[7] = [{"ticks":75,"right":true},{"ticks":50,"right":true,"tiptoe":true},{"ticks":25,"down":true,"crouch":true},{"ticks":125,"right":true},{"ticks":15,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
 LEVEL_SOLUTIONS[8] = [{"ticks":75,"right":true},{"ticks":50,"right":true,"crouch":true},{"ticks":150,"right":true},{"ticks":60,"act":true}];
 LEVEL_SOLUTIONS[9] = [{"ticks":250,"right":true},{"ticks":60,"act":true}];
 LEVEL_SOLUTIONS[10] = [{"ticks":225,"right":true},{"ticks":25,"right":true,"tiptoe":true},{"ticks":60,"act":true}];
@@ -1945,20 +1945,31 @@ function renderHouseScene(st) {
     }
   }
 
-  // Sleepers
+  // Sleepers (stickman in bed with mom/dad/family visuals)
   for (const sl of st.sleepers) {
     const sx = sl.col * TILE + 15, sy = sl.row * TILE + 15;
-    ctx.fillStyle = sl.turning ? PAL.CORAL : PAL.STONE;
-    ctx.fillRect(sx - 18, sy - 12, 36, 24);
+    // Bed frame & blanket
+    ctx.fillStyle = PAL.STONE; ctx.fillRect(sx - 20, sy - 14, 40, 28);
+    ctx.fillStyle = sl.turning ? PAL.CORAL : PAL.ACCENT;
+    ctx.globalAlpha = 0.35; ctx.fillRect(sx - 18, sy - 4, 36, 16); ctx.globalAlpha = 1;
     ctx.strokeStyle = sl.turnWarnActive ? PAL.GOLD : PAL.WHITE;
-    ctx.lineWidth = 2; ctx.strokeRect(sx - 18, sy - 12, 36, 24);
+    ctx.lineWidth = 2; ctx.strokeRect(sx - 20, sy - 14, 40, 28);
+    // Stickman head & eyes
+    ctx.fillStyle = PAL.WHITE;
+    ctx.beginPath(); ctx.arc(sx, sy - 6, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = PAL.BG;
+    if (st.failed && st.wokeSleeper && st.wokeSleeper.id === sl.id) {
+      ctx.fillRect(sx - 3, sy - 8, 2, 2); ctx.fillRect(sx + 1, sy - 8, 2, 2);
+    } else {
+      ctx.fillRect(sx - 4, sy - 6, 3, 1); ctx.fillRect(sx + 1, sy - 6, 3, 1);
+    }
     ctx.fillStyle = PAL.WHITE; ctx.font = "bold 10px monospace"; ctx.textAlign = "center";
-    ctx.fillText(sl.name.slice(0, 8), sx, sy + 3);
+    ctx.fillText(sl.name.toUpperCase().slice(0, 9), sx, sy + 10);
     if (sl.snoring) {
       ctx.fillStyle = PAL.MINT;
-      ctx.fillText(sl.sleepTalk ? "MUMBLE... (MASK)" : "ZZZ... (MASK)", sx, sy - 18);
+      ctx.fillText(sl.sleepTalk ? "MUMBLE... (MASK)" : "ZZZ... (MASK)", sx, sy - 20);
     } else if (sl.turnWarnActive) {
-      ctx.fillStyle = PAL.GOLD; ctx.fillText("BLANKET SHIFT!", sx, sy - 18);
+      ctx.fillStyle = PAL.GOLD; ctx.fillText("BLANKET SHIFT!", sx, sy - 20);
     }
   }
 
@@ -1975,14 +1986,43 @@ function renderHouseScene(st) {
     ctx.stroke(); ctx.restore();
   }
 
-  // Player (pyjama-wearing sneaker)
+  // Player (pyjama-wearing stickman)
   const p = st.player;
-  const r = p.mode === "crouch" ? 7 : 10;
-  ctx.fillStyle = p.mode === "crouch" ? PAL.MINT : (p.mode === "tiptoe" ? PAL.ACCENT : PAL.WHITE);
-  ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = PAL.BG; ctx.lineWidth = 2; ctx.stroke();
+  const col = p.mode === "crouch" ? PAL.MINT : (p.mode === "tiptoe" ? PAL.ACCENT : PAL.WHITE);
+  ctx.save();
+  ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 2.5; ctx.lineCap = "round";
+  const crouchOff = p.mode === "crouch" ? 4 : 0;
+  // Head
+  ctx.beginPath(); ctx.arc(p.x, p.y - 7 + crouchOff, p.mode === "crouch" ? 4.5 : 5.5, 0, Math.PI * 2); ctx.fill();
+  // Stickman body & limbs
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y - 2 + crouchOff); ctx.lineTo(p.x, p.y + 6);
+  ctx.moveTo(p.x - 6, p.y + 1 + crouchOff); ctx.lineTo(p.x + 6, p.y + 1 + crouchOff);
+  const stride = (st.stepTimer > 0 && p.mode !== "crouch") ? Math.sin(st.tick * 0.35) * 4 : 3;
+  ctx.moveTo(p.x, p.y + 6); ctx.lineTo(p.x - stride, p.y + 12);
+  ctx.moveTo(p.x, p.y + 6); ctx.lineTo(p.x + stride, p.y + 12);
+  ctx.stroke();
   if (p.hasSnack) {
-    ctx.fillStyle = PAL.GOLD; ctx.fillRect(p.x - 4, p.y - 16, 8, 8);
+    ctx.fillStyle = PAL.GOLD; ctx.fillRect(p.x - 4, p.y - 18 + crouchOff, 8, 8);
+  }
+  ctx.restore();
+
+  // Context-sensitive PC & touch prompts near Fridge / Clutter / Doors
+  if (!p.hasSnack && Math.hypot(p.x - (fx + 15), p.y - (fy + 15)) < 54) {
+    ctx.fillStyle = PAL.GOLD; ctx.font = "bold 11px monospace"; ctx.textAlign = "center";
+    ctx.fillText(isTouchCapable() ? "HOLD GRAB" : "HOLD [E / SPACE]", fx + 15, fy - 12);
+  }
+  for (const cl of st.clutter) {
+    if (!cl.picked && Math.hypot(p.x - cl.x, p.y - cl.y) < 48) {
+      ctx.fillStyle = PAL.ACCENT; ctx.font = "bold 10px monospace"; ctx.textAlign = "center";
+      ctx.fillText(isTouchCapable() ? "GRAB" : "[E] PICK UP", cl.x, cl.y - 12);
+    }
+  }
+  for (const d of st.doors) {
+    if (!d.open && Math.hypot(p.x - (d.col * TILE + 15), p.y - (d.row * TILE + 15)) < 48) {
+      ctx.fillStyle = PAL.GOLD; ctx.font = "bold 10px monospace"; ctx.textAlign = "center";
+      ctx.fillText(isTouchCapable() ? "TIPTOE/CROUCH" : "[SHIFT / C] EASE", d.col * TILE + 15, d.row * TILE - 10);
+    }
   }
 
   // Signature lights-on discovery flash (unless Streamer Safe)
@@ -2041,7 +2081,11 @@ function renderHUD(st) {
     ctx.fillText(st.speakerMsg, 480, 68);
   }
 
-  // Narrator footer (centered for laptop + mobile)
+  // Narrator footer & PC controls hint
+  if (!isTouchCapable()) {
+    ctx.fillStyle = PAL.MUTED; ctx.font = "bold 11px monospace"; ctx.textAlign = "center";
+    ctx.fillText("WASD/ARROWS: MOVE  •  SHIFT: TIPTOE  •  C: CROUCH  •  E / SPACE: GRAB", LOGICAL_W / 2, LOGICAL_H - 38);
+  }
   ctx.fillStyle = PAL.PANEL; ctx.fillRect(0, LOGICAL_H - 32, LOGICAL_W, 32);
   ctx.fillStyle = PAL.WHITE; ctx.font = "bold 13px monospace"; ctx.textAlign = "center";
   ctx.fillText(app.narratorText, LOGICAL_W / 2, LOGICAL_H - 12, isTouchCapable() ? 500 : 920);
@@ -2091,6 +2135,9 @@ function renderTitleScreen() {
   addBtn(310, 286, 340, 40, "50 NIGHTS (6 HOUSES)", () => { app.screen = "select"; }, PAL.STONE, PAL.WHITE);
   addBtn(310, 336, 340, 40, "SETTINGS & CLIPS", () => { app.screen = "pause"; }, PAL.STONE, PAL.WHITE);
   addBtn(310, 386, 340, 40, "MORE GAMES", () => { app.screen = "more"; }, PAL.STONE, PAL.MINT);
+
+  ctx.fillStyle = PAL.GOLD; ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
+  ctx.fillText("PC: [WASD/ARROWS] MOVE  •  [SHIFT] TIPTOE  •  [C] CROUCH  •  [E/SPACE] GRAB", 480, 456);
 
   ctx.fillStyle = PAL.SURFACE; ctx.fillRect(0, LOGICAL_H - 34, LOGICAL_W, 34);
   ctx.fillStyle = PAL.WHITE; ctx.font = "bold 13px monospace";
