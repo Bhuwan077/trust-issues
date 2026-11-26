@@ -12,7 +12,7 @@
   "build": {
     "appId": "com.bhuwanadhikari.trustissues",
     "productName": "Trust Issues",
-    "files": ["main.js", "index.html", "cake.html", "parking.html"],
+    "files": ["**/*", "!dist/**"],
     "win": { "target": "portable" }
   },
   "devDependencies": {
