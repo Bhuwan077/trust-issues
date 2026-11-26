@@ -3664,33 +3664,7 @@ function submitTypedRiddleFromUI() {
   if (ok) {
     sfx.play("riddleWin");
     app.narratorText = "FINE. YOU CAN READ.";
-    function syncMobileTypeOverlay() {
-  if (!mobileTypeInput) return;
-  const active = app.screen === "play" && app.state && app.state.riddle && app.state.riddle.mode === "typed" && !app.state.riddle.solved && isTouchCapable();
-  if (active) {
-    mobileTypeInput.style.left = "10%";
-    mobileTypeInput.style.top = "9%";
-    mobileTypeInput.style.width = "80%";
-    mobileTypeInput.style.height = "16%";
-    mobileTypeInput.style.pointerEvents = "auto";
-    mobileTypeInput.style.zIndex = "30";
-    if (document.activeElement !== mobileTypeInput && mobileTypeInput.value !== (app.state.riddle.typedText || "")) {
-      mobileTypeInput.value = app.state.riddle.typedText || "";
-    }
-  } else {
-    mobileTypeInput.style.left = "50%";
-    mobileTypeInput.style.top = "72px";
-    mobileTypeInput.style.width = "1px";
-    mobileTypeInput.style.height = "1px";
-    mobileTypeInput.style.pointerEvents = "none";
-    mobileTypeInput.style.zIndex = "15";
-    if (document.activeElement === mobileTypeInput) mobileTypeInput.blur();
-  }
-}
-if (mobileTypeInput) {
-  mobileTypeInput.addEventListener("touchstart", e => { e.stopPropagation(); }, { passive: true });
-  mobileTypeInput.addEventListener("pointerdown", e => { e.stopPropagation(); });
-  mobileTypeInput.addEventListener("click", e => { e.stopPropagation(); mobileTypeInput.focus(); }); mobileTypeInput.value = ""; mobileTypeInput.blur(); }
+    if (mobileTypeInput) { mobileTypeInput.value = ""; mobileTypeInput.blur(); }
   } else {
     sfx.play("trap");
     app.narratorText = "WRONG WORD. NICE GUESS THOUGH.";
