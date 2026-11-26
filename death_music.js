@@ -4,21 +4,25 @@
 
   let streak = 0;
   let frameWrap = null;
-  let ytPlayer = null;
-  let ytReady = false;
-  let pendingVideoId = null;
   let apiLoaded = false;
+  let pendingTrack = null;
+
+  const players = {
+    [TRACK_FIRST]: { yt: null, ready: false, prebuffered: false, prebuffering: false },
+    [TRACK_STREAK]: { yt: null, ready: false, prebuffered: false, prebuffering: false }
+  };
 
   function ensureContainer() {
     if (frameWrap || !document.body) return;
-    // Keep 1x1 inside viewport with 0.01 opacity so browsers do not suspend autoplay as "offscreen/hidden"
     frameWrap = document.createElement("div");
     frameWrap.id = "death-music-bg";
     frameWrap.setAttribute("aria-hidden", "true");
     frameWrap.style.cssText = "position:fixed;right:0;bottom:0;width:1px;height:1px;overflow:hidden;opacity:0.01;pointer-events:none;z-index:-1;";
-    const slot = document.createElement("div");
-    slot.id = "death-music-yt-slot";
-    frameWrap.appendChild(slot);
+    for (const vid of [TRACK_FIRST, TRACK_STREAK]) {
+      const slot = document.createElement("div");
+      slot.id = `death-music-slot-${vid}`;
+      frameWrap.appendChild(slot);
+    }
     document.body.appendChild(frameWrap);
   }
 
@@ -28,7 +32,7 @@
     const prevReady = window.onYouTubeIframeAPIReady;
     window.onYouTubeIframeAPIReady = function () {
       if (typeof prevReady === "function") try { prevReady(); } catch (_) {}
-      initYTPlayer();
+      initAllPlayers();
     };
     const tag = document.createElement("script");
     tag.src = "https://www.youtube.com/iframe_api";
@@ -36,15 +40,16 @@
     document.head.appendChild(tag);
   }
 
-  function initYTPlayer() {
-    if (ytPlayer || !window.YT || !window.YT.Player) return;
+  function initPlayerFor(videoId) {
+    const entry = players[videoId];
+    if (!entry || entry.yt || !window.YT || !window.YT.Player) return;
     ensureContainer();
-    if (!frameWrap) return;
-    const slot = document.getElementById("death-music-yt-slot");
+    const slot = document.getElementById(`death-music-slot-${videoId}`);
     if (!slot) return;
-    ytPlayer = new window.YT.Player(slot, {
+    entry.yt = new window.YT.Player(slot, {
       width: "1",
       height: "1",
+      videoId: videoId,
       playerVars: {
         autoplay: 0,
         controls: 0,
@@ -55,55 +60,77 @@
       },
       events: {
         onReady: function () {
-          ytReady = true;
-          if (pendingVideoId) {
-            const vid = pendingVideoId;
-            pendingVideoId = null;
-            playVideo(vid);
+          entry.ready = true;
+          // Pre-buffer muted so death playback starts instantly with zero 2-3s load delay
+          if (pendingTrack === videoId) {
+            pendingTrack = null;
+            playVideo(videoId);
+          } else if (!entry.prebuffered && !entry.prebuffering) {
+            entry.prebuffering = true;
+            try {
+              entry.yt.mute();
+              entry.yt.playVideo();
+            } catch (_) { entry.prebuffering = false; }
           }
         },
         onStateChange: function (e) {
+          if (!e) return;
+          if (e.data === 1 && entry.prebuffering) {
+            entry.prebuffering = false;
+            entry.prebuffered = true;
+            try {
+              entry.yt.pauseVideo();
+              entry.yt.seekTo(0, true);
+              entry.yt.unMute();
+            } catch (_) {}
+            return;
+          }
           // 0 = YT.PlayerState.ENDED -> stop after playing once
-          if (e && e.data === 0) stop();
+          if (e.data === 0) {
+            try {
+              entry.yt.pauseVideo();
+              entry.yt.seekTo(0, true);
+            } catch (_) {}
+          }
         }
       }
     });
   }
 
+  function initAllPlayers() {
+    initPlayerFor(TRACK_FIRST);
+    initPlayerFor(TRACK_STREAK);
+  }
+
   function unlockOnGesture() {
     ensureContainer();
     loadYTApi();
-    if (window.YT && window.YT.Player && !ytPlayer) initYTPlayer();
+    if (window.YT && window.YT.Player) initAllPlayers();
   }
 
   function playVideo(videoId) {
     ensureContainer();
     loadYTApi();
-    if (ytPlayer && ytReady) {
+    // Stop the other track if it was playing
+    const otherId = videoId === TRACK_FIRST ? TRACK_STREAK : TRACK_FIRST;
+    const other = players[otherId];
+    if (other && other.yt && other.ready) {
+      try { other.yt.pauseVideo(); other.yt.seekTo(0, true); } catch (_) {}
+    }
+
+    const entry = players[videoId];
+    if (entry && entry.yt && entry.ready) {
+      entry.prebuffering = false;
       try {
-        ytPlayer.unMute();
-        ytPlayer.setVolume(100);
-        ytPlayer.loadVideoById(videoId);
+        entry.yt.unMute();
+        entry.yt.setVolume(100);
+        entry.yt.seekTo(0, true);
+        entry.yt.playVideo();
         return;
       } catch (_) {}
     }
-    pendingVideoId = videoId;
-    if (window.YT && window.YT.Player && !ytPlayer) {
-      initYTPlayer();
-      return;
-    }
-    // Fallback iframe if YT IFrame API is still loading or blocked
-    if (!frameWrap) return;
-    frameWrap.innerHTML = "";
-    const iframe = document.createElement("iframe");
-    iframe.width = "1";
-    iframe.height = "1";
-    iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&playsinline=1&rel=0`;
-    iframe.title = "Death Soundtrack";
-    iframe.allow = "autoplay; encrypted-media";
-    iframe.referrerPolicy = "strict-origin-when-cross-origin";
-    iframe.style.cssText = "border:0;";
-    frameWrap.appendChild(iframe);
+    pendingTrack = videoId;
+    if (window.YT && window.YT.Player) initAllPlayers();
   }
 
   function onDeath() {
@@ -112,13 +139,16 @@
   }
 
   function stop() {
-    pendingVideoId = null;
-    if (ytPlayer && ytReady) {
-      try { ytPlayer.stopVideo(); } catch (_) {}
-      return;
-    }
-    if (frameWrap) {
-      frameWrap.innerHTML = '<div id="death-music-yt-slot"></div>';
+    pendingTrack = null;
+    for (const vid of [TRACK_FIRST, TRACK_STREAK]) {
+      const entry = players[vid];
+      if (entry && entry.yt && entry.ready) {
+        entry.prebuffering = false;
+        try {
+          entry.yt.pauseVideo();
+          entry.yt.seekTo(0, true);
+        } catch (_) {}
+      }
     }
   }
 
