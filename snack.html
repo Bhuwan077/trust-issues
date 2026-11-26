@@ -1645,6 +1645,9 @@ function startLevel(idx) {
   app.replayFrames = null;
   app.botWatch = null;
   app.showGhost = false;
+  app.touch.tiptoe = false;
+  app.touch.crouch = false;
+  if (typeof syncTouchModeButtons === "function") syncTouchModeButtons();
   app.screen = "play";
 }
 
@@ -1756,12 +1759,26 @@ function bindHoldTouch(id, field) {
   btn.addEventListener("touchend", e => { e.preventDefault(); set(false); });
   btn.addEventListener("touchcancel", e => { e.preventDefault(); set(false); });
 }
+function syncTouchModeButtons() {
+  const tipBtn = document.getElementById("btn-tiptoe");
+  const crBtn = document.getElementById("btn-crouch");
+  if (tipBtn) {
+    tipBtn.classList.toggle("on", !!app.touch.tiptoe);
+    tipBtn.textContent = app.touch.tiptoe ? "TIPTOE: ON" : "TIPTOE";
+  }
+  if (crBtn) {
+    crBtn.classList.toggle("on", !!app.touch.crouch);
+    crBtn.textContent = app.touch.crouch ? "CROUCH: ON" : "CROUCH";
+  }
+}
 function bindToggleTouch(id, field) {
   const btn = document.getElementById(id);
-  btn.addEventListener("touchstart", e => {
-    e.preventDefault(); sfx.unlock();
+  const other = field === "crouch" ? "tiptoe" : "crouch";
+  btn.addEventListener("pointerdown", e => {
+    e.preventDefault(); e.stopPropagation(); sfx.unlock();
     app.touch[field] = !app.touch[field];
-    btn.classList.toggle("on", app.touch[field]);
+    if (app.touch[field]) app.touch[other] = false;
+    syncTouchModeButtons();
   });
 }
 bindHoldTouch("btn-up", "up"); bindHoldTouch("btn-down", "down");
