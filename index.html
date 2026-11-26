@@ -257,6 +257,7 @@
       </div>
     </div>
     <div id="toast"></div>
+    <input id="mobile-type-input" type="text" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-label="Riddle answer input" style="position:absolute;left:50%;top:72px;width:1px;height:1px;opacity:0.01;border:0;padding:0;font-size:16px;pointer-events:none;z-index:15;">
     <button id="theme-toggle" type="button" aria-label="Toggle light or dark theme" title="Toggle theme"></button>
   </div>
 </div>
@@ -3653,9 +3654,45 @@ function matchesAction(code, action) {
   return false;
 }
 
+const mobileTypeInput = document.getElementById("mobile-type-input");
+function submitTypedRiddleFromUI() {
+  if (!(app.screen === "play" && app.state && app.state.riddle && app.state.riddle.mode === "typed" && !app.state.riddle.solved)) return;
+  const ok = submitTypedRiddle(app.state, app.state.riddle.typedText);
+  if (ok) {
+    sfx.play("riddleWin");
+    app.narratorText = "FINE. YOU CAN READ.";
+    if (mobileTypeInput) { mobileTypeInput.value = ""; mobileTypeInput.blur(); }
+  } else {
+    sfx.play("trap");
+    app.narratorText = "WRONG WORD. NICE GUESS THOUGH.";
+    app.state.riddle.typedText = "";
+    if (mobileTypeInput) mobileTypeInput.value = "";
+  }
+}
+if (mobileTypeInput) {
+  mobileTypeInput.addEventListener("input", () => {
+    if (!(app.screen === "play" && app.state && app.state.riddle && app.state.riddle.mode === "typed" && !app.state.riddle.solved)) return;
+    const cleaned = mobileTypeInput.value.toUpperCase().replace(/[^A-Z0-9 ]/g, "").slice(0, 18);
+    if (mobileTypeInput.value !== cleaned) mobileTypeInput.value = cleaned;
+    app.state.riddle.typedText = cleaned;
+    sfx.play("blip");
+  });
+  mobileTypeInput.addEventListener("keydown", e => {
+    if (e.key === "Enter" || e.keyCode === 13) {
+      e.preventDefault();
+      submitTypedRiddleFromUI();
+    }
+  });
+}
+
 window.addEventListener("keydown", e => {
   sfx.unlock();
   const code = e.code;
+
+  if (mobileTypeInput && document.activeElement === mobileTypeInput) {
+    if (code === "Escape") mobileTypeInput.blur();
+    return;
+  }
 
   if (app.rebindingAction) {
     e.preventDefault();
@@ -3675,15 +3712,7 @@ window.addEventListener("keydown", e => {
     }
     if (code === "Enter") {
       e.preventDefault();
-      const ok = submitTypedRiddle(app.state, app.state.riddle.typedText);
-      if (ok) {
-        sfx.play("riddleWin");
-        app.narratorText = "FINE. YOU CAN READ.";
-      } else {
-        sfx.play("trap");
-        app.narratorText = "WRONG WORD. NICE GUESS THOUGH.";
-        app.state.riddle.typedText = "";
-      }
+      submitTypedRiddleFromUI();
       return;
     }
     if (e.key && e.key.length === 1 && /^[a-zA-Z0-9 ]$/.test(e.key)) {
@@ -3820,7 +3849,14 @@ canvas.addEventListener("pointerdown", e => {
   app.mouse = pt;
   for (let i = uiButtons.length - 1; i >= 0; i--) {
     const b = uiButtons[i];
-    if (pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h) { b.onClick(); return; }
+    if (pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.h + b.y) { b.onClick(); return; }
+  }
+  if (app.screen === "play" && app.state && app.state.riddle && app.state.riddle.mode === "typed" && !app.state.riddle.solved) {
+    if (pt.x >= 50 && pt.x <= 910 && pt.y >= 46 && pt.y <= 134 && mobileTypeInput) {
+      mobileTypeInput.value = app.state.riddle.typedText || "";
+      mobileTypeInput.focus();
+      return;
+    }
   }
   if (app.screen === "g2play") handleMindPointerDown(pt);
 });
@@ -4139,7 +4175,7 @@ function renderEntities(state, alpha) {
     const subY = 56 + promptLines * 20 + 6;
 
     if (rid.mode === "typed") {
-      const box = rid.solved ? "OPEN!" : (rid.typedText + (Math.floor(state.tick / 20) % 2 ? "_" : ""));
+      const box = rid.solved ? "OPEN!" : ((rid.typedText || (isTouchCapable() ? "TAP TO TYPE" : "")) + (Math.floor(state.tick / 20) % 2 ? "_" : ""));
       drawPixelText(ctx, `TYPE ANSWER: [${box}]`, 480, subY, 2, PAL.WHITE, "center", null, 828);
     } else if (rid.mode === "idle") {
       const pct = Math.min(100, Math.floor((rid.idleTicks / (rid.idleTicksRequired || 240)) * 100));
