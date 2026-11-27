@@ -958,6 +958,7 @@ addRound({
   grid: buildRoom(g => {
     g.pit(9, 22, "^"); g.plat(9, 14, 14, "#"); g.row(15, 9, 22, "^");
     g.plat(15, 2, 10, "#"); g.row(1, 9, 13, "v");
+    g.set(18, 3, "v"); g.set(22, 3, "v");
   }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
   triggers: [
@@ -1012,14 +1013,14 @@ addRound({
 addRound({
   id: 8, world: 2, name: "BUFFERING...", type: "PLATFORM",
   lieKey: "loading_bar_platform",
-  mechanic: "A giant spike chasm bridged only by a moving 'LOADING...' bar platform.",
-  tell: "The loading bar frame has a solid gold top rim matching moving platforms.",
-  solutionSummary: "Hop onto the moving loading bar and ride it across the chasm.",
+  mechanic: "A giant spike chasm bridged by a 'LOADING...' bar that drops out every time it resets to 0%!",
+  tell: "When LOAD hits 0%, the bar flashes coral ('0% DROP!') and loses collision briefly—jump or stay off!",
+  solutionSummary: "Ride the loading bar across, jumping or staying off whenever it resets to 0%.",
   grid: buildRoom(g => { g.pit(7, 25, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 29, row: 13 },
   platforms: [{
     id: "loadbar", col: 7.5, row: 13.5, wTiles: 4.2, hTiles: 0.8,
-    moveX: 13.5 * 30, moveY: 0, periodTicks: 180, uiStyle: "loading"
+    moveX: 13.5 * 30, moveY: 0, periodTicks: 180, uiStyle: "loading", dropAtZero: true
   }],
   secretLetter: { char: "S", col: 16, row: 9.5 },
   triggers: []
@@ -1053,6 +1054,7 @@ addRound({
   solutionSummary: "Press Esc to pause (spawning the PAUSED platform), close pause, and walk across.",
   grid: buildRoom(g => { g.pit(10, 21, "^"); }),
   start: { col: 3, row: 13 }, exit: { col: 27, row: 13 },
+  signs: [{ id: "s10", col: 4.5, row: 9, w: 250, h: 26, text: "HINT: PRESS [ESC] OR PAUSE!" }],
   triggers: [{
     id: "r10_pause", once: true,
     condition: { type: "pauseOpened" },
@@ -1066,16 +1068,17 @@ addRound({
 addRound({
   id: 11, world: 2, name: "VOLUME CONTROL", type: "PLATFORM",
   lieKey: "settings_slider_platform",
-  mechanic: "A fake Settings menu spans the chasm; its Volume Slider knob oscillates as a solid moving platform.",
-  tell: "The slider knob is framed in Bait Gold and glides along the slider track.",
-  solutionSummary: "Jump onto the sliding volume knob inside the fake Settings box and ride it across.",
+  mechanic: "A fake Settings menu spans the chasm; its Volume knob bounces up and down to the beat while an air sweeper patrols overhead.",
+  tell: "The gold slider knob oscillates horizontally and vertically along the volume wave.",
+  solutionSummary: "Ride the bouncing volume knob across the chasm while ducking/timing past the air sweeper.",
   grid: buildRoom(g => { g.pit(8, 23, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
   fakePanel: { variant: "settings", x: 240, y: 150, w: 480, h: 255 },
   platforms: [{
-    id: "slider_knob", col: 9.5, row: 12.2, wTiles: 2.5, hTiles: 0.9,
-    moveX: 10.5 * 30, moveY: 0, periodTicks: 150, uiStyle: "slider"
+    id: "slider_knob", col: 9.0, row: 12.6, wTiles: 2.0, hTiles: 0.85,
+    moveX: 11.5 * 30, moveY: -42, periodTicks: 115, uiStyle: "slider"
   }],
+  hazards: [{ kind: "sweep", minX: 11*30, maxX: 20*30, y: 9*30+10, w: 20, h: 20, period: 85 }],
   triggers: []
 });
 
@@ -1266,7 +1269,7 @@ addRound({
   mechanic: "Every jump flips gravity upside-down between floor and ceiling.",
   tell: "Ceiling stone track spans cols 8..24 above the central pit.",
   solutionSummary: "Jump once to fall UP onto ceiling, run right, jump again to fall DOWN to exit.",
-  grid: buildRoom(g => { g.pit(10, 21, "^"); g.plat(8, 2, 17, "#"); }),
+  grid: buildRoom(g => { g.pit(10, 21, "^"); g.plat(8, 2, 17, "#"); g.set(13, 3, "v"); g.set(18, 3, "v"); g.set(22, 3, "v"); }),
   start: { col: 3, row: 13 }, exit: { col: 28, row: 13 },
   triggers: [{ id: "r19_gflip", once: false, condition: { type: "everyJump" }, actions: [{ type: "flipGravity" }, { type: "playSound", sound: "flip" }] }]
 });
@@ -1293,6 +1296,7 @@ addRound({
   tell: "Gold-rimmed R pad sits at row 12 before the high exit steps.",
   solutionSummary: "Hop up to the R refill pad to restore full jump height, then jump up to the row 8 exit.",
   grid: buildRoom(g => {
+    g.pit(5, 6, "^"); g.pit(10, 12, "^"); g.pit(17, 24, "^");
     g.plat(7, 12, 3, "#"); g.plat(13, 12, 3, "R");
     g.plat(19, 10, 3, "#"); g.plat(25, 8, 5, "#");
   }),
@@ -1354,6 +1358,7 @@ addRound({
     g.set(16, 13, "^"); g.set(17, 13, "^"); g.col(18, 11, 13, "#");
   }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
+  hazards: [{ kind: "sweep", minX: 10*30, maxX: 21*30, y: 8*30+10, w: 20, h: 20, period: 90 }],
   signs: [{ id: "s25", col: 3, row: 8.5, w: 150, h: 26, text: "TRUST ME: G0 L0W" }],
   triggers: []
 });
@@ -1361,17 +1366,18 @@ addRound({
 addRound({
   id: 26, world: 5, name: "SOLID ACHIEVEMENT", type: "PLATFORM",
   lieKey: "solid_achievement_popup",
-  mechanic: "Unlocking an achievement spawns a physical solid popup box that blocks the spikes and bridges the gap.",
-  tell: "The achievement popup has a gold top rail just like standable UI platforms.",
-  solutionSummary: "Walk forward to pop the Achievement box, then jump onto it to cross the high wall.",
-  grid: buildRoom(g => { g.pit(13, 21, "^"); g.col(21, 9, 13, "#"); }),
+  mechanic: "Pits, a low ceiling, and a sweeping air blade guard the path—plus a compact Achievement step spawns mid-gap.",
+  tell: "Clear pit 8..9, low-hop under H, dodge the air blade, and use the small Achievement step to clear the wall.",
+  solutionSummary: "Jump pit 8..9, hop under H, pass the air sweeper, and jump off the Achievement step over the wall.",
+  grid: buildRoom(g => { g.pit(8, 9, "^"); g.plat(11, 10, 3, "H"); g.pit(16, 21, "^"); g.col(21, 9, 13, "#"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
+  hazards: [{ kind: "sweep", minX: 11*30, maxX: 15*30, y: 12*30+10, w: 20, h: 20, period: 80 }],
   triggers: [{
     id: "r26_ach", once: true,
-    condition: { type: "playerX", x: 8 * 30, op: ">=" },
+    condition: { type: "playerX", x: 13 * 30, op: ">=" },
     actions: [
-      { type: "spawnPlatform", id: "ach_box", x: 11*30, y: 11*30, w: 7*30, h: 24, uiStyle: "paused" },
-      { type: "narratorLine", text: "ACHIEVEMENT UNLOCKED: WALKED 240 PIXELS!" },
+      { type: "spawnPlatform", id: "ach_box", x: 16.5*30, y: 11.5*30, w: 3.5*30, h: 22, uiStyle: "slider" },
+      { type: "narratorLine", text: "ACHIEVEMENT: DODGED THAT!" },
       { type: "playSound", sound: "coin" }
     ]
   }]
@@ -1418,6 +1424,7 @@ addRound({
     { id: "cr2", col: 14,  row: 11, wTiles: 4.5, hTiles: 0.7, scrollY: 0.85, uiStyle: "trace", label: "QA: F9 BOT" },
     { id: "cr3", col: 20,  row: 8.5,wTiles: 4.5, hTiles: 0.7, scrollY: 0.85, uiStyle: "trace", label: "VICTIM: YOU" }
   ],
+  hazards: [{ kind: "sweep", minX: 12*30, maxX: 23*30, y: 7*30+10, w: 20, h: 20, period: 90 }],
   triggers: []
 });
 
@@ -1435,7 +1442,10 @@ addRound({
   start: { col: 1.5, row: 13 }, exit: { col: 29, row: 13 },
   coins: [{ id: "c30", col: 11.5, row: 13 }],
   flags: [{ id: "f30", col: 20, row: 13, dir: -1, arrows: true }],
-  hazards: [{ id: "eraser30", kind: "sweep", x: 22*30, y: 12*30, w: 20, h: 60, minX: 21*30, maxX: 27*30, period: 110 }],
+  hazards: [
+    { id: "eraser30", kind: "sweep", x: 22*30, y: 12*30, w: 20, h: 60, minX: 21*30, maxX: 27*30, period: 110 },
+    { kind: "sweep", minX: 7*30, maxX: 15*30, y: 10*30+10, w: 20, h: 20, period: 85 }
+  ],
   secretLetter: { char: "T", col: 11, row: 9 },
   triggers: [
     { id: "r30_safe", once: true, condition: { type: "zoneEnter", rect: { x: 4*30-2, y: 13*30, w: 64, h: 34 } }, actions: [{ type: "fallTile", tiles: [{col:4,row:14},{col:5,row:14}], delayTicks: 2, fallSpeed: 9 }] },
@@ -1446,14 +1456,15 @@ addRound({
 
 // ---------------- WORLD 6: SENSES (31..40) ----------------
 addRound({
-  id: 31, world: 6, name: "BLIND SPOT", type: "PLATFORM",
+  id: 31, world: 6, name: "AIR RAID", type: "PLATFORM",
   lieKey: "blackout_death_glow",
-  mechanic: "Room is pitch-black except a small halo around you and glowing circles at past death spots.",
-  tell: "Every death leaves a permanent glowing beacon revealing nearby spikes on retry.",
-  solutionSummary: "Die once near the pit to illuminate it, or jump cleanly over cols 11-12 and 20-21.",
-  grid: buildRoom(g => { g.pit(11, 12, "^"); g.pit(20, 21, "^"); }),
+  mechanic: "Pits, a crumbling bridge, and a sweeping air blade guard the corridor.",
+  tell: "Watch the crumbling C bridge at cols 15..16 and the sweeping air blade overhead.",
+  solutionSummary: "Jump pit 9..10, cross crumbling bridge 15..16, dodge the air blade, and clear pit 22..23.",
+  grid: buildRoom(g => { g.pit(9, 10, "^"); g.row(14, 15, 16, "C"); g.row(15, 15, 16, "."); g.row(16, 15, 16, "^"); g.pit(22, 23, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  blackout: true, triggers: []
+  hazards: [{ kind: "sweep", minX: 17*30, maxX: 21*30, y: 12*30+10, w: 20, h: 20, period: 80 }],
+  triggers: [{ id: "r31_fall", once: true, condition: { type: "zoneEnter", rect: { x: 15*30-4, y: 13*30, w: 68, h: 34 } }, actions: [{ type: "fallTile", tiles: [{col:15,row:14},{col:16,row:14}], delayTicks: 4, fallSpeed: 9 }] }]
 });
 
 addRound({
@@ -1479,6 +1490,7 @@ addRound({
   solutionSummary: "Ignore color deception, jump the triangle hazards, and enter the upper door.",
   grid: buildRoom(g => { g.pit(10, 11, "^"); g.pit(19, 20, "^"); g.plat(25, 11, 5, "#"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 10 },
+  hazards: [{ kind: "sweep", minX: 12*30, maxX: 18*30, y: 11*30+10, w: 20, h: 20, period: 85 }],
   colorSwap: true, fakeExit: { col: 28, row: 13 },
   triggers: [{ id: "r33_fake", once: false, condition: { type: "zoneEnter", rect: { x: 28*30, y: 13*30, w: 28, h: 30 } }, actions: [{ type: "kill", reason: "colorSwap" }] }]
 });
@@ -1505,6 +1517,7 @@ addRound({
   solutionSummary: "Jump the memorized pits at cols 10..11 and cols 20..21.",
   grid: buildRoom(g => { g.pit(10, 11, "^"); g.pit(20, 21, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
+  hazards: [{ kind: "sweep", minX: 13*30, maxX: 19*30, y: 11*30+10, w: 20, h: 20, period: 80 }],
   camZoomAt: 90, triggers: []
 });
 
@@ -1516,19 +1529,20 @@ addRound({
   solutionSummary: "Ignore the bright bottom-right decoy and climb the ledges to the dim upper door.",
   grid: buildRoom(g => { g.plat(16, 12, 3, "#"); g.plat(22, 10, 4, "#"); }),
   start: { col: 2, row: 13 }, exit: { col: 24, row: 9 },
+  hazards: [{ kind: "sweep", minX: 8*30, maxX: 15*30, y: 12*30+10, w: 20, h: 20, period: 85 }],
   dimExit: true, fakeExit: { col: 28, row: 13 },
   triggers: [{ id: "r36_trap", once: false, condition: { type: "zoneEnter", rect: { x: 28*30, y: 13*30, w: 28, h: 30 } }, actions: [{ type: "kill", reason: "brightFake" }] }]
 });
 
 addRound({
-  id: 37, world: 6, name: "SONAR PING", type: "PLATFORM",
+  id: 37, world: 6, name: "SKY GAUNTLET", type: "PLATFORM",
   lieKey: "limited_sonar_pings",
-  mechanic: "Pitch-black room where each jump fires a brief sonar reveal (max 3 pings).",
-  tell: "Jumping lights up the whole room for 1.5 seconds so you spot the spike pits.",
-  solutionSummary: "Use your sonar jumps to light and clear the pits at cols 11..12 and 21..22.",
-  grid: buildRoom(g => { g.pit(11, 12, "^"); g.pit(21, 22, "^"); }),
+  mechanic: "Three spike pits, a low ceiling, and a patrolling air blade guard the hall.",
+  tell: "Short-hop under H at cols 14..17 and time your jump past the sweeping air blade.",
+  solutionSummary: "Clear pits 8..9, 15..16 under H, and 22..23 while dodging the air sweeper.",
+  grid: buildRoom(g => { g.pit(8, 9, "^"); g.plat(14, 10, 4, "H"); g.pit(15, 16, "^"); g.pit(22, 23, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  blackout: true, sonarOnJump: true, sonarUses: 3,
+  hazards: [{ kind: "sweep", minX: 18*30, maxX: 21*30, y: 12*30+10, w: 20, h: 20, period: 75 }],
   secretLetter: { char: "H", col: 16, row: 11 }, triggers: []
 });
 
@@ -1540,6 +1554,7 @@ addRound({
   solutionSummary: "Jump over col 16 when the heartbeat tick speeds up.",
   grid: buildRoom(),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
+  hazards: [{ kind: "sweep", minX: 19*30, maxX: 26*30, y: 12*30+10, w: 20, h: 20, period: 80 }],
   spikeSeamTells: [{ col: 16, row: 13 }],
   triggers: [
     { id: "r38_warn", once: true, condition: { type: "playerX", x: 10*30, op: ">=" }, actions: [{ type: "playSound", sound: "tick" }] },
@@ -1555,6 +1570,7 @@ addRound({
   solutionSummary: "Track your solid opaque lead character over the two spike gaps.",
   grid: buildRoom(g => { g.pit(10, 12, "^"); g.pit(20, 22, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
+  hazards: [{ kind: "sweep", minX: 13*30, maxX: 19*30, y: 12*30+10, w: 20, h: 20, period: 80 }],
   clones: true, triggers: []
 });
 
@@ -1599,7 +1615,10 @@ addRound({
   solutionSummary: "Low-hop pits 10..11 and 18..19 under ceiling spikes, then clear the sweeper to exit.",
   grid: buildRoom(g => { g.plat(8, 9, 14, "#"); g.row(10, 8, 21, "v"); g.pit(10, 11, "^"); g.pit(18, 19, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  hazards: [{ kind: "sweep", minX: 22*30, maxX: 26*30, y: 13*30+10, w: 20, h: 20, period: 80 }],
+  hazards: [
+    { kind: "sweep", minX: 22*30, maxX: 26*30, y: 13*30+10, w: 20, h: 20, period: 80 },
+    { kind: "sweep", minX: 11*30, maxX: 17*30, y: 11*30+10, w: 20, h: 20, period: 75 }
+  ],
   signs: [{ id: "s42", col: 11, row: 6, w: 170, h: 26, text: "THE FLOOR IS LAVA!" }],
   triggers: []
 });
@@ -1634,6 +1653,7 @@ addRound({
   grid: buildRoom(g => { g.pit(10, 11, "^"); g.plat(14, 10, 3, "H"); g.pit(18, 19, "^"); g.col(23, 1, 11, "#"); g.set(23, 12, "L"); g.set(23, 13, "L"); }),
   start: { col: 3, row: 13 }, exit: { col: 28, row: 13 },
   signs: [{ id: "s44", col: 8, row: 8, w: 260, h: 26, text: "WAIT FOR SIMON SAYS..." }],
+  hazards: [{ kind: "sweep", minX: 12*30, maxX: 17*30, y: 12*30+10, w: 20, h: 20, period: 85 }],
   triggers: [
     { id: "r44_fake", once: true, condition: { type: "sequence", steps: [{ type: "timer", ticks: 10 }, { type: "jumpCount", count: 1, op: ">=" }, { type: "playerX", x: 180, op: "<=" }] }, actions: [{ type: "narratorLine", text: "I DIDN'T SAY SIMON SAYS!" }] },
     { id: "r44_ok", once: true, condition: { type: "timer", ticks: 40 }, actions: [{ type: "narratorLine", text: "SIMON SAYS: WALK RIGHT NOW." }, { type: "toggleTile", tiles: [{col:23,row:12,to:"."},{col:23,row:13,to:"."}] }] }
@@ -1648,7 +1668,10 @@ addRound({
   solutionSummary: "Jump pit 9..10, pass sweeper, cross the gate while open, and jump pit 21..22.",
   grid: buildRoom(g => { g.pit(9, 10, "^"); g.col(16, 1, 11, "#"); g.pit(21, 22, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  hazards: [{ kind: "sweep", minX: 12*30, maxX: 14.5*30, y: 13*30+10, w: 20, h: 20, period: 75 }],
+  hazards: [
+    { kind: "sweep", minX: 12*30, maxX: 14.5*30, y: 13*30+10, w: 20, h: 20, period: 75 },
+    { kind: "sweep", minX: 18*30, maxX: 24*30, y: 11*30+10, w: 20, h: 20, period: 80 }
+  ],
   signs: [{ id: "s45", col: 10, row: 9, w: 180, h: 26, text: "OPPOSITE DAY (3S)" }],
   triggers: [
     { id: "r45_lock", once: false, condition: { type: "cycle", periodTicks: 180, onTick: 90 }, actions: [{ type: "toggleTile", tiles: [{col:16,row:12,to:"L"},{col:16,row:13,to:"L"}] }] },
@@ -1715,6 +1738,7 @@ addRound({
   grid: buildRoom(g => { g.pit(9, 10, "^"); g.plat(13, 10, 4, "H"); g.col(20, 1, 13, "N"); g.pit(23, 24, "^"); }),
   start: { col: 3, row: 13 }, exit: { col: 27, row: 13 },
   signs: [{ id: "s49", col: 17.5, row: 8, w: 140, h: 26, text: "KEEP OUT!" }],
+  hazards: [{ kind: "sweep", minX: 11*30, maxX: 19*30, y: 12*30+10, w: 20, h: 20, period: 80 }],
   spikeSeamTells: [{ col: 17, row: 13 }],
   secretLetter: { char: "E", col: 20, row: 13 },
   triggers: [{ id: "r49_sp", once: true, condition: { type: "playerX", x: 14.5*30, op: ">=" }, actions: [{ type: "spawnSpike", col: 17, row: 13, dir: "^", emergeTicks: 5 }] }]
@@ -1852,8 +1876,9 @@ addRound({
   mechanic: "Two metronome spike zones extend on every 4th beat, flanking a fixed pit and low ceiling.",
   tell: "Ticks at 1, 2, 3 warn before beat 4 pops spikes at cols 10..11 and 19..20.",
   solutionSummary: "Clear metronome 10..11, jump pit 14..15, and low-hop metronome 19..20 under H.",
-  grid: buildRoom(g => { g.pit(14, 15, "^"); g.plat(18, 10, 4, "H"); }),
+  grid: buildRoom(g => { g.pit(8, 9, "^"); g.pit(14, 15, "^"); g.plat(18, 10, 4, "H"); g.pit(23, 24, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
+  hazards: [{ kind: "sweep", minX: 12*30, maxX: 17*30, y: 11*30+10, w: 20, h: 20, period: 75 }],
   triggers: [
     { id: "r58_t", once: false, condition: { type: "cycle", periodTicks: 30, onTick: 0 }, actions: [{ type: "playSound", sound: "tick" }] },
     { id: "r58_on", once: false, condition: { type: "cycle", periodTicks: 120, onTick: 90 }, actions: [{ type: "toggleTile", tiles: [{col:10,row:13,to:"^"},{col:11,row:13,to:"^"},{col:19,row:13,to:"^"},{col:20,row:13,to:"^"}] }] },
@@ -1885,7 +1910,10 @@ addRound({
   solutionSummary: "Sprint ahead of the collapse, low-hop C bridge 15..16 under H, jump pit 21..22, and clear sweeper.",
   grid: buildRoom(g => { g.row(14, 15, 16, "C"); g.row(15, 15, 16, "."); g.row(16, 15, 16, "^"); g.plat(15, 10, 3, "H"); g.pit(21, 22, "^"); }),
   start: { col: 3, row: 13 }, exit: { col: 29, row: 13 },
-  hazards: [{ kind: "sweep", minX: 24*30, maxX: 26.5*30, y: 13*30+10, w: 20, h: 20, period: 75 }],
+  hazards: [
+    { kind: "sweep", minX: 24*30, maxX: 26.5*30, y: 13*30+10, w: 20, h: 20, period: 75 },
+    { kind: "sweep", minX: 9*30, maxX: 14*30, y: 12*30+10, w: 20, h: 20, period: 70 }
+  ],
   secretLetter: { char: "L", col: 18, row: 11 },
   triggers: [
     ...Array.from({length:12}, (_,i) => ({
@@ -1904,8 +1932,9 @@ addRound({
   mechanic: "You are half-size, navigating through narrow 1-tile tunnels guarded by floor spikes.",
   tell: "Your 8x12 tiny hitbox fits cleanly through 1-tile stone gaps.",
   solutionSummary: "Squeeze through the 1-tile tunnel at col 15 and hop to the exit.",
-  grid: buildRoom(g => { g.col(15, 1, 12, "#"); g.pit(10, 11, "^"); g.pit(20, 21, "^"); }),
+  grid: buildRoom(g => { g.col(15, 1, 12, "#"); g.pit(10, 11, "^"); g.pit(20, 21, "^"); g.set(6, 13, "^"); g.set(25, 13, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
+  hazards: [{ kind: "sweep", minX: 16*30, maxX: 24*30, y: 12*30+10, w: 20, h: 20, period: 80 }],
   playerScale: 0.5, triggers: []
 });
 
@@ -1915,8 +1944,9 @@ addRound({
   mechanic: "You start oversized (1.55x) and cannot fit under the tunnel until hitting the gold Shrink Pad.",
   tell: "Shrink Pad at col 10 halves your height so you clear the col 18 tunnel.",
   solutionSummary: "Touch the Shrink Pad at col 10, then walk under the low wall to exit.",
-  grid: buildRoom(g => { g.col(18, 1, 12, "#"); }),
+  grid: buildRoom(g => { g.col(18, 1, 12, "#"); g.pit(13, 14, "^"); g.pit(22, 23, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
+  hazards: [{ kind: "sweep", minX: 19*30, maxX: 25*30, y: 12*30+10, w: 20, h: 20, period: 80 }],
   playerScale: 1.55,
   triggers: [{ id: "r62_sh", once: true, condition: { type: "playerX", x: 10*30, op: ">=" }, actions: [{ type: "scalePlayer", scale: 0.65 }, { type: "playSound", sound: "flip" }] }]
 });
@@ -1927,8 +1957,9 @@ addRound({
   mechanic: "A giant solid wall blocks the right side; walk off the LEFT screen edge to wrap straight into the exit.",
   tell: "Left and right boundaries are open void.",
   solutionSummary: "Walk left off the screen edge to wrap around to the exit side.",
-  grid: buildRoom(g => { g.col(0, 1, 13, "."); g.col(31, 1, 13, "."); g.col(20, 1, 13, "#"); }),
+  grid: buildRoom(g => { g.col(0, 1, 13, "."); g.col(31, 1, 13, "."); g.col(20, 1, 13, "#"); g.pit(2, 3, "^"); g.pit(24, 25, "^"); }),
   start: { col: 6, row: 13 }, exit: { col: 28, row: 13 },
+  hazards: [{ kind: "sweep", minX: 22*30, maxX: 26*30, y: 12*30+10, w: 20, h: 20, period: 75 }],
   wrapEdges: true, triggers: []
 });
 
@@ -1938,8 +1969,9 @@ addRound({
   mechanic: "Every 4 seconds the room rotates 180 degrees and gravity flips with it.",
   tell: "Rotation timer warns with a flip chime before inverting gravity.",
   solutionSummary: "Cross the central pit while upright or ride the flipped ceiling to the exit.",
-  grid: buildRoom(g => { g.pit(13, 15, "^"); g.plat(10, 2, 12, "#"); }),
+  grid: buildRoom(g => { g.pit(13, 15, "^"); g.plat(10, 2, 12, "#"); g.set(14, 3, "v"); g.set(18, 3, "v"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
+  hazards: [{ kind: "sweep", minX: 11*30, maxX: 20*30, y: 4*30+10, w: 20, h: 20, period: 85 }],
   triggers: [{ id: "r64_rot", once: false, condition: { type: "cycle", periodTicks: 240, onTick: 120 }, actions: [{ type: "flipGravity" }, { type: "playSound", sound: "flip" }] }]
 });
 
@@ -1951,8 +1983,10 @@ addRound({
   solutionSummary: "Climb the staggered tower ledges rapidly to reach the top exit before lava reaches you.",
   grid: buildRoom(g => {
     g.plat(7, 12, 4, "#"); g.plat(13, 10, 4, "#"); g.plat(19, 8, 4, "#"); g.plat(24, 6, 5, "#");
+    g.plat(14, 4, 3, "H"); g.set(21, 3, "v");
   }),
   start: { col: 2, row: 13 }, exit: { col: 27, row: 5 },
+  hazards: [{ kind: "sweep", minX: 16*30, maxX: 24*30, y: 5*30+10, w: 20, h: 20, period: 85 }],
   lavaStartY: 515, lavaRiseSpeed: 0.45, triggers: []
 });
 
@@ -1989,8 +2023,9 @@ addRound({
   mechanic: "Strong leftward wind gusts blow on a 120-tick cycle, blowing mid-air jumps short.",
   tell: "Drifting white wind streaks cross the screen during the gust window.",
   solutionSummary: "Jump the pit during the calm 60-tick window between wind gusts.",
-  grid: buildRoom(g => { g.pit(13, 15, "^"); }),
+  grid: buildRoom(g => { g.pit(13, 15, "^"); g.pit(7, 8, "^"); g.pit(21, 22, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
+  hazards: [{ kind: "sweep", minX: 16*30, maxX: 20*30, y: 12*30+10, w: 20, h: 20, period: 80 }],
   windCycle: { period: 120, onTick: 60, force: -140 },
   secretLetter: { char: "I", col: 14, row: 10 }, triggers: []
 });
@@ -1998,14 +2033,16 @@ addRound({
 addRound({
   id: 69, world: 9, name: "CRUSHING WALLS", type: "PLATFORM",
   lieKey: "shrinking_arena_walls",
-  mechanic: "Spikes step inward from both walls every 45 ticks, forcing you up to the center top exit.",
-  tell: "Side spikes advance deterministically inward.",
-  solutionSummary: "Climb the central platforms quickly to the high center exit.",
+  mechanic: "Spikes step inward from both walls while a breakable ceiling blocks the center exit—jump 3 times to shatter it!",
+  tell: "Center stone barrier cracks and breaks after 3 jumps (jumpCount >= 3).",
+  solutionSummary: "Climb up and jump 3 times to shatter the blocking ceiling wall, then hop to the center exit.",
   grid: buildRoom(g => { g.plat(8, 12, 4, "#"); g.plat(14, 10, 4, "#"); g.plat(13, 7, 6, "#"); }),
   start: { col: 3, row: 13 }, exit: { col: 15, row: 6 },
+  signs: [{ id: "s69", col: 12, row: 8.5, w: 190, h: 22, text: "3 JUMPS BREAKS WALL!" }],
   triggers: [
-    { id: "r69_w1", once: true, condition: { type: "timer", ticks: 60 }, actions: [{ type: "spawnSpike", col: 3, row: 13, dir: "^", emergeTicks: 4 }, { type: "spawnSpike", col: 28, row: 13, dir: "^", emergeTicks: 4 }] },
-    { id: "r69_w2", once: true, condition: { type: "timer", ticks: 120 }, actions: [{ type: "spawnSpike", col: 5, row: 13, dir: "^", emergeTicks: 4 }, { type: "spawnSpike", col: 26, row: 13, dir: "^", emergeTicks: 4 }] }
+    { id: "r69_break", once: true, condition: { type: "jumpCount", count: 3, op: ">=" }, actions: [{ type: "toggleTile", tiles: [{col:14,row:7,to:"."},{col:15,row:7,to:"."},{col:16,row:7,to:"."}] }, { type: "playSound", sound: "riddleWin" }] },
+    { id: "r69_w1", once: true, condition: { type: "timer", ticks: 75 }, actions: [{ type: "spawnSpike", col: 3, row: 13, dir: "^", emergeTicks: 4 }, { type: "spawnSpike", col: 28, row: 13, dir: "^", emergeTicks: 4 }] },
+    { id: "r69_w2", once: true, condition: { type: "timer", ticks: 140 }, actions: [{ type: "spawnSpike", col: 5, row: 13, dir: "^", emergeTicks: 4 }, { type: "spawnSpike", col: 26, row: 13, dir: "^", emergeTicks: 4 }] }
   ]
 });
 
@@ -2447,12 +2484,12 @@ const LEVEL_SOLUTIONS = {
   3:  [{"ticks":76,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":12,"jump":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":24,"left":true},{"ticks":20,"left":true,"jump":true},{"ticks":4,"right":true,"jump":true},{"ticks":12,"right":true},{"ticks":16,"right":true,"jump":true},{"ticks":29,"right":true}],
   4:  [{"ticks":32,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":96,"right":true}],
   5:  [{"ticks":52,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":28,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":54,"right":true}],
-  6:  [{"ticks":52,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"jump":true},{"ticks":12,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":36,"right":true},{"ticks":4,"jump":true},{"ticks":12,"right":true,"jump":true},{"ticks":24,"right":true}],
+  6:  [{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":12},{"right":true,"jump":true,"ticks":16},{"jump":true,"ticks":8},{"right":true,"jump":true,"ticks":32}],
   7:  [{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":40,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":28,"right":true}],
   8:  [{"ticks":16,"right":true},{"ticks":8,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"right":true,"jump":true},{"ticks":8,"right":true},{"ticks":12,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4},{"ticks":16,"right":true},{"ticks":20,"right":true,"jump":true},{"ticks":16,"right":true},{"ticks":12,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":8,"left":true,"jump":true},{"ticks":4,"right":true},{"ticks":4},{"ticks":8,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":12,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true},{"ticks":4},{"ticks":44,"right":true}],
   9:  [{ticks:8,right:true},{ticks:8,right:true,jump:true},{ticks:32,right:true},{ticks:8,right:true,jump:true},{ticks:12,right:true},{ticks:12,right:true,jump:true},{ticks:8,right:true},{ticks:4,left:true},{ticks:12,left:true,jump:true},{ticks:4,left:true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"left":true},{"ticks":4},{"ticks":8,"left":true},{"ticks":16,"left":true,"jump":true},{"ticks":12,"left":true},{"ticks":8,"left":true,"jump":true},{"ticks":4,"left":true}],
   10: [{ticks:4,pause:true},{ticks:180,right:true}],
-  11: [{"ticks":32,"right":true},{"ticks":4,"left":true},{"ticks":8,"left":true,"jump":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"jump":true},{"ticks":8,"right":true,"jump":true},{"ticks":8,"left":true},{"ticks":4},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"jump":true},{"ticks":16,"right":true},{"ticks":4,"left":true},{"ticks":4},{"ticks":4,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true},{"ticks":4},{"ticks":8,"right":true},{"ticks":20,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4},{"ticks":4,"right":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true}],
+  11: [{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"jump":true,"ticks":8},{"left":true,"jump":true,"ticks":16},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"left":true,"ticks":12},{"right":true,"ticks":6},{"ticks":36},{"right":true,"ticks":12},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":23}],
   12: [{ticks:30,right:true},{ticks:16,right:true,jump:true},{ticks:20,right:true},{ticks:16,right:true,jump:true},{ticks:20,right:true},{ticks:8,right:true,jump:true},{ticks:20,right:true},{ticks:14,right:true,jump:true},{ticks:80,right:true}],
   13: [{ticks:2,typed:"keyboard"},{ticks:180,right:true}],
   14: [{"ticks":68,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":12,"right":true}],
@@ -2460,37 +2497,37 @@ const LEVEL_SOLUTIONS = {
   16: [{"ticks":48,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":24,"right":true,"jump":true},{"ticks":12,"right":true},{"ticks":4},{"ticks":16,"left":true},{"ticks":12,"left":true,"jump":true},{"ticks":20,"left":true},{"ticks":16,"left":true,"jump":true},{"ticks":12,"left":true},{"ticks":4,"right":true},{"ticks":4},{"ticks":12,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":60,"right":true}],
   17: [{ticks:96,right:true},{ticks:110,right:true}],
   18: [{ticks:246},{ticks:160,right:true}],
-  19: [{"ticks":52,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":84,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true}],
+  19: [{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"left":true,"jump":true,"ticks":8},{"right":true,"jump":true,"ticks":24},{"left":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":56},{"right":true,"ticks":14}],
   20: [{"ticks":36,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":32,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":36,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":32,"right":true}],
-  21: [{"ticks":60,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":28,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":28,"right":true},{"ticks":16,"right":true,"jump":true},{"ticks":24,"right":true}],
+  21: [{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":18},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":12},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":12},{"right":true,"jump":true,"ticks":40}],
   22: [{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":16,"right":true,"jump":true},{"ticks":48,"right":true},{"ticks":20,"right":true,"jump":true},{"ticks":44,"right":true}],
   23: [{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":8,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":44,"left":true}],
   24: { setupRuns: [[{ticks:42,right:true},{ticks:16,right:true,jump:true},{ticks:40,right:true}]], solve: [{"ticks":52,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":32,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":60,"right":true}] },
   25: [{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":24,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":112,"right":true}],
-  26: [{"ticks":40,"right":true},{"ticks":16,"right":true,"jump":true},{"ticks":56,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":56,"right":true}],
+  26: [{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":12},{"ticks":6},{"jump":true,"ticks":8},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"left":true,"jump":true,"ticks":8},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":18},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":40}],
   27: { setupRuns: [[{ticks:50,right:true},{ticks:10,right:true,jump:true},{ticks:40,right:true}]], solve: [{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":80,"right":true}] },
   28: [{"ticks":16,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":28,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":8,"right":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true}],
-  29: [{"ticks":28,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":28,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":24,"right":true}],
+  29: [{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":48},{"right":true,"ticks":1}],
   30: [{"ticks":8,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":28,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":28,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":20,"right":true}],
-  31: [{"ticks":64,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true}],
+  31: [{"right":true,"jump":true,"ticks":48},{"ticks":6},{"right":true,"jump":true,"ticks":32},{"ticks":6},{"right":true,"jump":true,"ticks":24},{"jump":true,"ticks":8},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":5}],
   32: [{"ticks":72,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":100,"right":true}],
-  33: [{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":20,"right":true,"jump":true},{"ticks":24,"right":true}],
+  33: [{"right":true,"jump":true,"ticks":48},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":56},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":6},{"jump":true,"ticks":16},{"right":true,"jump":true,"ticks":31}],
   34: [{"ticks":28,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true}],
-  35: [{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":64,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true}],
+  35: [{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":56},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":48},{"right":true,"ticks":4}],
   36: [{"ticks":80,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":28,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":20,"right":true}],
-  37: [{"ticks":64,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":64,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":40,"right":true}],
+  37: [{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":48},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":24}],
   38: [{"ticks":88,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":84,"right":true}],
-  39: [{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":64,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true}],
+  39: [{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":56},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":48},{"right":true,"ticks":4}],
   40: [{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":40,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":32,"right":true}],
   41: [{"ticks":112,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true}],
-  42: [{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":52,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":32,"right":true}],
+  42: [{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":24},{"left":true,"ticks":6},{"jump":true,"ticks":8},{"ticks":6},{"right":true,"jump":true,"ticks":48},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":12},{"left":true,"jump":true,"ticks":8},{"jump":true,"ticks":8},{"right":true,"jump":true,"ticks":24},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":5}],
   43: [{"ticks":56,"left":true},{"ticks":60,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":28,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":64,"right":true}],
-  44: [{"ticks":52,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":60,"right":true}],
+  44: [{"right":true,"jump":true,"ticks":48},{"ticks":6},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":72},{"right":true,"ticks":5}],
   45: [{"ticks":48,"right":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":8,"left":true},{"ticks":12},{"ticks":4,"jump":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"jump":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true},{"ticks":4},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":12,"right":true},{"ticks":4,"left":true},{"ticks":4},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"jump":true},{"ticks":8},{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true}],
   46: [{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":12,"right":true},{"ticks":16,"left":true},{"ticks":4,"right":true},{"ticks":20,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true,"jump":true},{"ticks":40,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":100,"right":true}],
   47: [{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":12,"right":true},{"ticks":8,"left":true},{"ticks":12,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":32,"right":true}],
   48: [{"ticks":52,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":28,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true}],
-  49: [{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":40,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true}],
+  49: [{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":6},{"ticks":6},{"right":true,"jump":true,"ticks":56},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":5}],
   50: [{"ticks":24,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":60,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":16,"right":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":12,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":92,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true}],
   51: [{"ticks":80,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":76,"right":true}],
   52: [{"ticks":44,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"left":true},{"ticks":20,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"jump":true},{"ticks":12,"left":true},{"ticks":12,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true},{"ticks":8,"left":true},{"ticks":16,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":28,"right":true}],
@@ -2499,17 +2536,17 @@ const LEVEL_SOLUTIONS = {
   55: { setupRuns: [[{ticks:30,right:true},{ticks:180}]], solve: [{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":32,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":32,"right":true}] },
   56: [{"ticks":12,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":28,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":12,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true}],
   57: [{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":16,"right":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":24,"right":true,"jump":true},{"ticks":28,"right":true}],
-  58: [{"ticks":12,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true}],
+  58: [{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"jump":true,"ticks":16},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"left":true,"ticks":6},{"jump":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":18},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":5}],
   59: [{"ticks":8,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true},{"ticks":8,"left":true},{"ticks":8,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":8,"right":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true,"jump":true},{"ticks":60,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":40,"right":true}],
   60: [{"ticks":84,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true}],
-  61: [{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":64,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true}],
-  62: [{"ticks":176,"right":true}],
+  61: [{"right":true,"jump":true,"ticks":56},{"left":true,"ticks":6},{"ticks":6},{"jump":true,"ticks":8},{"right":true,"jump":true,"ticks":64},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":48}],
+  62: [{"right":true,"jump":true,"ticks":56},{"right":true,"ticks":12},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":12},{"right":true,"jump":true,"ticks":40},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":48}],
   63: [{"ticks":8,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":36,"left":true}],
   64: [{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":16,"right":true},{"ticks":4,"left":true},{"ticks":8,"left":true,"jump":true},{"ticks":4,"right":true,"jump":true},{"ticks":8,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"jump":true},{"ticks":16,"right":true},{"ticks":8,"left":true},{"ticks":8,"right":true},{"ticks":4,"left":true},{"ticks":8,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"left":true},{"ticks":8,"right":true},{"ticks":4},{"ticks":8,"right":true,"jump":true},{"ticks":4,"jump":true},{"ticks":8,"left":true,"jump":true},{"ticks":4,"right":true},{"ticks":4},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"right":true},{"ticks":4},{"ticks":8,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":8},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":8},{"ticks":8,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":24,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":28,"right":true}],
-  65: [{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":32,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":32,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":24,"right":true}],
+  65: [{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"left":true,"ticks":6},{"left":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":39}],
   66: [{"ticks":20,"right":true},{"ticks":16,"right":true,"jump":true},{"ticks":24,"right":true}],
   67: [{"ticks":176,"right":true}],
-  68: [{"ticks":8,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":32,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":28,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true}],
+  68: [{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"left":true,"ticks":12},{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":36},{"right":true,"jump":true,"ticks":56},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":27}],
   69: [{"ticks":16,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":12,"right":true},{"ticks":24,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4},{"ticks":8,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":16,"right":true,"jump":true},{"ticks":16,"right":true}],
   70: [{"ticks":28,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":32,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":52,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true},{"ticks":4,"right":true,"jump":true}],
   71: [{"ticks":156,"right":true}],
@@ -2973,6 +3010,9 @@ function stepSingleTick(state, rawInput, persistStore, assistSlow) {
     }
     plat.dx = plat.x - plat.prevX;
     plat.dy = plat.y - plat.prevY;
+    if (plat.uiStyle === "loading" && plat.dropAtZero) {
+      plat.solid = (state.simTick % 180) >= 28;
+    }
   }
 
   if (p.standingPlatId) {
@@ -4151,11 +4191,14 @@ function renderEntities(state, alpha) {
     const rx = plat.prevX + (plat.x - plat.prevX) * alpha;
     const ry = plat.prevY + (plat.y - plat.prevY) * alpha;
     if (plat.uiStyle === "loading") {
-      ctx.fillStyle = PAL.STONE; ctx.fillRect(rx, ry, plat.w, plat.h);
+      ctx.save();
+      if (!plat.solid) ctx.globalAlpha = 0.35;
+      ctx.fillStyle = plat.solid ? PAL.STONE : PAL.CORAL; ctx.fillRect(rx, ry, plat.w, plat.h);
       ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 1.5; ctx.strokeRect(rx, ry, plat.w, plat.h);
-      ctx.fillStyle = PAL.GOLD; ctx.fillRect(rx, ry, plat.w, 3);
+      ctx.fillStyle = plat.solid ? PAL.GOLD : PAL.CORAL; ctx.fillRect(rx, ry, plat.w, 3);
       const pct = Math.min(99, Math.floor((state.tick % 180) / 1.8));
-      drawPixelText(ctx, `LOAD ${pct}%`, rx + plat.w / 2, ry + 5, 1, PAL.WHITE, "center", null, plat.w - 8);
+      drawPixelText(ctx, plat.solid ? `LOAD ${pct}%` : "0% DROP!", rx + plat.w / 2, ry + 5, 1, PAL.WHITE, "center", null, plat.w - 8);
+      ctx.restore();
     } else if (plat.uiStyle === "paused") {
       ctx.fillStyle = PAL.GOLD; ctx.fillRect(rx, ry, plat.w, plat.h);
       drawPixelText(ctx, "PAUSED BRIDGE", rx + plat.w / 2, ry + 3, 2, PAL.ACCENT_TEXT, "center", null, plat.w - 8);
