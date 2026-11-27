@@ -2033,14 +2033,13 @@ addRound({
 addRound({
   id: 69, world: 9, name: "CRUSHING WALLS", type: "PLATFORM",
   lieKey: "shrinking_arena_walls",
-  mechanic: "Spikes step inward from both walls while a breakable ceiling blocks the center exit—jump 3 times to shatter it!",
-  tell: "Center stone barrier cracks and breaks after 3 jumps (jumpCount >= 3).",
-  solutionSummary: "Climb up and jump 3 times to shatter the blocking ceiling wall, then hop to the center exit.",
+  mechanic: "Spikes step inward from both walls while the top platform shatters when you touch it.",
+  tell: "Touch the top center platform to break a path straight to the exit.",
+  solutionSummary: "Climb up and touch the top platform to shatter it, then hop into the center exit.",
   grid: buildRoom(g => { g.plat(8, 12, 4, "#"); g.plat(14, 10, 4, "#"); g.plat(13, 7, 6, "#"); }),
   start: { col: 3, row: 13 }, exit: { col: 15, row: 6 },
-  signs: [{ id: "s69", col: 12, row: 8.5, w: 190, h: 22, text: "3 JUMPS BREAKS WALL!" }],
   triggers: [
-    { id: "r69_break", once: true, condition: { type: "jumpCount", count: 3, op: ">=" }, actions: [{ type: "toggleTile", tiles: [{col:14,row:7,to:"."},{col:15,row:7,to:"."},{col:16,row:7,to:"."}] }, { type: "playSound", sound: "riddleWin" }] },
+    { id: "r69_break", once: true, condition: { type: "zoneEnter", rect: { x: 13*30 - 6, y: 6*30, w: 6*30 + 12, h: 2*30 + 10 } }, actions: [{ type: "toggleTile", tiles: [{col:14,row:7,to:"."},{col:15,row:7,to:"."},{col:16,row:7,to:"."}] }, { type: "playSound", sound: "bonk" }] },
     { id: "r69_w1", once: true, condition: { type: "timer", ticks: 75 }, actions: [{ type: "spawnSpike", col: 3, row: 13, dir: "^", emergeTicks: 4 }, { type: "spawnSpike", col: 28, row: 13, dir: "^", emergeTicks: 4 }] },
     { id: "r69_w2", once: true, condition: { type: "timer", ticks: 140 }, actions: [{ type: "spawnSpike", col: 5, row: 13, dir: "^", emergeTicks: 4 }, { type: "spawnSpike", col: 26, row: 13, dir: "^", emergeTicks: 4 }] }
   ]
