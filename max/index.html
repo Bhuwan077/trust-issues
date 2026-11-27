@@ -1,0 +1,2413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="screen-orientation" content="landscape">
+<title>TRUST ISSUES MAX — Multi-Room Torture (Chapter 2)</title>
+<!--
+================================================================================
+  TRUST ISSUES MAX — ARCHITECTURE, CONSTANTS & CONTROLS
+================================================================================
+  CONTROLS:
+    Move          : Arrow Keys / A & D / Touch < >
+    Jump          : Space / W / Up Arrow / Touch JUMP
+    Instant Retry : R (< 200ms reset back to Room 1, all hazards reset)
+    Practice Room : [ / ] (only active when Practice Mode is ON)
+    Pause/Settings: Esc
+    Level Select  : L
+    OBS Overlay   : O
+    Clip List     : C
+    Hall of Shame : H
+    Safe Mode     : V (Streamer-Safe: disables flash/shake/riddle typing)
+    Color-Blind   : K
+    Share Code    : S (#code=TIM-001)
+    Validator+F9  : F9 (runs validateAllLevels() + runAllSolvers() + Difficulty Check)
+    Watch Bot     : Shift+F9 (watch recorded route live from Room 1 to Goal)
+================================================================================
+-->
+<style>
+  :root {
+    --bg: #0A0D16;
+    --surface: #131828;
+    --surface-alt: #242B42;
+    --text: #FFFFFE;
+    --text-muted: #9FA8C7;
+    --accent: #00E5FF;
+    --accent-text: #0A0D16;
+    --danger: #FF3366;
+    --gold: #FFB800;
+    --border: #28304A;
+    --toast-bg: #1E2438;
+    --toast-text: #FFFFFE;
+    --touch-bg: rgba(10, 13, 22, 0.85);
+    --font-sans: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+  [data-theme="light"] {
+    --bg: #F3F5FA;
+    --surface: #E4E8F2;
+    --surface-alt: #CBD2E3;
+    --text: #0F1320;
+    --text-muted: #434B64;
+    --accent: #0284C7;
+    --accent-text: #FFFFFE;
+    --danger: #C81048;
+    --gold: #B45309;
+    --border: #B3BBD0;
+    --toast-bg: #0F1320;
+    --toast-text: #FFFFFE;
+    --touch-bg: rgba(243, 245, 250, 0.90);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+  html, body { width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-sans); overflow: hidden; touch-action: none; }
+  #wrap { position: fixed; inset: 0; overflow: hidden; background: var(--bg); }
+  #stage { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; }
+  #stage.landscape-forced { transform: translate(-50%, -50%) rotate(90deg); transform-origin: center center; }
+  canvas { display: block; image-rendering: pixelated; border-radius: 4px; border: 1px solid var(--border); background: var(--bg); cursor: pointer; touch-action: none; }
+  #theme-toggle {
+    position: absolute; bottom: 12px; right: 12px; z-index: 40; width: 40px; height: 40px;
+    border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  #theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+  #theme-toggle svg { width: 20px; height: 20px; display: block; }
+  body.touch-device #theme-toggle { top: 52px; left: 12px; bottom: auto; right: auto; }
+  @media (pointer: coarse) { #theme-toggle { top: 52px; left: 12px; bottom: auto; right: auto; } }
+  #touch-controls { position: absolute; inset: 0; pointer-events: none; display: none; z-index: 20; }
+  #touch-controls.active { display: block; }
+  .touch-group { position: absolute; bottom: 12px; display: flex; gap: 10px; pointer-events: auto; }
+  .touch-left { left: 12px; }
+  .touch-right { right: 12px; }
+  .tbtn {
+    width: var(--tbtn, 56px); height: var(--tbtn, 56px); border-radius: 12px; border: 2px solid var(--text);
+    background: var(--touch-bg); color: var(--text); font-family: var(--font-sans); font-weight: 700;
+    font-size: 16px; display: flex; align-items: center; justify-content: center; touch-action: none;
+  }
+  .tbtn.jump { width: calc(var(--tbtn, 56px) * 1.35); border-color: var(--accent); color: var(--accent); }
+  .tbtn.pressed { background: var(--text); color: var(--bg); }
+  .touch-top-right { position: absolute; top: 52px; right: 12px; display: flex; gap: 8px; pointer-events: auto; }
+  .tbtn.small { width: auto; min-height: 34px; padding: 0 10px; border-radius: 8px; font-size: 12px; }
+  #toast {
+    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--toast-bg);
+    border: 1px solid var(--accent); border-radius: 6px; color: var(--toast-text); padding: 9px 16px;
+    max-width: calc(100vw - 32px); font-size: 14px; font-weight: 600; opacity: 0; pointer-events: none;
+    transition: opacity 0.15s ease; z-index: 30; text-align: center;
+  }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <canvas id="game" width="960" height="540"></canvas>
+    <div id="touch-controls">
+      <div class="touch-top-right">
+        <button class="tbtn small" id="btn-touch-fs" style="display:none">FULL</button>
+      </div>
+      <div class="touch-group touch-left">
+        <button class="tbtn" id="btn-left">&lt;</button>
+        <button class="tbtn" id="btn-right">&gt;</button>
+      </div>
+      <div class="touch-group touch-right">
+        <button class="tbtn jump" id="btn-jump">JUMP</button>
+      </div>
+    </div>
+    <div id="toast"></div>
+    <button id="theme-toggle" type="button" aria-label="Toggle light or dark theme" title="Toggle theme"></button>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================================
+ * 0. LINK CONFIG (Relative paths for /max/ or standalone subdomain)
+ * ============================================================================ */
+const GAME_LINKS = {
+  originalUrl: "../index.html",
+  deathMusicUrl: "../death_music.js"
+};
+
+/* ============================================================================
+ * 1. TUNING CONSTANTS & PALETTE
+ * ============================================================================ */
+const LOGICAL_W = 960;
+const LOGICAL_H = 540;
+const TILE = 30;               // Exact GCD of 960 & 540 => 32x18 integer room grid
+const COLS = 32;
+const ROWS = 18;
+const FIXED_DT = 1 / 60;       // Deterministic 60 Hz simulation step
+
+// Physics & Fairness Constants (all human-fair windows >= 0.25s = 15 ticks)
+const PLAYER_W = 16;           // Forgiving hitbox width (< 22px drawn sprite)
+const PLAYER_H = 24;           // Forgiving hitbox height (< 26px drawn sprite)
+const SPRITE_W = 22;
+const SPRITE_H = 26;
+const SPIKE_INSET = 4;         // All moving spike hitboxes inset >= 4px smaller than drawn
+const GRAVITY = 1560;          // Jump arc ~98.7px (~3.29 tiles)
+const JUMP_CUT_MULT = 2.4;     // Crisp variable-height short hops on early release
+const MAX_FALL_SPEED = 660;    // Prevents tunneling across thin moving platforms
+const JUMP_VELOCITY = -555;    // Clears 3-tile ledges comfortably
+const MOVE_SPEED = 270;        // 4.5 px/tick crisp pacing across 3-4 room levels
+const GROUND_ACCEL = 2400;     // ~0.11s to top speed
+const GROUND_DECEL = 2800;     // ~0.096s tight ground stop
+const AIR_ACCEL = 1800;        // Responsive mid-air dodge steering
+const AIR_DECEL = 1200;        // Controlled air drift
+const ICE_DECEL = 320;         // Ice momentum glide
+const COYOTE_TICKS = 6;        // 100ms ledge coyote time
+const JUMP_BUFFER_TICKS = 6;   // 100ms pre-landing jump buffer
+const RESPAWN_TICKS = 8;       // 133ms instant reset (< 200ms target)
+const SLIDE_TICKS = 12;        // 200ms room-edge slide transition (< 300ms target)
+const MIN_HUMAN_WINDOW = 15;   // Minimum 0.25s human timing window
+
+const STORAGE_KEY = "trustmax_save_v1";
+const THEME_KEY = "trustmax_theme";
+const UI_FONT = '"Inter", "Segoe UI", system-ui, -apple-system, sans-serif';
+
+const PAL_DARK = {
+  BG: "#0A0D16", SURFACE: "#131828", WHITE: "#FFFFFE", MUTED: "#9FA8C7",
+  STONE: "#242B42", STONE_HOVER: "#323B59", BORDER: "#28304A",
+  CORAL: "#FF3366", GOLD: "#FFB800", CYAN: "#00E5FF", ACCENT_TEXT: "#0A0D16",
+  PANEL: "rgba(10, 13, 22, 0.94)", OVERLAY: "rgba(10, 13, 22, 0.90)", IS_LIGHT: false
+};
+const PAL_LIGHT = {
+  BG: "#F3F5FA", SURFACE: "#E4E8F2", WHITE: "#0F1320", MUTED: "#434B64",
+  STONE: "#CBD2E3", STONE_HOVER: "#BAC2D6", BORDER: "#B3BBD0",
+  CORAL: "#C81048", GOLD: "#B45309", CYAN: "#0284C7", ACCENT_TEXT: "#FFFFFE",
+  PANEL: "rgba(243, 245, 250, 0.95)", OVERLAY: "rgba(243, 245, 250, 0.92)", IS_LIGHT: true
+};
+const PAL = { ...PAL_DARK };
+
+function getInitialTheme() {
+  try {
+    const s = localStorage.getItem(THEME_KEY);
+    if (s === "light" || s === "dark") return s;
+  } catch (e) {}
+  return "dark";
+}
+function updateThemeBtn(theme) {
+  const b = document.getElementById("theme-toggle");
+  if (!b) return;
+  b.innerHTML = theme === "light"
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>';
+}
+let currentTheme = getInitialTheme();
+function applyTheme(t, persist = false) {
+  currentTheme = t === "light" ? "light" : "dark";
+  if (document.documentElement) {
+    if (currentTheme === "light") document.documentElement.setAttribute("data-theme", "light");
+    else document.documentElement.removeAttribute("data-theme");
+  }
+  Object.assign(PAL, currentTheme === "light" ? PAL_LIGHT : PAL_DARK);
+  updateThemeBtn(currentTheme);
+  if (persist) try { localStorage.setItem(THEME_KEY, currentTheme); } catch (e) {}
+}
+applyTheme(currentTheme, false);
+const themeBtn = document.getElementById("theme-toggle");
+if (themeBtn) themeBtn.addEventListener("click", () => applyTheme(currentTheme === "light" ? "dark" : "light", true));
+
+/* ============================================================================
+ * 2. EMBEDDED 5x7 BITMAP PIXEL FONT
+ * ============================================================================ */
+const FONT_5X7 = {
+  "A":[0x0E,0x11,0x11,0x1F,0x11,0x11,0x11],"B":[0x1E,0x11,0x11,0x1E,0x11,0x11,0x1E],
+  "C":[0x0E,0x11,0x10,0x10,0x10,0x11,0x0E],"D":[0x1C,0x12,0x11,0x11,0x11,0x12,0x1C],
+  "E":[0x1F,0x10,0x10,0x1E,0x10,0x10,0x1F],"F":[0x1F,0x10,0x10,0x1E,0x10,0x10,0x10],
+  "G":[0x0E,0x11,0x10,0x17,0x11,0x11,0x0F],"H":[0x11,0x11,0x11,0x1F,0x11,0x11,0x11],
+  "I":[0x0E,0x04,0x04,0x04,0x04,0x04,0x0E],"J":[0x07,0x02,0x02,0x02,0x02,0x12,0x0C],
+  "K":[0x11,0x12,0x14,0x18,0x14,0x12,0x11],"L":[0x10,0x10,0x10,0x10,0x10,0x10,0x1F],
+  "M":[0x11,0x1B,0x15,0x15,0x11,0x11,0x11],"N":[0x11,0x19,0x15,0x13,0x11,0x11,0x11],
+  "O":[0x0E,0x11,0x11,0x11,0x11,0x11,0x0E],"P":[0x1E,0x11,0x11,0x1E,0x10,0x10,0x10],
+  "Q":[0x0E,0x11,0x11,0x11,0x15,0x12,0x0D],"R":[0x1E,0x11,0x11,0x1E,0x14,0x12,0x11],
+  "S":[0x0F,0x10,0x10,0x0E,0x01,0x01,0x1E],"T":[0x1F,0x04,0x04,0x04,0x04,0x04,0x04],
+  "U":[0x11,0x11,0x11,0x11,0x11,0x11,0x0E],"V":[0x11,0x11,0x11,0x11,0x11,0x0A,0x04],
+  "W":[0x11,0x11,0x11,0x15,0x15,0x1B,0x11],"X":[0x11,0x11,0x0A,0x04,0x0A,0x11,0x11],
+  "Y":[0x11,0x11,0x0A,0x04,0x04,0x04,0x04],"Z":[0x1F,0x01,0x02,0x04,0x08,0x10,0x1F],
+  "0":[0x0E,0x11,0x13,0x15,0x19,0x11,0x0E],"1":[0x04,0x0C,0x04,0x04,0x04,0x04,0x0E],
+  "2":[0x0E,0x11,0x01,0x06,0x08,0x10,0x1F],"3":[0x1E,0x01,0x01,0x0E,0x01,0x01,0x1E],
+  "4":[0x02,0x06,0x0A,0x12,0x1F,0x02,0x02],"5":[0x1F,0x10,0x1E,0x01,0x01,0x11,0x0E],
+  "6":[0x06,0x08,0x10,0x1E,0x11,0x11,0x0E],"7":[0x1F,0x01,0x02,0x04,0x08,0x08,0x08],
+  "8":[0x0E,0x11,0x11,0x0E,0x11,0x11,0x0E],"9":[0x0E,0x11,0x11,0x0F,0x01,0x02,0x0C],
+  " ":[0,0,0,0,0,0,0],".":[0,0,0,0,0,0,0x04],",":[0,0,0,0,0,0x04,0x08],
+  ":":[0,0x04,0,0,0,0x04,0],"!":[0x04,0x04,0x04,0x04,0x04,0,0x04],
+  "?":[0x0E,0x11,0x02,0x04,0x04,0,0x04],"-":[0,0,0,0x1F,0,0,0],"+":[0,0x04,0x04,0x1F,0x04,0x04,0],
+  "/":[0x01,0x02,0x02,0x04,0x08,0x08,0x10],"=":[0,0,0x1F,0,0x1F,0,0],
+  "[":[0x0E,0x08,0x08,0x08,0x08,0x08,0x0E],"]":[0x0E,0x02,0x02,0x02,0x02,0x02,0x0E],
+  "(":[0x02,0x04,0x08,0x08,0x08,0x04,0x02],")":[0x08,0x04,0x02,0x02,0x02,0x04,0x08],
+  "<":[0x02,0x04,0x08,0x10,0x08,0x04,0x02],">":[0x08,0x04,0x02,0x01,0x02,0x04,0x08],
+  "%":[0x19,0x1A,0x02,0x04,0x08,0x0B,0x13],"'":[0x04,0x04,0x08,0,0,0,0],
+  "#":[0x0A,0x0A,0x1F,0x0A,0x1F,0x0A,0x0A]
+};
+function drawPixelText(ctx, text, x, y, scale, color, align = "left", bg = null, maxWidth = 0) {
+  const s = String(text);
+  const pxSize = scale >= 3 ? Math.round(scale * 7.2) : (scale >= 2 ? 15 : 12);
+  ctx.save();
+  ctx.font = `${scale >= 2.5 ? 700 : 600} ${pxSize}px ${UI_FONT}`;
+  ctx.textAlign = align;
+  ctx.textBaseline = "top";
+  if (bg) {
+    const m = Math.min(maxWidth || 900, ctx.measureText(s).width);
+    const bx = align === "center" ? x - m / 2 - 4 : (align === "right" ? x - m - 4 : x - 4);
+    ctx.fillStyle = bg; ctx.fillRect(bx, y - 2, m + 8, pxSize + 5);
+  }
+  ctx.fillStyle = color;
+  if (maxWidth > 0) ctx.fillText(s, x, y, maxWidth);
+  else ctx.fillText(s, x, y);
+  ctx.restore();
+}
+
+/* ============================================================================
+ * 3. WEB AUDIO SYNTHESIZER (Reused)
+ * ============================================================================ */
+class SoundEngine {
+  constructor() { this.ctx = null; this.muted = false; this.unlocked = false; }
+  unlock() {
+    if (this.unlocked) return;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      this.ctx = this.ctx || new AC();
+      if (this.ctx.state === "suspended") this.ctx.resume();
+      this.unlocked = true;
+    } catch (e) {}
+  }
+  play(name) {
+    if (this.muted || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime, o = this.ctx.createOscillator(), g = this.ctx.createGain();
+      o.connect(g); g.connect(this.ctx.destination);
+      if (name === "jump") {
+        o.type = "square"; o.frequency.setValueAtTime(220, now); o.frequency.exponentialRampToValueAtTime(520, now + 0.08);
+        g.gain.setValueAtTime(0.08, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+        o.start(now); o.stop(now + 0.09);
+      } else if (name === "death") {
+        o.type = "sawtooth"; o.frequency.setValueAtTime(190, now); o.frequency.exponentialRampToValueAtTime(52, now + 0.16);
+        g.gain.setValueAtTime(0.11, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.17);
+        o.start(now); o.stop(now + 0.17);
+      } else if (name === "edge") {
+        o.type = "triangle"; o.frequency.setValueAtTime(340, now); o.frequency.exponentialRampToValueAtTime(480, now + 0.06);
+        g.gain.setValueAtTime(0.06, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+        o.start(now); o.stop(now + 0.07);
+      } else if (name === "key" || name === "coin") {
+        o.type = "triangle"; o.frequency.setValueAtTime(660, now); o.frequency.setValueAtTime(990, now + 0.06);
+        g.gain.setValueAtTime(0.09, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+        o.start(now); o.stop(now + 0.14);
+      } else if (name === "win") {
+        o.type = "triangle";
+        [523, 659, 784, 1046].forEach((f, i) => o.frequency.setValueAtTime(f, now + i * 0.06));
+        g.gain.setValueAtTime(0.1, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.34);
+        o.start(now); o.stop(now + 0.34);
+      } else if (name === "flip" || name === "lock" || name === "slam") {
+        o.type = "square"; o.frequency.setValueAtTime(name === "slam" ? 130 : 410, now);
+        g.gain.setValueAtTime(0.07, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        o.start(now); o.stop(now + 0.08);
+      }
+    } catch (e) {}
+  }
+}
+const sfx = new SoundEngine();
+
+/* ============================================================================
+ * 4. ROOM BUILDER & LEVEL DATA REGISTRIES
+ * ============================================================================ */
+function buildRoom(fn, opts = {}) {
+  const g = Array.from({ length: ROWS }, () => Array(COLS).fill("."));
+  for (let c = 0; c < COLS; c++) { g[0][c] = "#"; g[ROWS - 1][c] = "#"; g[ROWS - 2][c] = "#"; g[ROWS - 3][c] = "#"; g[ROWS - 4][c] = "#"; }
+  for (let r = 0; r < ROWS; r++) { g[r][0] = "#"; g[r][COLS - 1] = "#"; }
+  // Open optional edges cleanly
+  if (opts.openLeft)  for (let r = 1; r <= 13; r++) g[r][0] = ".";
+  if (opts.openRight) for (let r = 1; r <= 13; r++) g[r][COLS - 1] = ".";
+  if (opts.openTop)   for (let c = opts.openTop[0]; c <= opts.openTop[1]; c++) g[0][c] = ".";
+  if (opts.openBottom)for (let c = opts.openBottom[0]; c <= opts.openBottom[1]; c++) { for (let r = 14; r < ROWS; r++) g[r][c] = "."; }
+
+  const api = {
+    set(c, r, ch) { if (r >= 0 && r < ROWS && c >= 0 && c < COLS) g[r][c] = ch; },
+    row(r, c1, c2, ch) { for (let c = c1; c <= c2; c++) api.set(c, r, ch); },
+    col(c, r1, r2, ch) { for (let r = r1; r <= r2; r++) api.set(c, r, ch); },
+    plat(c, r, w, ch = "#") { api.row(r, c, c + w - 1, ch); },
+    pit(c1, c2, spike = "^") {
+      for (let c = c1; c <= c2; c++) {
+        g[14][c] = "."; g[15][c] = spike; g[16][c] = "#"; g[17][c] = "#";
+      }
+    },
+    clearFloor(c1, c2) { for (let c = c1; c <= c2; c++) { for (let r = 14; r < ROWS; r++) g[r][c] = "."; } }
+  };
+  if (fn) fn(api);
+  return g.map(r => r.join(""));
+}
+
+const MAX_LEVELS = [];
+const MAX_SOLUTIONS = {};
+const DIFFICULTY_INDEX = [];
+const WORLDS = [
+  { id: 1, name: "THE WRAPAROUND", levels: [1, 15], unlockNeed: 1 }
+];
+
+function addMaxLevel(def) {
+  MAX_LEVELS.push(def);
+  DIFFICULTY_INDEX.push({
+    id: def.id,
+    chapter2Number: def.chapter2Number,
+    name: def.name,
+    score: def.score,
+    rooms: Object.keys(def.rooms).length,
+    spikeTypes: def.spikeTypes || [],
+    twist: def.twist || def.mechanic,
+    tell: def.tell,
+    estTime: def.estTime || "45-75s",
+    solutionSummary: def.solutionSummary || ""
+  });
+}
+
+function assertDifficultyNonDecreasing() {
+  const errors = [];
+  for (let i = 1; i < DIFFICULTY_INDEX.length; i++) {
+    if (DIFFICULTY_INDEX[i].score < DIFFICULTY_INDEX[i - 1].score) {
+      errors.push(`L${DIFFICULTY_INDEX[i].id} (${DIFFICULTY_INDEX[i].score}) < L${DIFFICULTY_INDEX[i - 1].id} (${DIFFICULTY_INDEX[i - 1].score})`);
+    }
+  }
+  return { ok: errors.length === 0, errors };
+}
+
+/* ============================================================================
+ * 5. LEVEL GRAPH VALIDATOR (Reachability of all rooms, keys, and Goal Door)
+ * ============================================================================ */
+function validateLevelGraph(def) {
+  const roomIds = Object.keys(def.rooms || {});
+  if (!roomIds.includes(def.startRoom)) return { ok: false, reason: `Invalid startRoom ${def.startRoom}` };
+  if (!def.goal || !roomIds.includes(def.goal.room)) return { ok: false, reason: `Invalid goal room` };
+
+  const reached = new Set([def.startRoom]);
+  const q = [def.startRoom];
+  while (q.length > 0) {
+    const r = q.shift();
+    const ed = (def.edges && def.edges[r]) || {};
+    const targets = [];
+    for (const dir of ["left", "right", "top", "bottom"]) {
+      if (ed[dir] && ed[dir].to) targets.push(ed[dir].to);
+    }
+    if (Array.isArray(ed.hidden)) {
+      for (const h of ed.hidden) if (h && h.to) targets.push(h.to);
+    }
+    for (const to of targets) {
+      if (!def.rooms[to]) return { ok: false, reason: `Edge from ${r} points to missing room ${to}` };
+      if (!reached.has(to)) { reached.add(to); q.push(to); }
+    }
+  }
+  const unreachable = roomIds.filter(r => !reached.has(r));
+  if (unreachable.length) return { ok: false, reason: `Unreachable rooms: ${unreachable.join(",")}` };
+
+  // Count keys placed across reachable rooms
+  let totalKeys = 0;
+  for (const r of reached) totalKeys += (def.rooms[r].keys || []).length;
+  if ((def.keysRequired || 0) > totalKeys) {
+    return { ok: false, reason: `Requires ${def.keysRequired} keys but only ${totalKeys} placed` };
+  }
+  if (!reached.has(def.goal.room)) return { ok: false, reason: `Goal room ${def.goal.room} unreachable` };
+  return { ok: true, rooms: roomIds.length, keys: totalKeys };
+}
+
+function validateAllLevels() {
+  const results = MAX_LEVELS.map(l => ({ id: l.id, name: l.name, ...validateLevelGraph(l) }));
+  const diffCheck = assertDifficultyNonDecreasing();
+  const ok = results.every(r => r.ok) && diffCheck.ok;
+  return { ok, results, diffCheck };
+}
+
+/* ============================================================================
+ * 6. NARRATOR RIDDLE-HINT SYSTEM (No literal answers, 4/8/12 escalation)
+ * ============================================================================ */
+const MAX_RIDDLES = {
+  1: {
+    tell: "Open wrap borders & faint balcony door in Room 1",
+    r1: "What you hunt sits above your cradle, locked by stone below.",
+    r2: "Not every road ends where it stops—follow the open margin forward.",
+    r3: "Dodging patrols and falling waves brings the sky straight back to Room 1."
+  },
+  2: {
+    tell: "Upper loop shelf in R2 leads back above R1",
+    r1: "A circle brings you home, yet home has a second floor.",
+    r2: "Slip past the spinning orb and swing when the pendulum pauses high.",
+    r3: "Climb the far balcony to wrap into Room 1's upper skyway."
+  },
+  3: {
+    tell: "Open left border at spawn & diagonal bounce corners",
+    r1: "Everyone marches right because the arrow expects it of you.",
+    r2: "Turn your back on the solid wall—the open margin behind your heels goes onward.",
+    r3: "Step past bouncing angles and conveyor belts until the final frame."
+  },
+  4: {
+    tell: "Gold sprite tint & synchronized crimson mirror flashes",
+    r1: "When your coat turns gold, your thumb's left and right traded shoes.",
+    r2: "A mirror room remembers every spike the moment you awaken in the glass.",
+    r3: "Read the gold tint and belt chevrons before your mirror twin pays the price."
+  },
+  5: {
+    tell: "Open pit shaft floor, ring golden gap arc, and gold slam warning",
+    r1: "When the floor drops away cleanly, falling is the only staircase.",
+    r2: "Seek the golden arc in the spinning ring; walls only slam after blushing gold.",
+    r3: "Drop the shaft between side-teeth, slip through the ring's gap, and wrap out."
+  },
+  6: {
+    tell: "Pulsing 4px cyan seam inside the right wall",
+    r1: "Stone pretends to be solid even when a breeze flickers at shoulder height.",
+    r2: "Look for the shivering blue thread on the masonry.",
+    r3: "Climb the steps to brush the flickering seam—orbits and sky-waves guard the rest."
+  },
+  7: {
+    tell: "Edge-crossing needles & animated floor belts",
+    r1: "What marches off the right margin is already knocking on the left.",
+    r2: "Belts carry teeth while crossing guards ignore room borders.",
+    r3: "Step over patrols, read the conveyor rhythm, and follow them across the edge."
+  },
+  8: {
+    tell: "1 gold Key orb guarded by spinning ring & slamming jaw",
+    r1: "Three rooms share one door, and none of them hand over brass cheaply.",
+    r2: "The spinning wheel hides your prize inside a crimson ring.",
+    r3: "Claim the gold key in the second hall before looping home to unlock the frame."
+  },
+  9: {
+    tell: "Gold standable platform tops vs red bottom blades & chained orbits",
+    r1: "Even a flying raft wears knives along its belly.",
+    r2: "Twin planets share one leash while the raft carries you above pits.",
+    r3: "Ride the gilded tops cleanly past chained orbits and pendulum arcs."
+  },
+  10: {
+    tell: "Advancing room-to-room chaser wall & crosshair lock-on laser",
+    r1: "Doors behind you only delay what is already hunting.",
+    r2: "First the golden sight measures your pulse; then stone answers.",
+    r3: "Outrun the room-to-room wall, dodge the lock-on bolts, and slip the final slam."
+  },
+  11: {
+    tell: "2px coral keyhole pixels on fake doors & open left wrong-way edge",
+    r1: "Two gilded frames smile identically—yet the liars bleed at the keyhole.",
+    r2: "Leave the wrong shoulder behind if the right wall refuses to open.",
+    r3: "Spot the spotless frame past patrolling teeth and sky-wave shadows."
+  },
+  12: {
+    tell: "Coral scrambled 'MAP?' indicator vs honest pendulum dotted arcs",
+    r1: "Even ink on parchment can forget which door touches which.",
+    r2: "Ignore the bragging map; read the ceiling bolts and swinging shadows.",
+    r3: "Borrow the quiet breath between paired pendulums and slamming stone."
+  },
+  13: {
+    tell: "Cracked collapsing seams, belt chevrons & 1 key on return loop",
+    r1: "The floor beneath your heels vanishes—only to forgive you two seconds later.",
+    r2: "Belts push needles toward the loop while aim-lasers measure your chest.",
+    r3: "Snatch the third hall's brass key before riding the loop home above R1."
+  },
+  14: {
+    tell: "Rail flashes before iron spike train + cyan seam + gold mirror coat",
+    r1: "Six kinds of threshold live under one roof—from shafts to shivering blue seams.",
+    r2: "Listen to the rails before the iron caravan sweeps the track.",
+    r3: "Pass the blue seam, reverse in the mirror, and ride between train wagons."
+  },
+  15: {
+    tell: "2 brass keys, cross-room pursuing wall & locked R1 upper return door",
+    r1: "Every trick of Chapter Two meets where your first boot touched stone.",
+    r2: "Two brass keys sleep in separate halls while a hungry wall stalks behind.",
+    r3: "Carry both keys through the loop back into Room 1's crown before the chaser arrives."
+  }
+};
+
+const GENERIC_MAX_RIDDLES = [
+  { tag: "wrap", text: "Not every road ends where it stops." },
+  { tag: "wrap", text: "Step off the page if the page forgets to build a border." },
+  { tag: "shaft", text: "A hole in the floor is sometimes an elevator without cables." },
+  { tag: "loop", text: "Walk far enough in a circle and home starts looking unfamiliar." },
+  { tag: "wrongWay", text: "Backwards is only a rumor started by your compass." },
+  { tag: "mirror", text: "Look twice when the glass answers back—everything swaps its coat." },
+  { tag: "hiddenEdge", text: "A flickering 2-pixel draft means the masonry forgot to lock." },
+  { tag: "patrol", text: "Needles on a groove keep strict train schedules; borrow their gaps." },
+  { tag: "orbit", text: "Planets obey the center bolt; slip between the spokes." },
+  { tag: "pendulum", text: "A swinging metronome always pauses twice at the top of its breath." },
+  { tag: "slamWall", text: "When stone blushes gold, the jaws are about to close." },
+  { tag: "conveyor", text: "Chevrons push steel toward hurried boots—never race the belt flat-footed." },
+  { tag: "lockedAim", text: "First the crimson dot measures you; then it walks in a straight line forever." },
+  { tag: "rainWave", text: "The floor blushes from left to right a heartbeat before the sky answers." },
+  { tag: "zigzag", text: "Geometry bounces at polite angles if you respect the corners." },
+  { tag: "ring", text: "Look for the golden arc in the spinning crown—that window stays open." },
+  { tag: "train", text: "The rail flashes before the iron caravan roars through the hall." },
+  { tag: "edgeCross", text: "Even spikes follow you across screen borders when the walls are open." },
+  { tag: "platRider", text: "A golden roof carries you, while its crimson ribs remember to bite." },
+  { tag: "mirrorSpike", text: "What awakens in this room echoes instantly inside the looking-glass." },
+  { tag: "globalChaser", text: "Doors behind you won't lock out a hungry wall." },
+  { tag: "collapse", text: "Stand on cracked stone too long and it remembers how to fall." },
+  { tag: "keyLock", text: "A sealed door asks for brass before it respects your feet." },
+  { tag: "lyingMap", text: "Paper maps brag when they don't know where the ink really goes." },
+  { tag: "fakeDoor", text: "The brightest exit rarely keeps its manners." },
+  { tag: "hiddenGoal", text: "Look for a timid gold pulse where the bricks try to hide a hinge." }
+];
+
+function getActiveMaxRiddle(state) {
+  if (!state || !state.def) return null;
+  const mode = progress.riddleMode || "deaths";
+  if (mode === "off") return null;
+  if (state.totalTick < 120) return null; // Never show in first 2s after respawn
+  if (state.decodedText) return { text: state.decodedText, alpha: 1 };
+
+  const deaths = state.levelDeaths || 0;
+  let tier = 0;
+  if (deaths >= 12) tier = 3;
+  else if (deaths >= 8) tier = 2;
+  else if (deaths >= 4) tier = 1;
+  else if (mode === "always") tier = 1;
+  if (tier === 0) return null;
+
+  if (state.totalTick > 420) return null; // 5s fade-out (300 ticks: 120..420)
+  const alpha = progress.streamerSafe ? 1 : (state.totalTick > 390 ? Math.max(0, (420 - state.totalTick) / 30) : 1);
+
+  const custom = MAX_RIDDLES[state.def.id];
+  let text = "";
+  if (custom) {
+    text = tier === 3 ? custom.r3 : (tier === 2 ? custom.r2 : custom.r1);
+  } else {
+    const tag = (state.def.spikeTypes && state.def.spikeTypes[0]) || "wrap";
+    const pool = GENERIC_MAX_RIDDLES.filter(g => g.tag === tag);
+    text = (pool.length ? pool[(state.def.id + tier) % pool.length] : GENERIC_MAX_RIDDLES[state.def.id % GENERIC_MAX_RIDDLES.length]).text;
+  }
+  if (!progress.streamerSafe) {
+    const chars = Math.min(text.length, Math.floor((state.totalTick - 120) * 1.4) + 1);
+    text = text.slice(0, chars);
+  }
+  return { text, alpha };
+}
+
+/* ============================================================================
+ * 7. WORLD 1: "THE WRAPAROUND" — LEVELS 1-5 (chapter2Number 101-105)
+ * ============================================================================ */
+// LEVEL 1: Simple wrap (door hidden on sealed top balcony near start)
+addMaxLevel({
+  id: 1, chapter2Number: 101, world: 1, name: "FIRST WRAP", score: 14,
+  spikeTypes: ["patrol", "rainWave"],
+  twist: "Goal hides right above spawn behind stone; wrap through Rooms 1 -> 2 -> 3 back onto Room 1's balcony.",
+  tell: "Open wrap borders & faint gold-cyan shimmer on the balcony door.",
+  solutionSummary: "Jump the floor patrols across R1 -> R2 -> R3, dodge the rainWave shadows, and wrap onto R1's upper balcony.",
+  estTime: "40-55s",
+  startRoom: "r1", start: { col: 3, row: 13 },
+  goal: { room: "r1", col: 3, row: 7, hiddenTell: "seam_glow" },
+  keysRequired: 0,
+  rooms: {
+    r1: {
+      label: "R1: SEALED BALCONY",
+      grid: buildRoom(g => {
+        g.plat(1, 8, 9, "#"); g.col(10, 1, 8, "#"); // Seals top balcony from spawn below
+        g.pit(13, 14, "^");
+      }, { openRight: true, openLeft: true }),
+      movingSpikes: [
+        { id: "p1", kind: "patrol", axis: "x", min: 7*30, max: 11*30, y: 13*30+12, w: 20, h: 20, period: 95 }
+      ]
+    },
+    r2: {
+      label: "R2: RAIN WAVE HALL",
+      grid: buildRoom(g => { g.pit(9, 10, "^"); g.pit(21, 22, "^"); }, { openLeft: true, openRight: true }),
+      movingSpikes: [
+        { id: "rw1", kind: "rainWave", from: "top", cols: [13, 15, 17, 19], period: 110, stagger: 12, warnTicks: 30 }
+      ]
+    },
+    r3: {
+      label: "R3: WRAP TO BALCONY",
+      grid: buildRoom(g => { g.plat(20, 11, 4, "#"); g.plat(25, 8, 6, "#"); g.pit(11, 12, "^"); }, { openLeft: true, openRight: true }),
+      movingSpikes: [
+        { id: "p1b", kind: "patrol", axis: "x", min: 14*30, max: 18*30, y: 13*30+12, w: 20, h: 20, period: 90 }
+      ]
+    }
+  },
+  edges: {
+    r1: { right: { to: "r2", type: "wrap", spawn: "left" } },
+    r2: { right: { to: "r3", type: "wrap", spawn: "left" }, left: { to: "r1", type: "wrap", spawn: "right" } },
+    r3: { right: { to: "r1", type: "wrap", spawnCol: 7, spawnRow: 7 }, left: { to: "r2", type: "wrap", spawn: "right" } }
+  }
+});
+MAX_SOLUTIONS[1] = [{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":80},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":60},{"left":true,"ticks":8},{"right":true,"jump":true,"ticks":50},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":48},{"right":true,"jump":true,"ticks":60},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":30},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":50},{"right":true,"ticks":16},{"right":true,"jump":true,"ticks":40},{"left":true,"jump":true,"ticks":30},{"left":true,"ticks":4}];
+
+// LEVEL 2: Two-room loop (loop R1 <-> R2 upper shelf to unlock R3 goal)
+addMaxLevel({
+  id: 2, chapter2Number: 102, world: 1, name: "TWO-ROOM LOOP", score: 21,
+  spikeTypes: ["orbit", "pendulum"],
+  twist: "R1 and R2 loop on the floor until you climb R2's upper balcony, which loops back above R1 to R3.",
+  tell: "Orbit ring bolt at center; pendulum arc pauses twice at apex.",
+  solutionSummary: "Cross R1 under the pendulum into R2, climb past the orbit orbs onto R2's upper shelf, loop over R1 into R3.",
+  estTime: "45-65s",
+  startRoom: "r1", start: { col: 3, row: 13 },
+  goal: { room: "r3", col: 28, row: 13, hiddenTell: "seam_glow" },
+  keysRequired: 0,
+  rooms: {
+    r1: {
+      label: "R1: LOOP LOWER / UPPER",
+      grid: buildRoom(g => { g.plat(24, 9, 8, "#"); g.pit(13, 14, "^"); }, { openRight: true }),
+      movingSpikes: [
+        { id: "pen2", kind: "pendulum", px: 16*30, py: 4*30, len: 220, maxAngle: 0.65, period: 110, phase0: 0, w: 20, h: 20 }
+      ]
+    },
+    r2: {
+      label: "R2: ORBIT CLIMB",
+      grid: buildRoom(g => {
+        g.plat(16, 12, 4, "#"); g.plat(22, 10, 4, "#"); g.plat(14, 8, 6, "#");
+        g.pit(9, 10, "^");
+      }, { openLeft: true, openRight: true }),
+      movingSpikes: [
+        { id: "orb2", kind: "orbit", cx: 14*30, cy: 10*30, r: 46, count: 2, omega: 0.04, phase0: 0, w: 18, h: 18 }
+      ]
+    },
+    r3: {
+      label: "R3: EXIT VAULT",
+      grid: buildRoom(g => { g.pit(10, 11, "^"); g.pit(20, 21, "^"); }, { openLeft: true }),
+      movingSpikes: [
+        { id: "pen2b", kind: "pendulum", px: 16*30, py: 4*30, len: 210, maxAngle: 0.7, period: 100, phase0: 1.5, w: 20, h: 20 }
+      ]
+    }
+  },
+  edges: {
+    r1: { right: { to: "r2", type: "loop", spawn: "left" } },
+    r2: { left: { to: "r1", type: "loop", spawn: "right" }, right: { to: "r3", type: "wrap", spawn: "left" } },
+    r3: { left: { to: "r2", type: "wrap", spawn: "right" } }
+  }
+});
+MAX_SOLUTIONS[2] = [{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":10},{"left":true,"ticks":8},{"jump":true,"ticks":10},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":10},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":30},{"right":true,"ticks":72},{"right":true,"jump":true,"ticks":50},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":20},{"left":true,"ticks":8},{"jump":true,"ticks":10},{"right":true,"jump":true,"ticks":20},{"right":true,"ticks":40},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":24},{"right":true,"jump":true,"ticks":60},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":32},{"right":true,"jump":true,"ticks":10},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":29}];
+
+// LEVEL 3: Wrong-way edge (leaving LEFT goes forward!)
+addMaxLevel({
+  id: 3, chapter2Number: 103, world: 1, name: "WRONG-WAY EDGE", score: 28,
+  spikeTypes: ["patrol", "zigzag", "conveyor"],
+  twist: "Right side of R1 ends in a solid wall; exiting LEFT goes forward into R2 -> R3.",
+  tell: "Open left border at spawn & animated conveyor chevrons below floor spikes.",
+  solutionSummary: "Leave LEFT out of R1, cross the conveyor & zigzag spike in R2, then clear R3's patrols to the exit.",
+  estTime: "50-75s",
+  startRoom: "r1", start: { col: 14, row: 13 },
+  goal: { room: "r3", col: 28, row: 13, hiddenTell: "seam_glow" },
+  keysRequired: 0,
+  rooms: {
+    r1: {
+      label: "R1: DEAD END RIGHT",
+      grid: buildRoom(g => { g.pit(6, 7, "^"); }, { openLeft: true }),
+      movingSpikes: [
+        { id: "p3", kind: "patrol", axis: "x", min: 9*30, max: 12*30, y: 13*30+12, w: 20, h: 20, period: 85 }
+      ]
+    },
+    r2: {
+      label: "R2: CONVEYOR & ZIGZAG",
+      grid: buildRoom(g => { g.pit(12, 13, "^"); g.pit(21, 22, "^"); }, { openLeft: true, openRight: true }),
+      movingSpikes: [
+        { id: "conv3", kind: "conveyor", x1: 6*30, x2: 11*30, y: 13*30+10, speed: -2.0, spacing: 80 },
+        { id: "zig3", kind: "zigzag", x: 15*30, y: 8*30, vx: 2.5, vy: 2.1, bounds: { x1: 14*30, x2: 20*30, y1: 5*30, y2: 13*30+10 }, w: 20, h: 20 }
+      ]
+    },
+    r3: {
+      label: "R3: WRONG-WAY GOAL",
+      grid: buildRoom(g => { g.pit(10, 11, "^"); g.pit(19, 20, "^"); }, { openLeft: true }),
+      movingSpikes: [
+        { id: "p3b", kind: "patrol", axis: "x", min: 13*30, max: 18*30, y: 13*30+12, w: 20, h: 20, period: 80 },
+        { id: "zig3b", kind: "zigzag", x: 22*30, y: 7*30, vx: 2.4, vy: 2.2, bounds: { x1: 21*30, x2: 26*30, y1: 5*30, y2: 13*30+10 }, w: 20, h: 20 }
+      ]
+    }
+  },
+  edges: {
+    r1: { left: { to: "r2", type: "wrongWay", spawn: "left" } },
+    r2: { left: { to: "r1", type: "wrap", spawn: "right" }, right: { to: "r3", type: "wrap", spawn: "left" } },
+    r3: { left: { to: "r2", type: "wrap", spawn: "right" } }
+  }
+});
+MAX_SOLUTIONS[3] = [{"left":true,"jump":true,"ticks":20},{"left":true,"ticks":8},{"left":true,"jump":true,"ticks":10},{"left":true,"ticks":8},{"left":true,"jump":true,"ticks":10},{"left":true,"ticks":8},{"left":true,"jump":true,"ticks":20},{"left":true,"ticks":8},{"left":true,"jump":true,"ticks":10},{"right":true,"jump":true,"ticks":30},{"left":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":10},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":20},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":32},{"right":true,"jump":true,"ticks":60},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":24},{"right":true,"jump":true,"ticks":10},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":30},{"right":true,"ticks":7}];
+
+// LEVEL 4: Mirror room (controls reversed + synchronized mirror spikes)
+addMaxLevel({
+  id: 4, chapter2Number: 104, world: 1, name: "MIRROR CHAMBER", score: 35,
+  spikeTypes: ["mirrorSpike", "conveyor", "orbit"],
+  twist: "Entering R2 and R4 flips horizontal controls (gold player tint) while mirror spikes flash in sync.",
+  tell: "Gold player sprite + crimson flashing warning squares before mirror spikes ignite.",
+  solutionSummary: "Cross R1, adapt to reversed controls in R2, pass the R3 belt & orbit, and reverse-walk into R4's goal.",
+  estTime: "60-85s",
+  startRoom: "r1", start: { col: 3, row: 13 },
+  goal: { room: "r4", col: 27, row: 13, hiddenTell: "seam_glow" },
+  keysRequired: 0,
+  rooms: {
+    r1: {
+      label: "R1: GLASS APPROACH",
+      grid: buildRoom(g => { g.pit(11, 12, "^"); }, { openRight: true }),
+      movingSpikes: [
+        { id: "orb4a", kind: "orbit", cx: 18*30, cy: 11*30, r: 52, count: 2, omega: 0.045, phase0: 0, w: 18, h: 18 }
+      ]
+    },
+    r2: {
+      label: "R2: MIRROR ROOM (FLIPPED)",
+      flipX: true,
+      grid: buildRoom(g => { g.pit(9, 10, "^"); g.pit(19, 20, "^"); }, { openLeft: true, openRight: true }),
+      movingSpikes: [
+        { id: "mir4a", kind: "mirrorSpike", x: 14*30, y: 12*30+12, w: 28, h: 28, period: 95, warnTicks: 30, offset: 0 },
+        { id: "mir4b", kind: "mirrorSpike", x: 23*30, y: 12*30+12, w: 28, h: 28, period: 95, warnTicks: 30, offset: 45 }
+      ]
+    },
+    r3: {
+      label: "R3: CONVEYOR BRIDGE",
+      grid: buildRoom(g => { g.pit(14, 15, "^"); }, { openLeft: true, openRight: true }),
+      movingSpikes: [
+        { id: "conv4", kind: "conveyor", x1: 7*30, x2: 13*30, y: 13*30+10, speed: 2.2, spacing: 85 },
+        { id: "orb4b", kind: "orbit", cx: 21*30, cy: 11*30, r: 48, count: 2, omega: -0.045, phase0: 0, w: 18, h: 18 }
+      ]
+    },
+    r4: {
+      label: "R4: REFLECTED EXIT",
+      flipX: true,
+      grid: buildRoom(g => { g.pit(12, 13, "^"); }, { openLeft: true }),
+      movingSpikes: [
+        { id: "mir4c", kind: "mirrorSpike", x: 18*30, y: 12*30+12, w: 30, h: 28, period: 90, warnTicks: 28, offset: 20 }
+      ]
+    }
+  },
+  edges: {
+    r1: { right: { to: "r2", type: "mirror", spawn: "left", mirrorX: true } },
+    r2: { left: { to: "r1", type: "wrap", spawn: "right" }, right: { to: "r3", type: "wrap", spawn: "left" } },
+    r3: { left: { to: "r2", type: "mirror", spawn: "right", mirrorX: true }, right: { to: "r4", type: "mirror", spawn: "left", mirrorX: true } },
+    r4: { left: { to: "r3", type: "wrap", spawn: "right" } }
+  }
+});
+MAX_SOLUTIONS[4] = [{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":80},{"right":true,"ticks":56},{"right":true,"jump":true,"ticks":10},{"left":true,"jump":true,"ticks":40},{"left":true,"ticks":8},{"left":true,"jump":true,"ticks":30},{"right":true,"ticks":8},{"left":true,"jump":true,"ticks":20},{"left":true,"ticks":16},{"right":true,"ticks":8},{"left":true,"jump":true,"ticks":50},{"left":true,"ticks":32},{"left":true,"jump":true,"ticks":10},{"right":true,"jump":true,"ticks":30},{"left":true,"ticks":8},{"right":true,"jump":true,"ticks":50},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":70},{"right":true,"ticks":40},{"right":true,"jump":true,"ticks":10},{"left":true,"jump":true,"ticks":50},{"left":true,"ticks":8},{"left":true,"jump":true,"ticks":40},{"left":true,"ticks":72}];
+
+// LEVEL 5: Shaft into a spike-lined room + spinning ring & slam wall
+addMaxLevel({
+  id: 5, chapter2Number: 105, world: 1, name: "SHAFT OF TEETH", score: 42,
+  spikeTypes: ["ring", "slamWall", "patrol"],
+  twist: "Drop straight down open vertical shafts lined with wall spikes into a spinning ring room.",
+  tell: "Golden gap arc on rotating ring; gold slam telegraph before walls shut.",
+  solutionSummary: "Drop down R1's right shaft into R2, slip past R2's ring gap down to R3, beat the slam walls to R4's exit.",
+  estTime: "65-95s",
+  startRoom: "r1", start: { col: 3, row: 13 },
+  goal: { room: "r4", col: 28, row: 13, hiddenTell: "seam_glow" },
+  keysRequired: 0,
+  rooms: {
+    r1: {
+      label: "R1: SHAFT ENTRY",
+      grid: buildRoom(g => { g.pit(10, 11, "^"); g.clearFloor(20, 23); }, { openBottom: [20, 23] }),
+      movingSpikes: [
+        { id: "p5a", kind: "patrol", axis: "x", min: 13*30, max: 18*30, y: 13*30+12, w: 20, h: 20, period: 85 }
+      ]
+    },
+    r2: {
+      label: "R2: SPIKE-LINED SHAFT",
+      grid: buildRoom(g => {
+        g.set(19, 6, ">"); g.set(19, 9, ">"); g.set(24, 7, "<"); g.set(24, 10, "<");
+        g.plat(16, 14, 10, "#"); g.clearFloor(6, 9);
+      }, { openTop: [20, 23], openBottom: [6, 9] }),
+      movingSpikes: [
+        { id: "ring5", kind: "ring", cx: 12*30, cy: 12*30, r: 54, count: 8, gapIdx: 0, omega: 0.038 }
+      ]
+    },
+    r3: {
+      label: "R3: SLAM CORRIDOR",
+      grid: buildRoom(g => { g.pit(14, 15, "^"); }, { openTop: [6, 9], openRight: true }),
+      movingSpikes: [
+        { id: "slam5", kind: "slamWall", x: 18*30, y: 5*30, slamToX: 18*30, slamToY: 11*30+12, w: 28, h: 72, period: 110, warnTicks: 30, holdTicks: 24 },
+        { id: "p5b", kind: "patrol", axis: "x", min: 21*30, max: 26*30, y: 13*30+12, w: 20, h: 20, period: 80 }
+      ]
+    },
+    r4: {
+      label: "R4: FLOOR GAUNTLET EXIT",
+      grid: buildRoom(g => { g.pit(9, 10, "^"); g.pit(19, 20, "^"); }, { openLeft: true }),
+      movingSpikes: [
+        { id: "ring5b", kind: "ring", cx: 15*30, cy: 12*30, r: 50, count: 8, gapIdx: 0, omega: -0.04 },
+        { id: "slam5b", kind: "slamWall", x: 23*30, y: 5*30, slamToX: 23*30, slamToY: 11*30+12, w: 26, h: 72, period: 105, warnTicks: 28, holdTicks: 22 }
+      ]
+    }
+  },
+  edges: {
+    r1: { bottom: { to: "r2", type: "shaft", spawn: "top" } },
+    r2: { top: { to: "r1", type: "shaft", spawn: "bottom" }, bottom: { to: "r3", type: "shaft", spawn: "top" } },
+    r3: { top: { to: "r2", type: "shaft", spawn: "bottom" }, right: { to: "r4", type: "wrap", spawn: "left" } },
+    r4: { left: { to: "r3", type: "wrap", spawn: "right" } }
+  }
+});
+MAX_SOLUTIONS[5] = [{"right":true,"ticks":48},{"right":true,"jump":true,"ticks":20},{"right":true,"ticks":16},{"right":true,"jump":true,"ticks":10},{"right":true,"ticks":16},{"jump":true,"ticks":10},{"left":true,"jump":true,"ticks":10},{"jump":true,"ticks":20},{"left":true,"jump":true,"ticks":30},{"left":true,"ticks":56},{"right":true,"jump":true,"ticks":50},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":32},{"right":true,"jump":true,"ticks":10},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":80},{"left":true,"ticks":8},{"right":true,"jump":true,"ticks":20},{"left":true,"ticks":8},{"right":true,"ticks":8},{"left":true,"ticks":16},{"right":true,"ticks":24},{"left":true,"jump":true,"ticks":10},{"ticks":8},{"jump":true,"ticks":20},{"right":true,"ticks":32},{"right":true,"jump":true,"ticks":10},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40}];
+
+// LEVEL 6: Hidden edge found via pulsing cyan wall seam tell
+addMaxLevel({
+  id: 6, chapter2Number: 106, world: 1, name: "HIDDEN SEAM", score: 48,
+  spikeTypes: ["orbit", "patrol", "rainWave"],
+  twist: "R1 appears completely walled off; climb ledges to reach a pulsing 4px cyan hidden seam inside the right wall.",
+  tell: "Pulsing 4px cyan vertical seam at col 29, rows 8..9.",
+  solutionSummary: "Dodge the floor patrol & orbit orb to climb R1's ledges, enter the cyan hidden seam -> R2 rainWave -> R3 goal.",
+  estTime: "65-95s",
+  startRoom: "r1", start: { col: 3, row: 13 },
+  goal: { room: "r3", col: 28, row: 13, hiddenTell: "seam_glow" },
+  keysRequired: 0,
+  rooms: {
+    r1: {
+      label: "R1: SEALED HALL?",
+      grid: buildRoom(g => {
+        g.plat(16, 12, 4, "#"); g.plat(22, 10, 6, "#");
+        g.pit(11, 12, "^");
+      }),
+      movingSpikes: [
+        { id: "p6", kind: "patrol", axis: "x", min: 6*30, max: 10*30, y: 13*30+12, w: 20, h: 20, period: 85 },
+        { id: "orb6", kind: "orbit", cx: 20*30, cy: 8*30+15, r: 46, count: 2, omega: 0.04, phase0: 0, w: 18, h: 18 }
+      ]
+    },
+    r2: {
+      label: "R2: SEQUENTIAL STORM",
+      grid: buildRoom(g => { g.pit(9, 10, "^"); g.pit(21, 22, "^"); }, { openLeft: true, openRight: true }),
+      movingSpikes: [
+        { id: "rw6", kind: "rainWave", from: "top", cols: [13, 15, 17, 19], period: 95, stagger: 10, warnTicks: 26 },
+        { id: "p6b", kind: "patrol", axis: "x", min: 23*30, max: 27*30, y: 13*30+12, w: 20, h: 20, period: 80 }
+      ]
+    },
+    r3: {
+      label: "R3: BEYOND THE WALL",
+      grid: buildRoom(g => { g.pit(12, 13, "^"); g.pit(21, 22, "^"); }, { openLeft: true }),
+      movingSpikes: [
+        { id: "orb6b", kind: "orbit", cx: 17*30, cy: 11*30, r: 52, count: 3, omega: -0.04, phase0: 0, w: 18, h: 18 }
+      ]
+    }
+  },
+  edges: {
+    r1: { hidden: [{ rect: { x: 29*30, y: 7*30, w: 30, h: 90 }, to: "r2", type: "hiddenEdge", spawn: "left", spawnRow: 13 }] },
+    r2: { left: { to: "r1", type: "wrap", spawn: "right" }, right: { to: "r3", type: "wrap", spawn: "left" } },
+    r3: { left: { to: "r2", type: "wrap", spawn: "right" } }
+  }
+});
+MAX_SOLUTIONS[6] = [{"right":true,"jump":true,"ticks":40},{"left":true,"ticks":8},{"right":true,"jump":true,"ticks":70},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":20},{"left":true,"jump":true,"ticks":10},{"left":true,"ticks":8},{"left":true,"jump":true,"ticks":10},{"right":true,"jump":true,"ticks":10},{"left":true,"ticks":8},{"right":true,"jump":true,"ticks":80},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":30},{"left":true,"ticks":8},{"ticks":8},{"right":true,"jump":true,"ticks":50},{"right":true,"ticks":16},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":10},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":90},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":16},{"right":true,"jump":true,"ticks":10},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":29}];
+
+// LEVEL 7: Wrap + cross-border patrols & conveyor spikes
+addMaxLevel({
+  id: 7, chapter2Number: 107, world: 1, name: "BORDER PATROL", score: 54,
+  spikeTypes: ["patrol", "edgeCross", "conveyor"],
+  twist: "Spikes cross screen margins cleanly between linked rooms alongside opposing belts.",
+  tell: "Edge-crossing markers + floor chevron belts.",
+  solutionSummary: "Weave past border-crossing spikes and opposing conveyor belts across R1 -> R2 -> R3.",
+  estTime: "75-110s",
+  startRoom: "r1", start: { col: 3, row: 13 },
+  goal: { room: "r3", col: 28, row: 13, hiddenTell: "seam_glow" },
+  keysRequired: 0,
+  rooms: {
+    r1: {
+      label: "R1: CROSSING GUARD",
+      grid: buildRoom(g => { g.pit(12, 13, "^"); g.pit(22, 23, "^"); }, { openRight: true }),
+      movingSpikes: [
+        { id: "p7a", kind: "patrol", axis: "x", min: 7*30, max: 11*30, y: 13*30+12, w: 20, h: 20, period: 80 },
+        { id: "ec7", kind: "edgeCross", fromRoom: "r1", toRoom: "r2", x: 17*30, y: 12*30+10, w: 22, h: 22, speed: 2.3 }
+      ]
+    },
+    r2: {
+      label: "R2: BELT EXCHANGE",
+      grid: buildRoom(g => { g.pit(10, 11, "^"); g.pit(20, 21, "^"); }, { openLeft: true, openRight: true }),
+      movingSpikes: [
+        { id: "conv7", kind: "conveyor", x1: 12*30, x2: 19*30, y: 13*30+10, speed: -2.4, spacing: 85 },
+        { id: "p7b", kind: "patrol", axis: "y", min: 8*30, max: 13*30+12, x: 25*30, y: 10*30, w: 20, h: 20, period: 85 }
+      ]
+    },
+    r3: {
+      label: "R3: WRAP ENDPOINT",
+      grid: buildRoom(g => { g.pit(9, 10, "^"); g.pit(19, 20, "^"); }, { openLeft: true }),
+      movingSpikes: [
+        { id: "conv7b", kind: "conveyor", x1: 12*30, x2: 18*30, y: 13*30+10, speed: 2.5, spacing: 80 },
+        { id: "p7c", kind: "patrol", axis: "x", min: 22*30, max: 26*30, y: 13*30+12, w: 20, h: 20, period: 75 }
+      ]
+    }
+  },
+  edges: {
+    r1: { right: { to: "r2", type: "wrap", spawn: "left" } },
+    r2: { left: { to: "r1", type: "wrap", spawn: "right" }, right: { to: "r3", type: "wrap", spawn: "left" } },
+    r3: { left: { to: "r2", type: "wrap", spawn: "right" } }
+  }
+});
+MAX_SOLUTIONS[7] = [{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":70},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":50},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":60},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":30},{"right":true,"ticks":8},{"left":true,"jump":true,"ticks":10},{"right":true,"jump":true,"ticks":20},{"jump":true,"ticks":20},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":50},{"right":true,"ticks":24},{"right":true,"jump":true,"ticks":50},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"left":true,"ticks":8},{"right":true,"ticks":24},{"right":true,"jump":true,"ticks":10},{"right":true,"ticks":8},{"left":true,"ticks":8},{"ticks":8},{"right":true,"jump":true,"ticks":10},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":20},{"right":true,"ticks":4}];
+
+// LEVEL 8: 3-room loop that needs 1 Key (unlocks R1 locked goal door!)
+addMaxLevel({
+  id: 8, chapter2Number: 108, world: 1, name: "THREE-ROOM LOCK", score: 60,
+  spikeTypes: ["ring", "slamWall", "zigzag"],
+  twist: "Goal is locked in R1; traverse R1 -> R2 (grab brass Key inside a ring) -> R3 -> loop back into R1!",
+  tell: "Goal counts Keys 0/1; gold key sits in R2.",
+  solutionSummary: "Loop R1 -> R2 to grab the gold key inside the spinning ring, pass R3's slam & zigzag back to R1's goal.",
+  estTime: "80-120s",
+  startRoom: "r1", start: { col: 3, row: 13 },
+  goal: { room: "r1", col: 2, row: 7, hiddenTell: "seam_glow" },
+  keysRequired: 1,
+  rooms: {
+    r1: {
+      label: "R1: LOCKED CROWN",
+      grid: buildRoom(g => { g.plat(1, 8, 8, "#"); g.col(9, 1, 8, "#"); g.pit(13, 14, "^"); }, { openLeft: true, openRight: true }),
+      movingSpikes: [
+        { id: "zig8", kind: "zigzag", x: 18*30, y: 7*30, vx: 2.6, vy: 2.2, bounds: { x1: 16*30, x2: 24*30, y1: 4*30, y2: 13*30+10 }, w: 20, h: 20 }
+      ]
+    },
+    r2: {
+      label: "R2: RING TREASURY (KEY)",
+      grid: buildRoom(g => { g.pit(8, 9, "^"); g.pit(21, 22, "^"); }, { openLeft: true, openRight: true }),
+      keys: [{ id: "k8", col: 15, row: 11 }],
+      movingSpikes: [
+        { id: "ring8", kind: "ring", cx: 15*30+15, cy: 11*30+15, r: 52, count: 8, gapIdx: 0, omega: 0.04 }
+      ]
+    },
+    r3: {
+      label: "R3: RETURN LOOP",
+      grid: buildRoom(g => { g.plat(23, 8, 8, "#"); g.plat(17, 11, 4, "#"); g.pit(11, 12, "^"); }, { openLeft: true, openRight: true }),
+      movingSpikes: [
+        { id: "slam8", kind: "slamWall", x: 14*30, y: 5*30, slamToX: 14*30, slamToY: 11*30+12, w: 26, h: 72, period: 100, warnTicks: 26, holdTicks: 22 }
+      ]
+    }
+  },
+  edges: {
+    r1: { right: { to: "r2", type: "loop", spawn: "left" } },
+    r2: { left: { to: "r1", type: "loop", spawn: "right" }, right: { to: "r3", type: "loop", spawn: "left" } },
+    r3: { left: { to: "r2", type: "loop", spawn: "right" }, right: { to: "r1", type: "loop", spawnCol: 7, spawnRow: 7 } }
+  }
+});
+MAX_SOLUTIONS[8] = [{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":80},{"right":true,"ticks":56},{"right":true,"jump":true,"ticks":50},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":20},{"right":true,"ticks":8},{"left":true,"jump":true,"ticks":10},{"right":true,"ticks":8},{"left":true,"ticks":16},{"right":true,"jump":true,"ticks":10},{"ticks":16},{"right":true,"jump":true,"ticks":10},{"left":true,"ticks":8},{"right":true,"ticks":8},{"left":true,"jump":true,"ticks":10},{"jump":true,"ticks":10},{"left":true,"ticks":16},{"right":true,"jump":true,"ticks":30},{"left":true,"ticks":16},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":24},{"right":true,"jump":true,"ticks":60},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":48},{"right":true,"jump":true,"ticks":10},{"left":true,"ticks":47}];
+
+// LEVEL 9: Moving platform room with spike edges & chained orbits
+addMaxLevel({
+  id: 9, chapter2Number: 109, world: 1, name: "ORBIT ENGINE", score: 66,
+  spikeTypes: ["platRider", "orbit", "pendulum"],
+  twist: "Cross wide spike chasms aboard moving rafts armed with underside spike strips and chained double-orbits.",
+  tell: "Gold raft top rim vs crimson spike underside; chained dual-radius orbits.",
+  solutionSummary: "Ride moving rafts across chasm pits in R1..R4 while timing chained orbit spikes and pendulums.",
+  estTime: "90-130s",
+  startRoom: "r1", start: { col: 2, row: 13 },
+  goal: { room: "r4", col: 28, row: 13, hiddenTell: "seam_glow" },
+  keysRequired: 0,
+  rooms: {
+    r1: {
+      label: "R1: CHAINED ORBIT",
+      grid: buildRoom(g => { g.pit(8, 22, "^"); }, { openRight: true }),
+      movingPlats: [{ id: "pl9a", col: 8.5, row: 13, wTiles: 3.5, hTiles: 0.8, moveX: 10*30, moveY: 0, periodTicks: 150 }],
+      movingSpikes: [
+        { id: "pr9a", kind: "platRider", platId: "pl9a", edge: "bottom" },
+        { id: "orb9a", kind: "orbit", cx: 15*30, cy: 9*30+15, r: 45, chain: [34, 62], count: 2, omega: 0.036, phase0: 0, w: 18, h: 18 }
+      ]
+    },
+    r2: {
+      label: "R2: PENDULUM FERRY",
+      grid: buildRoom(g => { g.pit(7, 23, "^"); }, { openLeft: true, openRight: true }),
+      movingPlats: [{ id: "pl9b", col: 8, row: 13, wTiles: 3.2, hTiles: 0.8, moveX: 12*30, moveY: -36, periodTicks: 160 }],
+      movingSpikes: [
+        { id: "pr9b", kind: "platRider", platId: "pl9b", edge: "bottom" },
+        { id: "pen9", kind: "pendulum", px: 16*30, py: 3*30, len: 240, maxAngle: 0.65, period: 105, phase0: 0, w: 20, h: 20 }
+      ]
+    },
+    r3: {
+      label: "R3: DOUBLE ENGINE",
+      grid: buildRoom(g => { g.pit(7, 23, "^"); }, { openLeft: true, openRight: true }),
+      movingPlats: [
+        { id: "pl9c", col: 7.5, row: 13, wTiles: 3.0, hTiles: 0.8, moveX: 5*30, moveY: 0, periodTicks: 120 },
+        { id: "pl9d", col: 16.5, row: 12.5, wTiles: 3.0, hTiles: 0.8, moveX: 5*30, moveY: 0, periodTicks: 120, offset: 60 }
+      ],
+      movingSpikes: [
+        { id: "orb9b", kind: "orbit", cx: 15*30, cy: 9*30, r: 44, chain: [38, 66], count: 2, omega: -0.04, phase0: 1.0, w: 18, h: 18 }
+      ]
+    },
+    r4: {
+      label: "R4: CHAIN EXIT",
+      grid: buildRoom(g => { g.pit(10, 12, "^"); g.pit(19, 21, "^"); }, { openLeft: true }),
+      movingSpikes: [
+        { id: "orb9c", kind: "orbit", cx: 16*30, cy: 11*30, r: 48, chain: [34, 62], count: 2, omega: 0.042, phase0: 0, w: 18, h: 18 }
+      ]
+    }
+  },
+  edges: {
+    r1: { right: { to: "r2", type: "wrap", spawn: "left" } },
+    r2: { left: { to: "r1", type: "wrap", spawn: "right" }, right: { to: "r3", type: "wrap", spawn: "left" } },
+    r3: { left: { to: "r2", type: "wrap", spawn: "right" }, right: { to: "r4", type: "wrap", spawn: "left" } },
+    r4: { left: { to: "r3", type: "wrap", spawn: "right" } }
+  }
+});
+MAX_SOLUTIONS[9] = [{"right":true,"jump":true,"ticks":20},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":10},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":10},{"left":true,"jump":true,"ticks":20},{"left":true,"ticks":8},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":30},{"right":true,"ticks":8},{"left":true,"jump":true,"ticks":10},{"right":true,"jump":true,"ticks":10},{"left":true,"ticks":16},{"right":true,"jump":true,"ticks":30},{"left":true,"jump":true,"ticks":10},{"right":true,"jump":true,"ticks":10},{"right":true,"ticks":56},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":10},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":70},{"right":true,"ticks":32},{"right":true,"jump":true,"ticks":40},{"left":true,"ticks":8},{"right":true,"jump":true,"ticks":50},{"right":true,"ticks":16},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":64},{"right":true,"jump":true,"ticks":50},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":20},{"left":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":10},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":30},{"right":true,"ticks":7}];
+
+// LEVEL 10: Mini-Boss — Pursuer Shadow (globalChaser across rooms + lockedAim!)
+addMaxLevel({
+  id: 10, chapter2Number: 110, world: 1, name: "PURSUER SHADOW (BOSS)", score: 72,
+  spikeTypes: ["globalChaser", "lockedAim", "slamWall", "patrol"],
+  twist: "Mini-Boss: A relentless spike wall pursues you room-to-room while lock-on spikes trace your position.",
+  tell: "Dashed gold lock-on crosshair precedes projectile; chaser pauses briefly at each room entrance.",
+  solutionSummary: "Sprint ahead of the cross-room chaser through R1->R4, bait lock-on bolts, and beat the final slam.",
+  estTime: "95-140s",
+  startRoom: "r1", start: { col: 3, row: 13 },
+  goal: { room: "r4", col: 28, row: 13, hiddenTell: "seam_glow" },
+  keysRequired: 0,
+  globalChaser: { speed: 1.25, entryDelay: 45 },
+  rooms: {
+    r1: {
+      label: "R1: THE CHASE BEGINS",
+      grid: buildRoom(g => { g.pit(11, 12, "^"); g.pit(20, 21, "^"); }, { openRight: true }),
+      movingSpikes: [
+        { id: "aim10a", kind: "lockedAim", x: 16*30, y: 4*30, lockDelay: 28, travelSpeed: 7, period: 120, w: 20, h: 20 }
+      ]
+    },
+    r2: {
+      label: "R2: SLAMMING HALL",
+      grid: buildRoom(g => { g.pit(9, 10, "^"); g.pit(19, 20, "^"); }, { openLeft: true, openRight: true }),
+      movingSpikes: [
+        { id: "slam10a", kind: "slamWall", x: 14*30, y: 5*30, slamToX: 14*30, slamToY: 11*30+12, w: 26, h: 72, period: 95, warnTicks: 26, holdTicks: 20 },
+        { id: "p10b", kind: "patrol", axis: "x", min: 22*30, max: 26*30, y: 13*30+12, w: 20, h: 20, period: 75 }
+      ]
+    },
+    r3: {
+      label: "R3: LOCKED CROSSFIRE",
+      grid: buildRoom(g => { g.pit(12, 13, "^"); g.pit(22, 23, "^"); }, { openLeft: true, openRight: true }),
+      movingSpikes: [
+        { id: "aim10b", kind: "lockedAim", x: 15*30, y: 4*30, lockDelay: 26, travelSpeed: 7.5, period: 115, w: 20, h: 20 },
+        { id: "slam10b", kind: "slamWall", x: 19*30, y: 5*30, slamToX: 19*30, slamToY: 11*30+12, w: 26, h: 72, period: 90, warnTicks: 24, holdTicks: 20 }
+      ]
+    },
+    r4: {
+      label: "R4: PURSUER SHOWDOWN",
+      grid: buildRoom(g => { g.pit(10, 11, "^"); g.pit(19, 20, "^"); }, { openLeft: true }),
+      movingSpikes: [
+        { id: "aim10c", kind: "lockedAim", x: 15*30, y: 4*30, lockDelay: 26, travelSpeed: 7.5, period: 110, w: 20, h: 20 },
+        { id: "p10d", kind: "patrol", axis: "x", min: 22*30, max: 26*30, y: 13*30+12, w: 20, h: 20, period: 72 }
+      ]
+    }
+  },
+  edges: {
+    r1: { right: { to: "r2", type: "wrap", spawn: "left" } },
+    r2: { left: { to: "r1", type: "wrap", spawn: "right" }, right: { to: "r3", type: "wrap", spawn: "left" } },
+    r3: { left: { to: "r2", type: "wrap", spawn: "right" }, right: { to: "r4", type: "wrap", spawn: "left" } },
+    r4: { left: { to: "r3", type: "wrap", spawn: "right" } }
+  }
+});
+MAX_SOLUTIONS[10] = [{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":60},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":20},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":60},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":30},{"left":true,"ticks":8},{"ticks":8},{"right":true,"jump":true,"ticks":50},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":30},{"ticks":8},{"right":true,"jump":true,"ticks":10},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":20},{"right":true,"ticks":16},{"right":true,"jump":true,"ticks":60},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":20},{"right":true,"ticks":8},{"left":true,"jump":true,"ticks":10},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":60},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":24},{"right":true,"jump":true,"ticks":10},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":30},{"right":true,"ticks":12}];
+
+// LEVEL 11: Wrong-way + Fake doors (2px coral keyhole tells!)
+addMaxLevel({
+  id: 11, chapter2Number: 111, world: 1, name: "DECOY DOORS", score: 78,
+  spikeTypes: ["patrol", "rainWave", "orbit"],
+  twist: "Wrong-way edges paired with tempting fake doors hiding 2px coral pixels until the true upper door in R4.",
+  tell: "Fake doors carry a 2px coral keyhole mark; wrong-way open left margins.",
+  solutionSummary: "Skip fake doors, take R1's wrong-way left edge into R2 -> R3 -> R4 past rainWave and orbit guards.",
+  estTime: "95-140s",
+  startRoom: "r1", start: { col: 14, row: 13 },
+  goal: { room: "r4", col: 28, row: 13, hiddenTell: "seam_glow" },
+  keysRequired: 0,
+  rooms: {
+    r1: {
+      label: "R1: FAKE EXIT & WRONG-WAY LEFT",
+      grid: buildRoom(g => { g.pit(6, 7, "^"); }, { openLeft: true }),
+      fakeDoors: [{ col: 27, row: 13 }],
+      movingSpikes: [
+        { id: "p11a", kind: "patrol", axis: "x", min: 9*30, max: 12*30, y: 13*30+12, w: 20, h: 20, period: 75 }
+      ]
+    },
+    r2: {
+      label: "R2: RAIN HALL & DECOY",
+      grid: buildRoom(g => { g.pit(11, 12, "^"); g.pit(21, 22, "^"); }, { openLeft: true, openRight: true }),
+      fakeDoors: [{ col: 16, row: 13 }],
+      movingSpikes: [
+        { id: "rw11", kind: "rainWave", from: "top", cols: [14, 16, 18, 20], period: 90, stagger: 10, warnTicks: 24 }
+      ]
+    },
+    r3: {
+      label: "R3: ORBIT DECOY",
+      grid: buildRoom(g => { g.pit(10, 11, "^"); g.plat(23, 11, 4, "#"); }, { openLeft: true, openRight: true }),
+      fakeDoors: [{ col: 24, row: 10 }],
+      movingSpikes: [
+        { id: "orb11", kind: "orbit", cx: 16*30, cy: 11*30, r: 50, count: 3, omega: 0.045, phase0: 0, w: 18, h: 18 }
+      ]
+    },
+    r4: {
+      label: "R4: SPOTLESS EXIT",
+      grid: buildRoom(g => { g.pit(9, 10, "^"); g.pit(19, 20, "^"); }, { openLeft: true }),
+      fakeDoors: [{ col: 14, row: 13 }],
+      movingSpikes: [
+        { id: "p11b", kind: "patrol", axis: "x", min: 22*30, max: 26*30, y: 13*30+12, w: 20, h: 20, period: 70 },
+        { id: "rw11b", kind: "rainWave", from: "top", cols: [22, 24, 26], period: 85, stagger: 10, warnTicks: 24 }
+      ]
+    }
+  },
+  edges: {
+    r1: { left: { to: "r2", type: "wrongWay", spawn: "left" } },
+    r2: { left: { to: "r1", type: "wrap", spawn: "right" }, right: { to: "r3", type: "wrap", spawn: "left" } },
+    r3: { left: { to: "r2", type: "wrap", spawn: "right" }, right: { to: "r4", type: "wrap", spawn: "left" } },
+    r4: { left: { to: "r3", type: "wrap", spawn: "right" } }
+  }
+});
+MAX_SOLUTIONS[11] = [{"left":true,"jump":true,"ticks":20},{"left":true,"ticks":8},{"left":true,"jump":true,"ticks":10},{"left":true,"ticks":8},{"left":true,"jump":true,"ticks":10},{"left":true,"ticks":8},{"left":true,"jump":true,"ticks":20},{"left":true,"ticks":8},{"left":true,"jump":true,"ticks":10},{"right":true,"jump":true,"ticks":50},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":30},{"jump":true,"ticks":10},{"ticks":8},{"jump":true,"ticks":10},{"right":true,"jump":true,"ticks":40},{"left":true,"ticks":8},{"right":true,"jump":true,"ticks":20},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":50},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":20},{"jump":true,"ticks":10},{"left":true,"ticks":8},{"right":true,"jump":true,"ticks":20},{"right":true,"ticks":8},{"jump":true,"ticks":10},{"right":true,"jump":true,"ticks":30},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":16},{"right":true,"jump":true,"ticks":50},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":20},{"right":true,"ticks":8},{"left":true,"ticks":8},{"jump":true,"ticks":10},{"right":true,"jump":true,"ticks":30},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":20}];
+
+// LEVEL 12: Lying mini-map with paired pendulums, slamWalls & zigzags
+addMaxLevel({
+  id: 12, chapter2Number: 112, world: 1, name: "LYING MAP", score: 84,
+  spikeTypes: ["pendulum", "slamWall", "zigzag"],
+  twist: "The mini-map scrambles its lines ('MAP?') while paired pendulums sweep every corridor.",
+  tell: "Coral 'MAP?' label warns the diagram lies; watch ceiling pendulum arcs & gold slams.",
+  solutionSummary: "Trust only on-screen openings across R1->R4, threading twin pendulums, slams, and bouncing zigzags.",
+  estTime: "105-145s",
+  lyingMap: true,
+  startRoom: "r1", start: { col: 3, row: 13 },
+  goal: { room: "r4", col: 28, row: 13, hiddenTell: "seam_glow" },
+  keysRequired: 0,
+  rooms: {
+    r1: {
+      label: "R1: TWIN PENDULUM",
+      grid: buildRoom(g => { g.pit(10, 11, "^"); g.pit(21, 22, "^"); }, { openRight: true }),
+      movingSpikes: [
+        { id: "pen12a", kind: "pendulum", px: 16*30, py: 3*30, len: 230, maxAngle: 0.65, period: 100, phase0: 0, w: 20, h: 20 }
+      ]
+    },
+    r2: {
+      label: "R2: SLAM & ARC",
+      grid: buildRoom(g => { g.pit(14, 15, "^"); }, { openLeft: true, openRight: true }),
+      movingSpikes: [
+        { id: "slam12a", kind: "slamWall", x: 11*30, y: 5*30, slamToX: 11*30, slamToY: 11*30+12, w: 26, h: 72, period: 95, warnTicks: 26, holdTicks: 22 },
+        { id: "pen12b", kind: "pendulum", px: 21*30, py: 3*30, len: 225, maxAngle: 0.7, period: 95, phase0: 1.5, w: 20, h: 20 }
+      ]
+    },
+    r3: {
+      label: "R3: RICOCHET HALL",
+      grid: buildRoom(g => { g.pit(9, 10, "^"); g.pit(20, 21, "^"); }, { openLeft: true, openRight: true }),
+      movingSpikes: [
+        { id: "zig12", kind: "zigzag", x: 14*30, y: 7*30, vx: 2.7, vy: 2.3, bounds: { x1: 12*30, x2: 19*30, y1: 4*30, y2: 13*30+10 }, w: 20, h: 20 },
+        { id: "slam12b", kind: "slamWall", x: 24*30, y: 5*30, slamToX: 24*30, slamToY: 11*30+12, w: 26, h: 72, period: 90, warnTicks: 24, holdTicks: 20 }
+      ]
+    },
+    r4: {
+      label: "R4: HONEST EXIT",
+      grid: buildRoom(g => { g.pit(11, 12, "^"); g.pit(20, 21, "^"); }, { openLeft: true }),
+      movingSpikes: [
+        { id: "pen12c", kind: "pendulum", px: 16*30, py: 3*30, len: 230, maxAngle: 0.72, period: 90, phase0: 0, w: 20, h: 20 },
+        { id: "zig12b", kind: "zigzag", x: 23*30, y: 6*30, vx: -2.6, vy: 2.2, bounds: { x1: 22*30, x2: 27*30, y1: 4*30, y2: 13*30+10 }, w: 20, h: 20 }
+      ]
+    }
+  },
+  edges: {
+    r1: { right: { to: "r2", type: "wrap", spawn: "left" } },
+    r2: { left: { to: "r1", type: "wrap", spawn: "right" }, right: { to: "r3", type: "wrap", spawn: "left" } },
+    r3: { left: { to: "r2", type: "wrap", spawn: "right" }, right: { to: "r4", type: "wrap", spawn: "left" } },
+    r4: { left: { to: "r3", type: "wrap", spawn: "right" } }
+  }
+});
+MAX_SOLUTIONS[12] = [{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":70},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":50},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":60},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":80},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":16},{"right":true,"jump":true,"ticks":20},{"right":true,"ticks":8},{"left":true,"jump":true,"ticks":10},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":50},{"right":true,"ticks":16},{"right":true,"jump":true,"ticks":60},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":32},{"right":true,"jump":true,"ticks":10},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":29}];
+
+// LEVEL 13: 4-room loop + returning collapsing floors + spike conveyors + Key!
+addMaxLevel({
+  id: 13, chapter2Number: 113, world: 1, name: "CONVEYOR COLLAPSE", score: 90,
+  spikeTypes: ["conveyor", "lockedAim", "orbit"],
+  twist: "Collapsing floors fall and return every 90 ticks across conveyor belts in a 4-room Key loop.",
+  tell: "Chevron belts + crosshair aim-bolts + R3 brass key unlocks R1's sealed balcony.",
+  solutionSummary: "Cross collapsing floors & belts across R1->R2->R3, claim the Key in R3, and wrap via R4 back to R1's balcony.",
+  estTime: "110-150s",
+  startRoom: "r1", start: { col: 3, row: 13 },
+  goal: { room: "r1", col: 3, row: 7, hiddenTell: "seam_glow" },
+  keysRequired: 1,
+  rooms: {
+    r1: {
+      label: "R1: SEALED CROWN & BELT",
+      grid: buildRoom(g => { g.plat(1, 8, 9, "#"); g.col(10, 1, 8, "#"); g.pit(18, 19, "^"); }, { openRight: true }),
+      collapsingFloors: [{ cols: [12, 13, 14], row: 14, delayTicks: 8, returnTicks: 90 }],
+      movingSpikes: [
+        { id: "conv13a", kind: "conveyor", x1: 20*30, x2: 27*30, y: 13*30+10, speed: -2.4, spacing: 85 }
+      ]
+    },
+    r2: {
+      label: "R2: AIMED CROSSING",
+      grid: buildRoom(g => { g.pit(10, 11, "^"); g.pit(21, 22, "^"); }, { openLeft: true, openRight: true }),
+      collapsingFloors: [{ cols: [15, 16, 17], row: 14, delayTicks: 8, returnTicks: 90 }],
+      movingSpikes: [
+        { id: "aim13", kind: "lockedAim", x: 16*30, y: 4*30, lockDelay: 26, travelSpeed: 7, period: 115, w: 20, h: 20 }
+      ]
+    },
+    r3: {
+      label: "R3: KEY SANCTUARY",
+      grid: buildRoom(g => { g.pit(9, 10, "^"); g.pit(20, 21, "^"); }, { openLeft: true, openRight: true }),
+      keys: [{ id: "k13", col: 15, row: 11 }],
+      movingSpikes: [
+        { id: "orb13", kind: "orbit", cx: 15*30+15, cy: 11*30+15, r: 52, count: 3, omega: 0.042, phase0: 0, w: 18, h: 18 },
+        { id: "conv13b", kind: "conveyor", x1: 22*30, x2: 28*30, y: 13*30+10, speed: 2.5, spacing: 80 }
+      ]
+    },
+    r4: {
+      label: "R4: CLIMB & WRAP HOME",
+      grid: buildRoom(g => { g.plat(19, 11, 4, "#"); g.plat(24, 8, 7, "#"); g.pit(10, 11, "^"); }, { openLeft: true, openRight: true }),
+      collapsingFloors: [{ cols: [14, 15, 16], row: 14, delayTicks: 8, returnTicks: 90 }],
+      movingSpikes: [
+        { id: "aim13b", kind: "lockedAim", x: 22*30, y: 4*30, lockDelay: 26, travelSpeed: 7, period: 110, w: 20, h: 20 }
+      ]
+    }
+  },
+  edges: {
+    r1: { right: { to: "r2", type: "loop", spawn: "left" } },
+    r2: { left: { to: "r1", type: "loop", spawn: "right" }, right: { to: "r3", type: "loop", spawn: "left" } },
+    r3: { left: { to: "r2", type: "loop", spawn: "right" }, right: { to: "r4", type: "loop", spawn: "left" } },
+    r4: { left: { to: "r3", type: "loop", spawn: "right" }, right: { to: "r1", type: "loop", spawnCol: 7, spawnRow: 7 } }
+  }
+});
+MAX_SOLUTIONS[13] = [{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":50},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":30},{"jump":true,"ticks":10},{"ticks":8},{"right":true,"jump":true,"ticks":10},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":16},{"right":true,"jump":true,"ticks":20},{"right":true,"ticks":16},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":24},{"right":true,"jump":true,"ticks":60},{"left":true,"ticks":8},{"right":true,"jump":true,"ticks":20},{"right":true,"ticks":8},{"left":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":32},{"right":true,"jump":true,"ticks":60},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":16},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":48},{"left":true,"ticks":37}];
+
+// LEVEL 14: Every edge type with high-speed Spike Trains!
+addMaxLevel({
+  id: 14, chapter2Number: 114, world: 1, name: "IRON EXPRESS", score: 95,
+  spikeTypes: ["train", "ring", "lockedAim", "mirrorSpike"],
+  twist: "Combines wrap, shaft, wrongWay, hidden seam, and mirror edges while jumping spike trains.",
+  tell: "Iron rail bar before spike train enters; flickering blue hidden seam; gold flip tint in R4.",
+  solutionSummary: "Wrap R1->R2 via shaft, find R2's cyan hidden seam to R3, cross the wrongWay/mirror track in R3 into R4.",
+  estTime: "120-165s",
+  startRoom: "r1", start: { col: 3, row: 13 },
+  goal: { room: "r4", col: 27, row: 13, hiddenTell: "seam_glow" },
+  keysRequired: 0,
+  rooms: {
+    r1: {
+      label: "R1: TRAIN TRACK & SHAFT",
+      grid: buildRoom(g => { g.clearFloor(22, 25); }, { openBottom: [22, 25], openRight: true }),
+      movingSpikes: [
+        { id: "tr14a", kind: "train", y: 13*30+8, speed: 3.4, segLen: 110, gapLen: 170 }
+      ]
+    },
+    r2: {
+      label: "R2: RING & HIDDEN SEAM",
+      grid: buildRoom(g => { g.plat(18, 11, 5, "#"); g.plat(24, 9, 5, "#"); g.pit(11, 12, "^"); }, { openTop: [22, 25] }),
+      movingSpikes: [
+        { id: "ring14", kind: "ring", cx: 15*30, cy: 11*30, r: 50, count: 8, gapIdx: 0, omega: 0.042 }
+      ]
+    },
+    r3: {
+      label: "R3: WRONG-WAY EXPRESS",
+      grid: buildRoom(g => { g.pit(12, 13, "^"); }, { openLeft: true }),
+      movingSpikes: [
+        { id: "tr14b", kind: "train", y: 13*30+8, speed: -3.5, segLen: 105, gapLen: 175 },
+        { id: "aim14", kind: "lockedAim", x: 16*30, y: 4*30, lockDelay: 26, travelSpeed: 7, period: 115, w: 20, h: 20 }
+      ]
+    },
+    r4: {
+      label: "R4: MIRROR STATION",
+      flipX: true,
+      grid: buildRoom(g => { g.pit(10, 11, "^"); g.pit(20, 21, "^"); }, { openLeft: true }),
+      movingSpikes: [
+        { id: "mir14", kind: "mirrorSpike", x: 15*30, y: 12*30+12, w: 30, h: 28, period: 90, warnTicks: 28, offset: 0 },
+        { id: "tr14c", kind: "train", y: 13*30+8, speed: 3.6, segLen: 100, gapLen: 180 }
+      ]
+    }
+  },
+  edges: {
+    r1: { bottom: { to: "r2", type: "shaft", spawn: "top" }, right: { to: "r2", type: "wrap", spawn: "left" } },
+    r2: { top: { to: "r1", type: "shaft", spawn: "bottom" }, hidden: [{ rect: { x: 29*30, y: 6*30, w: 30, h: 90 }, to: "r3", type: "hidden", spawn: "left", spawnRow: 13 }] },
+    r3: { left: { to: "r4", type: "wrongWay", spawn: "left" } },
+    r4: { left: { to: "r3", type: "mirror", spawn: "right", mirrorX: true } }
+  }
+});
+MAX_SOLUTIONS[14] = [{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":130},{"jump":true,"ticks":10},{"left":true,"jump":true,"ticks":20},{"left":true,"ticks":8},{"left":true,"jump":true,"ticks":40},{"left":true,"ticks":8},{"left":true,"jump":true,"ticks":20},{"left":true,"ticks":8},{"right":true,"jump":true,"ticks":10},{"left":true,"jump":true,"ticks":30},{"left":true,"ticks":8},{"left":true,"jump":true,"ticks":10},{"left":true,"ticks":8},{"left":true,"jump":true,"ticks":29}];
+
+// LEVEL 15 (BOSS): Four-room chase ending where it began! (2 Keys + Global Chaser + All Hazards)
+addMaxLevel({
+  id: 15, chapter2Number: 115, world: 1, name: "THE WRAPAROUND (BOSS)", score: 100,
+  spikeTypes: ["globalChaser", "lockedAim", "train", "ring", "pendulum"],
+  twist: "Final Boss: Collect 2 Keys while chased across all 4 rooms, looping back onto R1's sealed starting crown!",
+  tell: "Goal counts Keys 0/2; chaser delays briefly at each entry; R4 wraps to R1's balcony.",
+  solutionSummary: "Outrun the global chaser from R1 -> R2 (Key 1) -> R3 (Key 2) -> R4 -> wrap back onto R1's upper goal!",
+  estTime: "130-190s",
+  startRoom: "r1", start: { col: 3, row: 13 },
+  goal: { room: "r1", col: 3, row: 7, hiddenTell: "seam_glow" },
+  keysRequired: 2,
+  globalChaser: { speed: 1.2, entryDelay: 45 },
+  rooms: {
+    r1: {
+      label: "R1: ALPHA & OMEGA",
+      grid: buildRoom(g => { g.plat(1, 8, 9, "#"); g.col(10, 1, 8, "#"); g.pit(13, 14, "^"); g.pit(22, 23, "^"); }, { openRight: true }),
+      movingSpikes: [
+        { id: "aim15a", kind: "lockedAim", x: 18*30, y: 4*30, lockDelay: 26, travelSpeed: 7, period: 115, w: 20, h: 20 }
+      ]
+    },
+    r2: {
+      label: "R2: IRON RING (KEY 1)",
+      grid: buildRoom(g => { g.pit(9, 10, "^"); g.pit(21, 22, "^"); }, { openLeft: true, openRight: true }),
+      keys: [{ id: "k15a", col: 15, row: 11 }],
+      movingSpikes: [
+        { id: "ring15", kind: "ring", cx: 15*30+15, cy: 11*30+15, r: 50, count: 8, gapIdx: 0, omega: 0.042 },
+        { id: "tr15", kind: "train", y: 13*30+8, speed: 3.4, segLen: 100, gapLen: 175 }
+      ]
+    },
+    r3: {
+      label: "R3: PENDULUM VAULT (KEY 2)",
+      grid: buildRoom(g => { g.pit(10, 11, "^"); g.pit(20, 21, "^"); }, { openLeft: true, openRight: true }),
+      keys: [{ id: "k15b", col: 15, row: 11 }],
+      collapsingFloors: [{ cols: [14, 15, 16], row: 14, delayTicks: 9, returnTicks: 90 }],
+      movingSpikes: [
+        { id: "pen15", kind: "pendulum", px: 16*30, py: 3*30, len: 180, maxAngle: 0.65, period: 95, phase0: 0, w: 20, h: 20 },
+        { id: "aim15b", kind: "lockedAim", x: 24*30, y: 4*30, lockDelay: 26, travelSpeed: 7.2, period: 110, w: 20, h: 20 }
+      ]
+    },
+    r4: {
+      label: "R4: FINAL ASCENT HOME",
+      grid: buildRoom(g => { g.plat(18, 11, 4, "#"); g.plat(23, 8, 8, "#"); g.pit(11, 12, "^"); }, { openLeft: true, openRight: true }),
+      movingSpikes: [
+        { id: "tr15b", kind: "train", y: 13*30+8, speed: -3.5, segLen: 100, gapLen: 175 },
+        { id: "aim15c", kind: "lockedAim", x: 16*30, y: 4*30, lockDelay: 26, travelSpeed: 7.5, period: 105, w: 20, h: 20 }
+      ]
+    }
+  },
+  edges: {
+    r1: { right: { to: "r2", type: "loop", spawn: "left" } },
+    r2: { left: { to: "r1", type: "loop", spawn: "right" }, right: { to: "r3", type: "loop", spawn: "left" } },
+    r3: { left: { to: "r2", type: "loop", spawn: "right" }, right: { to: "r4", type: "loop", spawn: "left" } },
+    r4: { left: { to: "r3", type: "loop", spawn: "right" }, right: { to: "r1", type: "loop", spawnCol: 7, spawnRow: 7 } }
+  }
+});
+MAX_SOLUTIONS[15] = [{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":70},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":50},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":60},{"left":true,"ticks":8},{"right":true,"jump":true,"ticks":20},{"right":true,"ticks":8},{"jump":true,"ticks":10},{"right":true,"ticks":8},{"left":true,"jump":true,"ticks":10},{"jump":true,"ticks":20},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":24},{"right":true,"jump":true,"ticks":50},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":30},{"right":true,"ticks":8},{"jump":true,"ticks":10},{"right":true,"jump":true,"ticks":10},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":10},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":120},{"right":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":16},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":56},{"left":true,"ticks":37}];
+
+/* ============================================================================
+ * 8. DETERMINISTIC 60 HZ MULTI-ROOM SIMULATION ENGINE
+ * ============================================================================ */
+function isSolidChar(ch) { return ch === "#" || ch === "B" || ch === "I" || ch === "C"; }
+function isSpikeChar(ch) { return ch === "^" || ch === "v" || ch === "<" || ch === ">"; }
+function rectsOverlap(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
+
+function cloneRoomRuntime(rDef, roomId) {
+  return {
+    id: roomId,
+    def: rDef,
+    grid: rDef.grid.map(row => row.split("")),
+    fallingTiles: [],
+    emergingSpikes: [],
+    movingPlats: (rDef.movingPlats || []).map(pl => ({
+      ...pl,
+      baseX: pl.col * TILE, baseY: pl.row * TILE,
+      x: pl.col * TILE, y: pl.row * TILE,
+      prevX: pl.col * TILE, prevY: pl.row * TILE,
+      w: pl.wTiles * TILE, h: pl.hTiles * TILE,
+      dx: 0, dy: 0
+    })),
+    movingSpikes: (rDef.movingSpikes || []).map(ms => ({
+      ...ms,
+      curX: ms.x || 0, curY: ms.y || 0,
+      curW: ms.w || 20, curH: ms.h || 20,
+      warning: false, locked: false, active: true,
+      vx: ms.vx || 0, vy: ms.vy || 0,
+      aimTimer: 0, dirX: 0, dirY: 1,
+      roomOwner: ms.fromRoom || roomId
+    })),
+    keys: (rDef.keys || []).map(k => ({ ...k, x: k.col * TILE + 15, y: k.row * TILE + 15, collected: false })),
+    triggers: (rDef.triggers || []).map(t => ({ ...t, fired: false })),
+    revealedHidden: new Set()
+  };
+}
+
+function createLevelState(def, persistentDeaths = 0) {
+  const roomStates = {};
+  for (const [rid, rDef] of Object.entries(def.rooms)) {
+    roomStates[rid] = cloneRoomRuntime(rDef, rid);
+  }
+  const chaser = def.globalChaser ? {
+    ...def.globalChaser,
+    x: -36, y: 40, w: 28, h: 400, delayLeft: def.globalChaser.entryDelay || 45
+  } : null;
+
+  return {
+    def,
+    roomStates,
+    currentRoomId: def.startRoom,
+    exploredRooms: new Set([def.startRoom]),
+    traversedEdges: [],
+    totalTick: 0,
+    simTick: 0,
+    levelDeaths: persistentDeaths,
+    dead: false,
+    won: false,
+    respawnTicksLeft: 0,
+    collectedKeys: new Set(),
+    chaser,
+    transition: null,
+    edgeCooldown: 0,
+    player: {
+      x: def.start.col * TILE + 7,
+      y: def.start.row * TILE + 6,
+      vx: 0, vy: 0, w: PLAYER_W, h: PLAYER_H,
+      facing: 1, onGround: false,
+      coyoteTicks: 0, jumpBufferTicks: 0, prevJumpInput: false,
+      squashX: 1, squashY: 1, standingPlatId: null
+    },
+    soundEvents: [],
+    shakeEvents: [],
+    inputQueue: []
+  };
+}
+
+function getCurrentRoom(state) { return state.roomStates[state.currentRoomId]; }
+
+function killPlayer(state, reason) {
+  if (state.dead || state.won) return;
+  state.dead = true;
+  state.deathReason = reason || "spike";
+  state.respawnTicksLeft = RESPAWN_TICKS;
+  state.soundEvents.push("death");
+  state.shakeEvents.push({ intensity: 6, durationTicks: 8 });
+}
+
+function getTileSpikeHitbox(col, row, dir) {
+  const tx = col * TILE, ty = row * TILE, h = 11;
+  switch (dir) {
+    case "^": return { x: tx + 6, y: ty + TILE - h, w: 18, h };
+    case "v": return { x: tx + 6, y: ty, w: 18, h };
+    case "<": return { x: tx + TILE - h, y: ty + 6, w: h, h: 18 };
+    case ">": return { x: tx, y: ty + 6, w: h, h: 18 };
+  }
+  return null;
+}
+
+function stepMovingSpikes(state, room, worldAdvances) {
+  const p = state.player;
+  const pRect = { x: p.x, y: p.y, w: p.w, h: p.h };
+  const t = state.simTick;
+
+  for (const ms of room.movingSpikes) {
+    if (!ms.active) continue;
+    if (worldAdvances) {
+      if (ms.kind === "patrol") {
+        const ph = ((t + (ms.offset || 0)) % (ms.period || 100)) / (ms.period || 100);
+        const s = 0.5 - 0.5 * Math.cos(ph * Math.PI * 2);
+        if (ms.axis === "y") ms.curY = ms.min + (ms.max - ms.min) * s;
+        else ms.curX = ms.min + (ms.max - ms.min) * s;
+      } else if (ms.kind === "orbit") {
+        const radii = ms.chain || [ms.r || 48];
+        const count = ms.count || 1;
+        for (const rr of radii) {
+          for (let ci = 0; ci < count; ci++) {
+            const ang = (ms.phase0 || 0) + t * (ms.omega || 0.04) + (ci / count) * Math.PI * 2;
+            const sx = ms.cx + Math.cos(ang) * rr - 9;
+            const sy = ms.cy + Math.sin(ang) * rr - 9;
+            if (rectsOverlap(pRect, { x: sx + SPIKE_INSET, y: sy + SPIKE_INSET, w: 18 - SPIKE_INSET * 2, h: 18 - SPIKE_INSET * 2 })) {
+              killPlayer(state, "orbit"); return;
+            }
+          }
+        }
+        continue;
+      } else if (ms.kind === "pendulum") {
+        const ph = ((t + (ms.offset || 0)) % (ms.period || 120)) / (ms.period || 120);
+        const ang = (ms.maxAngle || 0.7) * Math.sin(ph * Math.PI * 2);
+        ms.curX = ms.px + Math.sin(ang) * ms.len - ms.curW / 2;
+        ms.curY = ms.py + Math.cos(ang) * ms.len - ms.curH / 2;
+      } else if (ms.kind === "slamWall") {
+        const per = ms.period || 110, warn = ms.warnTicks || 28, hold = ms.holdTicks || 20;
+        const ph = (t + (ms.offset || 0)) % per;
+        ms.warning = ph < warn;
+        if (ph >= warn && ph < warn + hold) {
+          ms.curX = ms.slamToX !== undefined ? ms.slamToX : ms.curX;
+          ms.curY = ms.slamToY !== undefined ? ms.slamToY : ms.curY;
+        } else {
+          ms.curX = ms.x; ms.curY = ms.y;
+        }
+      } else if (ms.kind === "conveyor") {
+        const span = Math.max(60, ms.x2 - ms.x1);
+        const spacing = ms.spacing || 90;
+        const count = Math.max(1, Math.floor(span / spacing));
+        for (let ci = 0; ci < count; ci++) {
+          const sx = ms.x1 + (((t * (ms.speed || 2) + ci * spacing) % span) + span) % span;
+          const sy = ms.y;
+          if (rectsOverlap(pRect, { x: sx + SPIKE_INSET, y: sy + SPIKE_INSET, w: 20 - SPIKE_INSET * 2, h: 20 - SPIKE_INSET * 2 })) {
+            killPlayer(state, "conveyor"); return;
+          }
+        }
+        continue;
+      } else if (ms.kind === "lockedAim") {
+        const per = ms.period || 130, lockDelay = ms.lockDelay || 28;
+        const ph = (t + (ms.offset || 0)) % per;
+        if (ph === 0) {
+          ms.curX = ms.x; ms.curY = ms.y; ms.locked = false; ms.warning = true;
+        } else if (ph < lockDelay) {
+          ms.warning = true;
+          const dx = (p.x + p.w / 2) - (ms.curX + ms.curW / 2);
+          const dy = (p.y + p.h / 2) - (ms.curY + ms.curH / 2);
+          const d = Math.hypot(dx, dy) || 1;
+          ms.dirX = dx / d; ms.dirY = dy / d;
+        } else {
+          ms.warning = false; ms.locked = true;
+          ms.curX += ms.dirX * (ms.travelSpeed || 6.5);
+          ms.curY += ms.dirY * (ms.travelSpeed || 6.5);
+        }
+      } else if (ms.kind === "rainWave") {
+        const cols = ms.cols || [];
+        const per = ms.period || 100, warn = ms.warnTicks || 26, stag = ms.stagger || 10;
+        for (let ci = 0; ci < cols.length; ci++) {
+          const c = cols[ci];
+          const ph = ((t + ci * stag) % per + per) % per;
+          if (ph >= warn && ph < warn + 34) {
+            const dropY = ms.from === "bottom"
+              ? 14 * TILE - Math.min(180, (ph - warn) * 7)
+              : 30 + Math.min(13 * TILE, (ph - warn) * 11);
+            const hb = { x: c * TILE + SPIKE_INSET, y: dropY + SPIKE_INSET, w: 22 - SPIKE_INSET, h: 22 - SPIKE_INSET };
+            if (rectsOverlap(pRect, hb)) { killPlayer(state, "rainWave"); return; }
+          }
+        }
+        continue;
+      } else if (ms.kind === "zigzag") {
+        ms.curX += ms.vx; ms.curY += ms.vy;
+        const b = ms.bounds || { x1: 60, x2: LOGICAL_W - 80, y1: 60, y2: 14 * TILE - 24 };
+        if (ms.curX < b.x1 || ms.curX + ms.curW > b.x2) { ms.vx *= -1; ms.curX = Math.max(b.x1, Math.min(b.x2 - ms.curW, ms.curX)); }
+        if (ms.curY < b.y1 || ms.curY + ms.curH > b.y2) { ms.vy *= -1; ms.curY = Math.max(b.y1, Math.min(b.y2 - ms.curH, ms.curY)); }
+      } else if (ms.kind === "ring") {
+        const baseAng = t * (ms.omega || 0.035);
+        const count = ms.count || 8;
+        const gapIdx = ms.gapIdx || 0;
+        for (let i = 0; i < count; i++) {
+          if (i === gapIdx) continue;
+          const a = baseAng + (i / count) * Math.PI * 2;
+          const sx = ms.cx + Math.cos(a) * ms.r - 8;
+          const sy = ms.cy + Math.sin(a) * ms.r - 8;
+          if (rectsOverlap(pRect, { x: sx + SPIKE_INSET, y: sy + SPIKE_INSET, w: 18 - SPIKE_INSET * 2, h: 18 - SPIKE_INSET * 2 })) {
+            killPlayer(state, "ring"); return;
+          }
+        }
+        continue;
+      } else if (ms.kind === "train") {
+        const cycleLen = (ms.segLen || 120) + (ms.gapLen || 140);
+        const offsetPx = (t * (ms.speed || 3.2)) % (LOGICAL_W + cycleLen);
+        ms.curX = ms.speed >= 0 ? offsetPx - (ms.segLen || 120) : LOGICAL_W - offsetPx;
+        ms.curY = ms.y;
+        ms.curW = ms.segLen || 120;
+        ms.curH = 22;
+      } else if (ms.kind === "edgeCross") {
+        ms.curX += (ms.speed || 2);
+        if (ms.curX > LOGICAL_W && ms.toRoom && state.roomStates[ms.toRoom]) {
+          ms.active = false;
+          const targetRoom = state.roomStates[ms.toRoom];
+          if (!targetRoom.movingSpikes.some(x => x.id === ms.id + "_xfer")) {
+            targetRoom.movingSpikes.push({ ...ms, id: ms.id + "_xfer", curX: -ms.curW, active: true, toRoom: ms.fromRoom, fromRoom: ms.toRoom });
+          }
+          continue;
+        }
+      } else if (ms.kind === "platRider") {
+        const plat = room.movingPlats.find(pl => pl.id === ms.platId);
+        if (!plat) continue;
+        // Bottom/side spike strips attached to moving platform
+        if (ms.edge === "bottom") {
+          const hb = { x: plat.x + SPIKE_INSET, y: plat.y + plat.h - 2, w: plat.w - SPIKE_INSET * 2, h: 10 };
+          if (rectsOverlap(pRect, hb)) { killPlayer(state, "platRider"); return; }
+        }
+        continue;
+      } else if (ms.kind === "mirrorSpike") {
+        const ph = (t + (ms.offset || 0)) % (ms.period || 90);
+        ms.warning = ph < (ms.warnTicks || 25);
+        if (ms.warning) continue;
+      }
+    }
+
+    // Check inset hitbox (always smaller than drawn!)
+    if (ms.kind === "lockedAim" && ms.warning) continue;
+    const hb = {
+      x: ms.curX + SPIKE_INSET,
+      y: ms.curY + SPIKE_INSET,
+      w: Math.max(6, ms.curW - SPIKE_INSET * 2),
+      h: Math.max(6, ms.curH - SPIKE_INSET * 2)
+    };
+    if (rectsOverlap(pRect, hb)) {
+      killPlayer(state, ms.kind); return;
+    }
+  }
+
+  // Global cross-room Chaser Wall (#14)
+  if (state.chaser) {
+    const ch = state.chaser;
+    if (worldAdvances) {
+      if (ch.delayLeft > 0) ch.delayLeft--;
+      else ch.x += (ch.speed || 1.3);
+    }
+    if (ch.delayLeft === 0 && rectsOverlap(pRect, { x: ch.x + 2, y: ch.y + 4, w: ch.w - 4, h: ch.h - 8 })) {
+      killPlayer(state, "globalChaser"); return;
+    }
+  }
+}
+
+function checkEdgeTransition(state, room, applyVisualSlide) {
+  if (state.edgeCooldown > 0) { state.edgeCooldown--; return false; }
+  const p = state.player;
+  const ed = (state.def.edges && state.def.edges[room.id]) || {};
+  let edgeObj = null, dir = null;
+
+  // Check hidden edges first
+  if (Array.isArray(ed.hidden)) {
+    const pRect = { x: p.x, y: p.y, w: p.w, h: p.h };
+    for (const h of ed.hidden) {
+      if (rectsOverlap(pRect, h.rect)) {
+        edgeObj = h; dir = "hidden"; break;
+      }
+    }
+  }
+  if (!edgeObj && p.x + p.w > LOGICAL_W - 2 && ed.right) { edgeObj = ed.right; dir = "right"; }
+  else if (!edgeObj && p.x < 2 && ed.left) { edgeObj = ed.left; dir = "left"; }
+  else if (!edgeObj && p.y + p.h > LOGICAL_H - 4 && ed.bottom) { edgeObj = ed.bottom; dir = "bottom"; }
+  else if (!edgeObj && p.y < 2 && ed.top) { edgeObj = ed.top; dir = "top"; }
+
+  if (!edgeObj) return false;
+
+  const fromId = state.currentRoomId;
+  state.currentRoomId = edgeObj.to;
+  state.edgeCooldown = 14;
+  state.exploredRooms.add(edgeObj.to);
+  if (!state.traversedEdges.some(e => e.from === fromId && e.to === edgeObj.to)) {
+    state.traversedEdges.push({ from: fromId, to: edgeObj.to, type: edgeObj.type || dir });
+  }
+
+  // Spawn coordinates in destination room (preserving velocity!)
+  if (edgeObj.spawnCol !== undefined) {
+    p.x = edgeObj.spawnCol * TILE + 7;
+    if (edgeObj.spawnRow !== undefined) p.y = edgeObj.spawnRow * TILE + 6;
+  } else if (edgeObj.spawn === "left") {
+    p.x = 24;
+    if (edgeObj.type === "wrongWay" && p.vx < 0) p.vx = -p.vx;
+  } else if (edgeObj.spawn === "right") {
+    p.x = LOGICAL_W - p.w - 24;
+    if (edgeObj.type === "wrongWay" && p.vx > 0) p.vx = -p.vx;
+  } else if (edgeObj.spawn === "top") {
+    p.y = 18;
+  } else if (edgeObj.spawn === "bottom") {
+    p.y = LOGICAL_H - p.h - 140;
+  }
+
+  if (state.chaser) {
+    state.chaser.x = -36;
+    state.chaser.delayLeft = state.def.globalChaser.entryDelay || 45;
+  }
+  state.soundEvents.push("edge");
+  if (applyVisualSlide) {
+    state.transition = { dir, tick: 0, duration: SLIDE_TICKS };
+  }
+  return true;
+}
+
+function stepSingleTick(state, rawInput, applyVisualSlide = false) {
+  state.totalTick++;
+  const def = state.def;
+  const room = getCurrentRoom(state);
+  const p = state.player;
+
+  let effInput = rawInput;
+  if (def.inputDelay) {
+    state.inputQueue.push({ left: !!rawInput.left, right: !!rawInput.right, jump: !!rawInput.jump });
+    effInput = state.inputQueue.length <= def.inputDelay ? { left: false, right: false, jump: false } : state.inputQueue.shift();
+  }
+  const worldAdvances = !def.superhotTime || !!(effInput.left || effInput.right || effInput.jump);
+  if (worldAdvances) state.simTick++;
+
+  // Update collapsing / returning floors
+  for (let i = room.fallingTiles.length - 1; i >= 0; i--) {
+    const ft = room.fallingTiles[i];
+    if (ft.delay > 0) ft.delay--;
+    else if (ft.returnTimer > 0) {
+      ft.returnTimer--;
+      if (ft.returnTimer === 0) {
+        if (room.grid[ft.row]) room.grid[ft.row][ft.col] = ft.ch;
+        room.fallingTiles.splice(i, 1);
+      }
+    } else {
+      ft.vy = Math.min(ft.fallSpeed, ft.vy + 0.9);
+      ft.yOffset += ft.vy;
+      if (ft.row * TILE + ft.yOffset > LOGICAL_H + 40) {
+        if (ft.returnTicks > 0) ft.returnTimer = ft.returnTicks;
+        else room.fallingTiles.splice(i, 1);
+      }
+    }
+  }
+  // Collapsing floor triggers declared cleanly in room.collapsingFloors
+  if (room.def.collapsingFloors) {
+    for (const cf of room.def.collapsingFloors) {
+      for (const c of cf.cols) {
+        if (room.grid[cf.row][c] !== "." && p.onGround && p.y + p.h >= cf.row * TILE - 2 && p.y + p.h <= cf.row * TILE + 6 && p.x + p.w > c * TILE && p.x < (c + 1) * TILE) {
+          const ch = room.grid[cf.row][c];
+          room.grid[cf.row][c] = ".";
+          room.fallingTiles.push({ col: c, row: cf.row, ch, yOffset: 0, vy: 0, delay: cf.delayTicks || 8, fallSpeed: 9, returnTicks: cf.returnTicks || 90, returnTimer: 0 });
+        }
+      }
+    }
+  }
+
+  // Moving platforms
+  for (const plat of room.movingPlats) {
+    plat.prevX = plat.x; plat.prevY = plat.y;
+    if (worldAdvances && (plat.moveX || plat.moveY)) {
+      const ph = ((state.simTick + (plat.offset || 0)) % (plat.periodTicks || 120)) / (plat.periodTicks || 120);
+      const s = 0.5 - 0.5 * Math.cos(ph * Math.PI * 2);
+      plat.x = plat.baseX + (plat.moveX || 0) * s;
+      plat.y = plat.baseY + (plat.moveY || 0) * s;
+    }
+    plat.dx = plat.x - plat.prevX;
+    plat.dy = plat.y - plat.prevY;
+  }
+  if (p.standingPlatId) {
+    const plat = room.movingPlats.find(pl => pl.id === p.standingPlatId);
+    if (plat) { p.x += plat.dx; p.y += plat.dy; }
+  }
+  p.standingPlatId = null;
+
+  // Player controls (per-room mirror/reverse/gravity/ice twists)
+  let left = !!effInput.left, right = !!effInput.right;
+  if (room.def.flipX || room.def.reverseControls) { const tmp = left; left = right; right = tmp; }
+  const dir = (right ? 1 : 0) - (left ? 1 : 0);
+  if (dir !== 0) p.facing = dir;
+
+  const targetVx = dir * MOVE_SPEED;
+  const accel = p.onGround ? GROUND_ACCEL : AIR_ACCEL;
+  const decel = p.onGround ? (room.def.allIce ? ICE_DECEL : GROUND_DECEL) : AIR_DECEL;
+  if (dir !== 0) {
+    if (p.vx < targetVx) p.vx = Math.min(targetVx, p.vx + accel * FIXED_DT);
+    else if (p.vx > targetVx) p.vx = Math.max(targetVx, p.vx - accel * FIXED_DT);
+  } else {
+    if (p.vx > 0) p.vx = Math.max(0, p.vx - decel * FIXED_DT);
+    else if (p.vx < 0) p.vx = Math.min(0, p.vx + decel * FIXED_DT);
+  }
+
+  const jumpHeld = !!effInput.jump;
+  const jumpJust = jumpHeld && !p.prevJumpInput;
+  p.prevJumpInput = jumpHeld;
+  if (p.onGround) p.coyoteTicks = COYOTE_TICKS;
+  else if (p.coyoteTicks > 0) p.coyoteTicks--;
+  if (jumpJust) p.jumpBufferTicks = JUMP_BUFFER_TICKS;
+  else if (p.jumpBufferTicks > 0) p.jumpBufferTicks--;
+
+  const gDir = room.def.gravityDir || 1;
+  if (p.jumpBufferTicks > 0 && p.coyoteTicks > 0) {
+    p.vy = gDir * JUMP_VELOCITY;
+    p.onGround = false; p.coyoteTicks = 0; p.jumpBufferTicks = 0;
+    state.soundEvents.push("jump");
+  }
+  const cutting = (gDir > 0 && p.vy < 0 && !jumpHeld) || (gDir < 0 && p.vy > 0 && !jumpHeld);
+  const grav = GRAVITY * gDir * (cutting ? JUMP_CUT_MULT : 1);
+  p.vy += grav * FIXED_DT;
+  if (gDir > 0 && p.vy > MAX_FALL_SPEED) p.vy = MAX_FALL_SPEED;
+  if (gDir < 0 && p.vy < -MAX_FALL_SPEED) p.vy = -MAX_FALL_SPEED;
+
+  // Axis X
+  p.x += p.vx * FIXED_DT;
+  let minR = Math.max(0, Math.floor(p.y / TILE)), maxR = Math.min(ROWS - 1, Math.floor((p.y + p.h - 0.001) / TILE));
+  let minC = Math.max(0, Math.floor(p.x / TILE)), maxC = Math.min(COLS - 1, Math.floor((p.x + p.w - 0.001) / TILE));
+  for (let r = minR; r <= maxR; r++) {
+    for (let c = minC; c <= maxC; c++) {
+      if (!isSolidChar(room.grid[r][c])) continue;
+      const tr = { x: c * TILE, y: r * TILE, w: TILE, h: TILE };
+      if (rectsOverlap(p, tr)) {
+        if (p.vx > 0) p.x = tr.x - p.w; else if (p.vx < 0) p.x = tr.x + tr.w;
+        p.vx = 0;
+      }
+    }
+  }
+  // Bound clamped only when NO edge link exists on that side (or during entry edgeCooldown)
+  const ed = (def.edges && def.edges[room.id]) || {};
+  if ((!ed.left || state.edgeCooldown > 0) && p.x < 0) { p.x = 0; p.vx = 0; }
+  if ((!ed.right || state.edgeCooldown > 0) && p.x + p.w > LOGICAL_W) { p.x = LOGICAL_W - p.w; p.vx = 0; }
+
+  // Axis Y
+  p.onGround = false;
+  p.y += p.vy * FIXED_DT;
+  minR = Math.max(0, Math.floor(p.y / TILE)); maxR = Math.min(ROWS - 1, Math.floor((p.y + p.h - 0.001) / TILE));
+  minC = Math.max(0, Math.floor(p.x / TILE)); maxC = Math.min(COLS - 1, Math.floor((p.x + p.w - 0.001) / TILE));
+  for (let r = minR; r <= maxR; r++) {
+    for (let c = minC; c <= maxC; c++) {
+      const ch = room.grid[r][c];
+      if (!isSolidChar(ch)) continue;
+      const tr = { x: c * TILE, y: r * TILE, w: TILE, h: TILE };
+      if (rectsOverlap(p, tr)) {
+        if (p.vy > 0) {
+          p.y = tr.y - p.h;
+          if (ch === "B") { p.vy = -740; state.soundEvents.push("jump"); }
+          else { p.vy = 0; if (gDir > 0) p.onGround = true; }
+        } else if (p.vy < 0) {
+          p.y = tr.y + tr.h; p.vy = 0;
+          if (gDir < 0) p.onGround = true;
+        }
+      }
+    }
+  }
+  for (const plat of room.movingPlats) {
+    if (rectsOverlap(p, plat)) {
+      if (p.vy >= 0 && (p.y + p.h - p.vy * FIXED_DT) <= plat.y + 10) {
+        p.y = plat.y - p.h; p.vy = 0; p.onGround = true; p.standingPlatId = plat.id;
+      } else if (p.vy < 0) {
+        p.y = plat.y + plat.h; p.vy = 0;
+      }
+    }
+  }
+
+  // Screen-edge Room Transition!
+  if (checkEdgeTransition(state, room, applyVisualSlide)) return;
+  if (p.y > LOGICAL_H + 30) { killPlayer(state, "void"); return; }
+
+  // Static tile spikes & fake doors
+  const pRect = { x: p.x, y: p.y, w: p.w, h: p.h };
+  for (let r = Math.max(0, Math.floor(p.y / TILE)); r <= Math.min(ROWS - 1, Math.floor((p.y + p.h) / TILE)); r++) {
+    for (let c = Math.max(0, Math.floor(p.x / TILE)); c <= Math.min(COLS - 1, Math.floor((p.x + p.w) / TILE)); c++) {
+      const ch = room.grid[r][c];
+      if (ch === "L" && rectsOverlap(pRect, { x: c * TILE + 10, y: r * TILE, w: 10, h: TILE })) { killPlayer(state, "laser"); return; }
+      if (isSpikeChar(ch)) {
+        const hb = getTileSpikeHitbox(c, r, ch);
+        if (hb && rectsOverlap(pRect, hb)) { killPlayer(state, "spike"); return; }
+      }
+    }
+  }
+  if (room.def.fakeDoors) {
+    for (const fd of room.def.fakeDoors) {
+      if (rectsOverlap(pRect, { x: fd.col * TILE + 3, y: fd.row * TILE, w: 24, h: 30 })) {
+        killPlayer(state, "fakeDoor"); return;
+      }
+    }
+  }
+
+  // Collect keys
+  for (const k of room.keys) {
+    if (!k.collected && rectsOverlap(pRect, { x: k.x - 10, y: k.y - 10, w: 20, h: 20 })) {
+      k.collected = true;
+      state.collectedKeys.add(k.id);
+      state.soundEvents.push("key");
+    }
+  }
+
+  // Step all 14 moving spike types
+  stepMovingSpikes(state, room, worldAdvances);
+  if (state.dead) return;
+
+  // Check Goal Door (requires collectedKeys.size >= keysRequired)
+  if (def.goal.room === room.id && state.collectedKeys.size >= (def.keysRequired || 0)) {
+    const gRect = { x: def.goal.col * TILE + 3, y: def.goal.row * TILE, w: 24, h: 30 };
+    if (rectsOverlap(pRect, gRect)) {
+      state.won = true;
+      state.soundEvents.push("win");
+    }
+  }
+}
+
+function stepSimulation(state, rawInput, applyVisualSlide = false) {
+  state.soundEvents.length = 0;
+  state.shakeEvents.length = 0;
+  if (state.won) return;
+  if (state.dead) {
+    if (state.respawnTicksLeft > 0) state.respawnTicksLeft--;
+    return;
+  }
+  if (state.transition) {
+    state.transition.tick++;
+    if (state.transition.tick >= state.transition.duration) state.transition = null;
+    return;
+  }
+  stepSingleTick(state, rawInput, applyVisualSlide);
+}
+
+/* ============================================================================
+ * 9. DETERMINISTIC F9 SOLVER & VALIDATOR SELF-CHECK
+ * ============================================================================ */
+function expandSolution(segs) {
+  const frames = [];
+  for (const s of segs || []) {
+    const n = s.ticks || 1;
+    for (let i = 0; i < n; i++) frames.push({ left: !!s.left, right: !!s.right, jump: !!s.jump });
+  }
+  return frames;
+}
+
+function runHeadlessSolverForLevel(levelId) {
+  const def = MAX_LEVELS.find(l => l.id === levelId);
+  const segs = MAX_SOLUTIONS[levelId];
+  if (!def || !segs) return { id: levelId, name: def ? def.name : "?", pass: false, reason: "Missing solution" };
+  const st = createLevelState(def, 0);
+  const frames = expandSolution(segs);
+  for (let i = 0; i < frames.length; i++) {
+    stepSimulation(st, frames[i], false);
+    if (st.won) return { id: levelId, name: def.name, pass: true, ticks: st.totalTick, seconds: (st.totalTick / 60).toFixed(2) };
+    if (st.dead) return { id: levelId, name: def.name, pass: false, ticks: st.totalTick, reason: `Died (${st.deathReason}) @ room=${st.currentRoomId} t=${st.totalTick}` };
+  }
+  return { id: levelId, name: def.name, pass: false, ticks: st.totalTick, reason: `Timeout @ room=${st.currentRoomId} (${Math.round(st.player.x)},${Math.round(st.player.y)})` };
+}
+
+function runAllSolvers() {
+  const val = validateAllLevels();
+  const results = MAX_LEVELS.map(l => runHeadlessSolverForLevel(l.id));
+  const passed = results.filter(r => r.pass).length;
+  console.group(`TRUST ISSUES MAX F9 SOLVER: ${passed}/${results.length} PASS | VALIDATOR: ${val.ok ? "OK" : "FAIL"}`);
+  if (!val.ok) console.error(val);
+  for (const r of results) {
+    console.log(`M${String(r.id).padStart(2,"0")} (${r.name}): ${r.pass ? `PASS [${r.seconds}s / ${r.ticks}t]` : `FAIL - ${r.reason}`}`);
+  }
+  console.groupEnd();
+  return { results, val, passed, total: results.length };
+}
+
+/* ============================================================================
+ * 10. PERSISTENCE (trustmax_ prefix), RENDERER & UI
+ * ============================================================================ */
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const toastEl = document.getElementById("toast");
+function showToast(msg) {
+  toastEl.textContent = msg; toastEl.classList.add("show");
+  clearTimeout(showToast._t); showToast._t = setTimeout(() => toastEl.classList.remove("show"), 2000);
+}
+
+const defaultProgress = () => ({
+  cleared: {},
+  assistedClears: {},
+  totalDeaths: 0,
+  levelDeaths: {},
+  bestTimes: {},
+  rageClips: [],
+  practiceMode: false,
+  riddleMode: "deaths",
+  streamerSafe: false,
+  colorBlind: false,
+  muted: false,
+  bigDeathOverlay: false
+});
+function loadProgress() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? { ...defaultProgress(), ...JSON.parse(raw) } : defaultProgress();
+  } catch (e) { return defaultProgress(); }
+}
+function saveProgress(p) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); } catch (e) {} }
+const progress = loadProgress();
+sfx.muted = !!progress.muted;
+
+function isLevelUnlocked(id) {
+  if (id <= 1) return true;
+  return !!progress.cleared[id] || !!progress.cleared[id - 1];
+}
+
+const app = {
+  screen: "title", // title | select | play | pause | shame | victory
+  currentIdx: 0,
+  state: null,
+  uiTick: 0,
+  solverOverlay: null,
+  showClipPanel: false,
+  botWatch: null,
+  mouse: { x: 480, y: 270 },
+  hasTouch: false,
+  cssRotated90: false,
+  keys: { left: false, right: false, jump: false },
+  touch: { left: false, right: false, jump: false }
+};
+
+function startLevel(idx) {
+  app.currentIdx = Math.max(0, Math.min(MAX_LEVELS.length - 1, idx));
+  const def = MAX_LEVELS[app.currentIdx];
+  app.state = createLevelState(def, progress.levelDeaths[def.id] || 0);
+  app.botWatch = null;
+  app.screen = "play";
+  if (window.DeathMusic) window.DeathMusic.stop();
+}
+
+function shareCode() {
+  const def = MAX_LEVELS[app.currentIdx];
+  if (!def) return;
+  try { window.history.replaceState(null, "", `#code=TIM-${String(def.id).padStart(3,"0")}`); } catch (e) {}
+  showToast(`CODE COPIED TO URL: #code=TIM-${String(def.id).padStart(3,"0")}`);
+}
+
+const uiButtons = [];
+function addButton(x, y, w, h, label, onClick, bg = PAL.STONE, fg = PAL.WHITE, border = PAL.BORDER) {
+  const hover = app.mouse.x >= x && app.mouse.x <= x + w && app.mouse.y >= y && app.mouse.y <= y + h;
+  ctx.fillStyle = hover && bg === PAL.STONE ? PAL.STONE_HOVER : bg;
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = hover ? PAL.CYAN : border; ctx.lineWidth = hover ? 2 : 1.5; ctx.strokeRect(x, y, w, h);
+  drawPixelText(ctx, label, x + w / 2, y + Math.max(5, Math.floor((h - 14) / 2)), 1.6, hover && bg === PAL.STONE ? PAL.CYAN : fg, "center", null, w - 12);
+  uiButtons.push({ x, y, w, h, onClick });
+}
+
+function drawRoomScene(state) {
+  const room = getCurrentRoom(state);
+  const def = state.def;
+  // Tiles
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const ch = room.grid[r][c], x = c * TILE, y = r * TILE;
+      if (ch === "#" || ch === "B" || ch === "I" || ch === "C") {
+        ctx.fillStyle = ch === "B" ? PAL.GOLD : (ch === "I" ? PAL.CYAN : PAL.STONE);
+        ctx.fillRect(x, y, TILE, TILE);
+        ctx.strokeStyle = PAL.BG; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, TILE - 1, TILE - 1);
+      } else if (ch === "L") {
+        ctx.fillStyle = PAL.CORAL; ctx.fillRect(x + 11, y, 8, TILE);
+      } else if (isSpikeChar(ch)) {
+        ctx.fillStyle = PAL.CORAL;
+        ctx.beginPath();
+        if (ch === "^") { ctx.moveTo(x+3, y+TILE); ctx.lineTo(x+TILE/2, y+4); ctx.lineTo(x+TILE-3, y+TILE); }
+        else if (ch === "v") { ctx.moveTo(x+3, y); ctx.lineTo(x+TILE/2, y+TILE-4); ctx.lineTo(x+TILE-3, y); }
+        else if (ch === "<") { ctx.moveTo(x+TILE, y+3); ctx.lineTo(x+4, y+TILE/2); ctx.lineTo(x+TILE, y+TILE-3); }
+        else { ctx.moveTo(x, y+3); ctx.lineTo(x+TILE-4, y+TILE/2); ctx.lineTo(x, y+TILE-3); }
+        ctx.closePath(); ctx.fill();
+      }
+    }
+  }
+  // Hidden edge seam tells
+  const ed = (def.edges && def.edges[room.id]) || {};
+  if (Array.isArray(ed.hidden)) {
+    for (const h of ed.hidden) {
+      ctx.save(); ctx.globalAlpha = 0.55 + 0.3 * Math.sin(state.totalTick * 0.25);
+      ctx.fillStyle = PAL.CYAN; ctx.fillRect(h.rect.x, h.rect.y, 4, h.rect.h);
+      ctx.restore();
+    }
+  }
+  // Moving platforms
+  for (const pl of room.movingPlats) {
+    ctx.fillStyle = PAL.STONE; ctx.fillRect(pl.x, pl.y, pl.w, pl.h);
+    ctx.fillStyle = PAL.GOLD; ctx.fillRect(pl.x, pl.y, pl.w, 3);
+  }
+  // Keys & Fake Doors
+  for (const k of room.keys) {
+    if (k.collected) continue;
+    ctx.fillStyle = PAL.GOLD;
+    ctx.beginPath(); ctx.arc(k.x, k.y + Math.sin(state.totalTick * 0.12) * 3, 7, 0, Math.PI * 2); ctx.fill();
+    drawPixelText(ctx, "K", k.x, k.y - 6, 1, PAL.ACCENT_TEXT, "center");
+  }
+  if (room.def.fakeDoors) {
+    for (const fd of room.def.fakeDoors) {
+      ctx.fillStyle = PAL.GOLD; ctx.fillRect(fd.col * TILE + 3, fd.row * TILE, 24, 30);
+      ctx.fillStyle = PAL.CORAL; ctx.fillRect(fd.col * TILE + 18, fd.row * TILE + 15, 2, 2);
+    }
+  }
+  // Goal Door (faint shimmer when hidden, bright gold once unlocked)
+  if (def.goal.room === room.id) {
+    const unlocked = state.collectedKeys.size >= (def.keysRequired || 0);
+    ctx.save();
+    ctx.globalAlpha = unlocked ? 1 : 0.4;
+    ctx.fillStyle = unlocked ? PAL.GOLD : PAL.STONE;
+    ctx.fillRect(def.goal.col * TILE + 3, def.goal.row * TILE, 24, 30);
+    ctx.strokeStyle = PAL.CYAN; ctx.lineWidth = 2;
+    ctx.strokeRect(def.goal.col * TILE + 3, def.goal.row * TILE, 24, 30);
+    ctx.restore();
+  }
+  // Moving Spikes + Tells
+  const p = state.player;
+  for (const ms of room.movingSpikes) {
+    if (!ms.active) continue;
+    if (ms.kind === "rainWave") {
+      const cols = ms.cols || [], per = ms.period || 100, warn = ms.warnTicks || 26, stag = ms.stagger || 10;
+      for (let ci = 0; ci < cols.length; ci++) {
+        const c = cols[ci], ph = ((state.simTick + ci * stag) % per + per) % per;
+        if (ph < warn) {
+          ctx.fillStyle = PAL.CORAL; ctx.fillRect(c * TILE + 4, 14 * TILE - 4, 22, 4);
+        } else if (ph < warn + 34) {
+          const dropY = ms.from === "bottom" ? 14 * TILE - Math.min(180, (ph - warn) * 7) : 30 + Math.min(13 * TILE, (ph - warn) * 11);
+          ctx.fillStyle = PAL.CORAL; ctx.beginPath();
+          ctx.moveTo(c*TILE+4, dropY); ctx.lineTo(c*TILE+26, dropY); ctx.lineTo(c*TILE+15, dropY+22); ctx.closePath(); ctx.fill();
+        }
+      }
+      continue;
+    }
+    if (ms.kind === "orbit") {
+      const radii = ms.chain || [ms.r || 48];
+      const count = ms.count || 1;
+      ctx.fillStyle = PAL.GOLD; ctx.beginPath(); ctx.arc(ms.cx, ms.cy, 4, 0, Math.PI * 2); ctx.fill();
+      for (const rr of radii) {
+        ctx.save(); ctx.globalAlpha = 0.2; ctx.strokeStyle = PAL.MUTED; ctx.beginPath(); ctx.arc(ms.cx, ms.cy, rr, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+        for (let ci = 0; ci < count; ci++) {
+          const ang = (ms.phase0 || 0) + state.simTick * (ms.omega || 0.04) + (ci / count) * Math.PI * 2;
+          ctx.fillStyle = PAL.CORAL; ctx.beginPath();
+          ctx.arc(ms.cx + Math.cos(ang) * rr, ms.cy + Math.sin(ang) * rr, 9, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      continue;
+    }
+    if (ms.kind === "conveyor") {
+      const span = Math.max(60, ms.x2 - ms.x1), spacing = ms.spacing || 90, count = Math.max(1, Math.floor(span / spacing));
+      ctx.fillStyle = PAL.STONE; ctx.fillRect(ms.x1, ms.y + 18, span, 6);
+      for (let ci = 0; ci < count; ci++) {
+        const sx = ms.x1 + (((state.simTick * (ms.speed || 2) + ci * spacing) % span) + span) % span;
+        ctx.fillStyle = PAL.CORAL; ctx.beginPath();
+        ctx.moveTo(sx, ms.y + 20); ctx.lineTo(sx + 10, ms.y); ctx.lineTo(sx + 20, ms.y + 20); ctx.closePath(); ctx.fill();
+      }
+      continue;
+    }
+    if (ms.kind === "train") {
+      ctx.fillStyle = PAL.STONE; ctx.fillRect(0, ms.y + 18, LOGICAL_W, 4);
+      ctx.fillStyle = PAL.CORAL;
+      for (let tx = 0; tx < ms.curW; tx += 16) {
+        ctx.beginPath(); ctx.moveTo(ms.curX + tx, ms.y + 20); ctx.lineTo(ms.curX + tx + 8, ms.y); ctx.lineTo(ms.curX + tx + 16, ms.y + 20); ctx.closePath(); ctx.fill();
+      }
+      continue;
+    }
+    if (ms.kind === "platRider") {
+      const pl = room.movingPlats.find(p0 => p0.id === ms.platId);
+      if (pl && ms.edge === "bottom") {
+        ctx.fillStyle = PAL.CORAL; ctx.fillRect(pl.x + 2, pl.y + pl.h, pl.w - 4, 8);
+      }
+      continue;
+    }
+    if (ms.kind === "ring") {
+      const baseAng = state.simTick * (ms.omega || 0.035), count = ms.count || 8, gapIdx = ms.gapIdx || 0;
+      ctx.save(); ctx.globalAlpha = 0.25; ctx.strokeStyle = PAL.GOLD; ctx.beginPath(); ctx.arc(ms.cx, ms.cy, ms.r, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+      for (let i = 0; i < count; i++) {
+        if (i === gapIdx) continue;
+        const a = baseAng + (i / count) * Math.PI * 2;
+        ctx.fillStyle = PAL.CORAL; ctx.beginPath();
+        ctx.arc(ms.cx + Math.cos(a) * ms.r, ms.cy + Math.sin(a) * ms.r, 8, 0, Math.PI * 2); ctx.fill();
+      }
+      continue;
+    }
+    if (ms.kind === "pendulum") {
+      ctx.strokeStyle = PAL.MUTED; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(ms.px, ms.py); ctx.lineTo(ms.curX + ms.curW/2, ms.curY + ms.curH/2); ctx.stroke();
+    } else if (ms.kind === "lockedAim" && ms.warning) {
+      ctx.save(); ctx.strokeStyle = PAL.GOLD; ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.moveTo(ms.curX + 10, ms.curY + 10); ctx.lineTo(p.x + p.w/2, p.y + p.h/2); ctx.stroke(); ctx.restore();
+    }
+    ctx.fillStyle = ms.warning ? PAL.GOLD : PAL.CORAL;
+    ctx.fillRect(Math.round(ms.curX), Math.round(ms.curY), ms.curW, ms.curH);
+  }
+  if (state.chaser && state.chaser.delayLeft === 0) {
+    ctx.fillStyle = PAL.CORAL;
+    ctx.fillRect(Math.round(state.chaser.x), Math.round(state.chaser.y), state.chaser.w, state.chaser.h);
+  }
+  // Player
+  if (!state.dead) {
+    const cx = p.x + p.w / 2, by = p.y + p.h;
+    ctx.fillStyle = (room.def.flipX || room.def.reverseControls) ? PAL.GOLD : PAL.WHITE;
+    ctx.fillRect(Math.round(cx - SPRITE_W / 2), Math.round(by - SPRITE_H), SPRITE_W, SPRITE_H);
+    ctx.fillStyle = PAL.BG;
+    ctx.fillRect(Math.round(cx + p.facing * 3 - 4), Math.round(by - SPRITE_H + 7), 3, 4);
+    ctx.fillRect(Math.round(cx + p.facing * 3 + 2), Math.round(by - SPRITE_H + 7), 3, 4);
+  }
+}
+
+function renderMiniMap(state) {
+  const def = state.def;
+  const rids = Object.keys(def.rooms);
+  const mx = LOGICAL_W - 142, my = 48, mw = 132, mh = 54;
+  ctx.fillStyle = PAL.PANEL; ctx.fillRect(mx, my, mw, mh);
+  ctx.strokeStyle = PAL.CYAN; ctx.lineWidth = 1; ctx.strokeRect(mx, my, mw, mh);
+  const step = Math.floor((mw - 20) / Math.max(1, rids.length));
+  rids.forEach((rid, i) => {
+    const seen = state.exploredRooms.has(rid);
+    const active = state.currentRoomId === rid;
+    const rx = mx + 10 + i * step, ry = my + 18;
+    ctx.fillStyle = active ? PAL.CYAN : (seen ? PAL.GOLD : PAL.STONE);
+    ctx.fillRect(rx, ry, 14, 14);
+    if (i < rids.length - 1) {
+      ctx.strokeStyle = def.lyingMap ? PAL.CORAL : PAL.WHITE;
+      ctx.beginPath();
+      if (def.lyingMap) { ctx.moveTo(rx + 14, ry + 2); ctx.lineTo(rx + step, ry + 14); }
+      else { ctx.moveTo(rx + 14, ry + 7); ctx.lineTo(rx + step, ry + 7); }
+      ctx.stroke();
+    }
+  });
+  drawPixelText(ctx, def.lyingMap ? "MAP?" : "MAP", mx + mw / 2, my + 4, 1, PAL.MUTED, "center");
+}
+
+function renderTitleScreen() {
+  ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  drawPixelText(ctx, "TRUST ISSUES MAX", 480, 48, 5, PAL.CYAN, "center");
+  drawPixelText(ctx, "CHAPTER 2  •  NO CHECKPOINTS  •  MULTI-ROOM BETRAYAL", 480, 100, 1.8, PAL.GOLD, "center");
+
+  const clearedCount = Object.keys(progress.cleared).length;
+  const nextIdx = MAX_LEVELS.findIndex(l => l.id >= 1 && !progress.cleared[l.id]);
+  const playIdx = nextIdx >= 0 ? nextIdx : (MAX_LEVELS.length > 1 ? 1 : 0);
+
+  addButton(310, 165, 340, 48, `PLAY LEVEL ${MAX_LEVELS[playIdx].id}`, () => startLevel(playIdx), PAL.CYAN, PAL.ACCENT_TEXT, PAL.CYAN);
+  addButton(310, 226, 340, 42, `LEVEL SELECT [L] (${clearedCount}/${MAX_LEVELS.filter(l => l.id >= 1).length})`, () => { app.screen = "select"; }, PAL.STONE, PAL.WHITE);
+  addButton(310, 280, 340, 42, "SETTINGS & PRACTICE [ESC]", () => { app.screen = "pause"; }, PAL.STONE, PAL.GOLD);
+  addButton(310, 334, 340, 42, "HALL OF SHAME [H]", () => { app.screen = "shame"; }, PAL.STONE, PAL.CORAL);
+  addButton(310, 396, 340, 40, "< BACK TO TRUST ISSUES", () => { window.location.href = GAME_LINKS.originalUrl; }, PAL.SURFACE, PAL.MUTED, PAL.BORDER);
+}
+
+function renderLevelSelect() {
+  ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  drawPixelText(ctx, "WORLD 1: THE WRAPAROUND", 480, 26, 3, PAL.CYAN, "center");
+  MAX_LEVELS.forEach((l, i) => {
+    const col = i % 5, row = Math.floor(i / 5);
+    const x = 60 + col * 172, y = 90 + row * 72;
+    const unlocked = l.id === 0 || isLevelUnlocked(l.id) || progress.practiceMode;
+    const clr = !!progress.cleared[l.id];
+    const lbl = l.id === 0 ? `TEST [0]` : `M${String(l.id).padStart(2,"0")} (#${l.chapter2Number})${clr ? "*" : ""}`;
+    addButton(x, y, 160, 54, unlocked ? lbl : `LOCKED M${l.id}`, () => {
+      if (unlocked) startLevel(i); else showToast(`CLEAR LEVEL ${l.id - 1} FIRST`);
+    }, clr ? PAL.STONE : PAL.SURFACE, clr ? PAL.GOLD : (unlocked ? PAL.WHITE : PAL.CORAL));
+  });
+  addButton(360, 470, 240, 40, "BACK [ESC]", () => { app.screen = "title"; }, PAL.STONE, PAL.WHITE);
+}
+
+function renderPauseMenu() {
+  ctx.fillStyle = PAL.OVERLAY; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  ctx.fillStyle = PAL.PANEL; ctx.fillRect(170, 46, 620, 448);
+  ctx.strokeStyle = PAL.CYAN; ctx.lineWidth = 2; ctx.strokeRect(170, 46, 620, 448);
+  drawPixelText(ctx, "MAX SETTINGS & OPTIONS", 480, 68, 2.8, PAL.CYAN, "center");
+
+  addButton(220, 120, 250, 38, app.state ? "Resume [Esc]" : "Back [Esc]", () => { app.screen = app.state ? "play" : "title"; }, PAL.CYAN, PAL.ACCENT_TEXT);
+  addButton(490, 120, 250, 38, "Restart [R]", () => { if (app.state) startLevel(app.currentIdx); else app.screen = "select"; }, PAL.STONE, PAL.CORAL);
+  addButton(220, 176, 520, 36, `Practice Mode (Assisted): ${progress.practiceMode ? "ON" : "OFF"}`, () => { progress.practiceMode = !progress.practiceMode; saveProgress(progress); }, PAL.SURFACE, PAL.GOLD);
+  const rm = progress.riddleMode === "off" ? "Off" : (progress.riddleMode === "always" ? "Always On" : "After Deaths");
+  addButton(220, 224, 250, 36, `Riddles: ${rm}`, () => { const o = ["deaths","always","off"]; progress.riddleMode = o[(o.indexOf(progress.riddleMode||"deaths")+1)%3]; saveProgress(progress); }, PAL.SURFACE, PAL.WHITE);
+  addButton(490, 224, 250, 36, `Streamer Safe: ${progress.streamerSafe ? "ON" : "OFF"}`, () => { progress.streamerSafe = !progress.streamerSafe; saveProgress(progress); }, PAL.SURFACE, PAL.WHITE);
+  addButton(220, 272, 250, 36, `Sound: ${progress.muted ? "Muted" : "On"}`, () => { progress.muted = !progress.muted; sfx.muted = progress.muted; saveProgress(progress); }, PAL.SURFACE, PAL.WHITE);
+  addButton(490, 272, 250, 36, `OBS Overlay [O]: ${progress.bigDeathOverlay ? "ON" : "OFF"}`, () => { progress.bigDeathOverlay = !progress.bigDeathOverlay; saveProgress(progress); }, PAL.SURFACE, PAL.WHITE);
+  addButton(220, 330, 250, 38, "Level Select [L]", () => { app.screen = "select"; }, PAL.STONE, PAL.WHITE);
+  addButton(490, 330, 250, 38, "Back to Trust Issues", () => { window.location.href = GAME_LINKS.originalUrl; }, PAL.STONE, PAL.CYAN);
+  addButton(320, 412, 320, 40, "Main Menu", () => { app.screen = "title"; app.state = null; }, PAL.SURFACE, PAL.GOLD);
+}
+
+function renderHUD(state) {
+  const room = getCurrentRoom(state);
+  const def = state.def;
+  ctx.fillStyle = PAL.SURFACE; ctx.fillRect(0, 0, LOGICAL_W, 40);
+  drawPixelText(ctx, `MAX ${def.id} (#${def.chapter2Number}): ${def.name}  •  ${room.def.label || room.id}`, 14, 12, 1.8, PAL.CYAN, "left", null, 500);
+  drawPixelText(ctx, `Deaths: ${state.levelDeaths}  Keys: ${state.collectedKeys.size}/${def.keysRequired || 0}`, 640, 12, 1.8, PAL.GOLD, "right", null, 200);
+  addButton(780, 6, 80, 28, "RETRY", () => startLevel(app.currentIdx), PAL.STONE, PAL.WHITE);
+  addButton(868, 6, 80, 28, "PAUSE", () => { app.screen = "pause"; }, PAL.STONE, PAL.WHITE);
+  if ((state.levelDeaths || 0) >= 25 && !state.decodedText) {
+    addButton(684, 6, 88, 28, "DECODE", () => { state.decodedText = def.solutionSummary || def.tell; state.usedAssist = true; }, PAL.STONE, PAL.GOLD, PAL.GOLD);
+  }
+  renderMiniMap(state);
+  // Bottom-center Narrator Riddle bar
+  const rHint = getActiveMaxRiddle(state);
+  if (rHint) {
+    ctx.save(); ctx.globalAlpha = rHint.alpha;
+    ctx.fillStyle = PAL.PANEL; ctx.fillRect(80, LOGICAL_H - 72, 800, 34);
+    ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 1.5; ctx.strokeRect(80, LOGICAL_H - 72, 800, 34);
+    drawPixelText(ctx, rHint.text, 480, LOGICAL_H - 61, 1.4, PAL.GOLD, "center", null, 760);
+    ctx.restore();
+  }
+  ctx.fillStyle = PAL.SURFACE; ctx.fillRect(0, LOGICAL_H - 34, LOGICAL_W, 34);
+  drawPixelText(ctx, progress.practiceMode ? "[ ] SWITCH ROOM (PRACTICE)  •  [R] RESTART  •  NO CHECKPOINTS" : "NO CHECKPOINTS  •  DEATH RESETS TO ROOM 1  •  [R] INSTANT RETRY", 480, LOGICAL_H - 24, 1.5, PAL.MUTED, "center");
+}
+
+function render() {
+  uiButtons.length = 0;
+  const showTouch = app.screen === "play" && (app.hasTouch || (window.matchMedia && window.matchMedia("(pointer: coarse)").matches));
+  const touchEl = document.getElementById("touch-controls");
+  if (touchEl) touchEl.classList.toggle("active", !!showTouch);
+  if (app.screen === "title") renderTitleScreen();
+  else if (app.screen === "select") renderLevelSelect();
+  else if (app.screen === "shame") {
+    ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+    drawPixelText(ctx, "HALL OF SHAME (MAX)", 480, 36, 3, PAL.CORAL, "center");
+    addButton(360, 460, 240, 42, "BACK", () => { app.screen = "title"; }, PAL.STONE, PAL.WHITE);
+  } else if (app.screen === "victory") {
+    ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+    drawPixelText(ctx, "CONGRATULATIONS! TRUST ISSUES MAX CLEARED!", 480, 120, 3, PAL.CYAN, "center", null, 880);
+    drawPixelText(ctx, `TOTAL SUFFERING: ${progress.totalDeaths} DEATHS`, 480, 190, 2, PAL.GOLD, "center");
+    addButton(330, 280, 300, 44, "PLAY AGAIN", () => startLevel(MAX_LEVELS.length > 1 ? 1 : 0), PAL.CYAN, PAL.ACCENT_TEXT);
+    addButton(330, 340, 300, 42, "BACK TO TRUST ISSUES", () => { window.location.href = GAME_LINKS.originalUrl; }, PAL.STONE, PAL.GOLD);
+  } else if (app.state) {
+    ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+    ctx.save();
+    if (app.state.transition) {
+      const k = 1 - app.state.transition.tick / app.state.transition.duration;
+      const d = app.state.transition.dir;
+      const sx = d === "right" ? LOGICAL_W * k : (d === "left" ? -LOGICAL_W * k : 0);
+      const sy = d === "bottom" ? LOGICAL_H * k : (d === "top" ? -LOGICAL_H * k : 0);
+      ctx.translate(sx, sy);
+    }
+    drawRoomScene(app.state);
+    ctx.restore();
+    renderHUD(app.state);
+    if (app.screen === "pause") renderPauseMenu();
+  }
+  if (app.solverOverlay) {
+    ctx.fillStyle = PAL.OVERLAY; ctx.fillRect(100, 50, 760, 440);
+    ctx.strokeStyle = PAL.CYAN; ctx.lineWidth = 2; ctx.strokeRect(100, 50, 760, 440);
+    drawPixelText(ctx, `SOLVER: ${app.solverOverlay.passed}/${app.solverOverlay.total} PASS | VALIDATOR: ${app.solverOverlay.val.ok ? "OK" : "FAIL"}`, 480, 70, 2, PAL.GOLD, "center");
+    app.solverOverlay.results.slice(0, 16).forEach((r, i) => {
+      drawPixelText(ctx, `M${String(r.id).padStart(2,"0")} ${r.name}: ${r.pass ? "PASS ("+r.seconds+"s)" : "FAIL - "+r.reason}`, 130, 110 + i * 21, 1.4, r.pass ? PAL.CYAN : PAL.CORAL, "left", null, 700);
+    });
+    addButton(380, 446, 200, 34, "CLOSE [F9]", () => { app.solverOverlay = null; }, PAL.STONE, PAL.WHITE);
+  }
+}
+
+window.addEventListener("keydown", e => {
+  sfx.unlock();
+  if (e.code === "ArrowLeft" || e.code === "KeyA") app.keys.left = true;
+  if (e.code === "ArrowRight" || e.code === "KeyD") app.keys.right = true;
+  if (e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW") { app.keys.jump = true; e.preventDefault(); }
+  if (e.code === "KeyR" && app.state) startLevel(app.currentIdx);
+  if (e.code === "Escape") app.screen = app.screen === "pause" ? (app.state ? "play" : "title") : "pause";
+  if (e.code === "KeyL") app.screen = "select";
+  if (e.code === "F9") {
+    e.preventDefault();
+    if (e.shiftKey && app.state && MAX_SOLUTIONS[app.state.def.id]) {
+      app.botWatch = { frames: expandSolution(MAX_SOLUTIONS[app.state.def.id]), index: 0 };
+      startLevel(app.currentIdx);
+    } else {
+      app.solverOverlay = app.solverOverlay ? null : runAllSolvers();
+    }
+  }
+  if (progress.practiceMode && app.state && (e.code === "BracketLeft" || e.code === "BracketRight")) {
+    const rids = Object.keys(app.state.rooms || app.state.roomStates);
+    const i = rids.indexOf(app.state.currentRoomId);
+    app.state.currentRoomId = rids[(i + (e.code === "BracketRight" ? 1 : rids.length - 1)) % rids.length];
+    app.state.exploredRooms.add(app.state.currentRoomId);
+    app.state.usedAssist = true;
+  }
+});
+window.addEventListener("keyup", e => {
+  if (e.code === "ArrowLeft" || e.code === "KeyA") app.keys.left = false;
+  if (e.code === "ArrowRight" || e.code === "KeyD") app.keys.right = false;
+  if (e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW") app.keys.jump = false;
+});
+function resizeCanvas() {
+  const rawW = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+  const rawH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const stage = document.getElementById("stage");
+  const mobile = (app.hasTouch || (window.matchMedia && window.matchMedia("(pointer: coarse)").matches));
+  const rot = mobile && rawH > rawW; app.cssRotated90 = rot;
+  stage.classList.toggle("landscape-forced", rot);
+  const w = rot ? rawH : rawW, h = rot ? rawW : rawH;
+  stage.style.width = `${Math.floor(w)}px`; stage.style.height = `${Math.floor(h)}px`;
+  const s = Math.min(Math.max(240, w - 8) / LOGICAL_W, Math.max(160, h - 8) / LOGICAL_H);
+  canvas.style.width = `${Math.floor(LOGICAL_W * s)}px`; canvas.style.height = `${Math.floor(LOGICAL_H * s)}px`;
+}
+window.addEventListener("resize", resizeCanvas); resizeCanvas();
+canvas.addEventListener("pointermove", e => {
+  const r = canvas.getBoundingClientRect();
+  app.mouse = app.cssRotated90
+    ? { x: (e.clientY - r.top) * LOGICAL_W / Math.max(1, r.height), y: (r.right - e.clientX) * LOGICAL_H / Math.max(1, r.width) }
+    : { x: (e.clientX - r.left) * LOGICAL_W / Math.max(1, r.width), y: (e.clientY - r.top) * LOGICAL_H / Math.max(1, r.height) };
+});
+canvas.addEventListener("pointerdown", e => {
+  sfx.unlock();
+  if (e.pointerType === "touch" && !app.hasTouch) { app.hasTouch = true; resizeCanvas(); }
+  const r = canvas.getBoundingClientRect();
+  const pt = app.cssRotated90
+    ? { x: (e.clientY - r.top) * LOGICAL_W / Math.max(1, r.height), y: (r.right - e.clientX) * LOGICAL_H / Math.max(1, r.width) }
+    : { x: (e.clientX - r.left) * LOGICAL_W / Math.max(1, r.width), y: (e.clientY - r.top) * LOGICAL_H / Math.max(1, r.height) };
+  for (let i = uiButtons.length - 1; i >= 0; i--) {
+    const b = uiButtons[i];
+    if (pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h) { b.onClick(); return; }
+  }
+});
+function bindTouch(id, k) {
+  const b = document.getElementById(id);
+  if (!b) return;
+  b.addEventListener("touchstart", e => { e.preventDefault(); sfx.unlock(); app.touch[k] = true; b.classList.add("pressed"); });
+  b.addEventListener("touchend", e => { e.preventDefault(); app.touch[k] = false; b.classList.remove("pressed"); });
+  b.addEventListener("touchcancel", e => { e.preventDefault(); app.touch[k] = false; b.classList.remove("pressed"); });
+}
+bindTouch("btn-left", "left"); bindTouch("btn-right", "right"); bindTouch("btn-jump", "jump");
+
+let lastT = performance.now(), acc = 0;
+function tickGame() {
+  app.uiTick++;
+  if (app.screen !== "play" || !app.state || app.solverOverlay) return;
+  let inp = { left: app.keys.left || app.touch.left, right: app.keys.right || app.touch.right, jump: app.keys.jump || app.touch.jump };
+  if (app.botWatch) {
+    inp = app.botWatch.frames[app.botWatch.index++] || {};
+    if (app.botWatch.index > app.botWatch.frames.length + 10) app.botWatch = null;
+  }
+  const wasDead = app.state.dead;
+  stepSimulation(app.state, inp, true);
+  for (const s of app.state.soundEvents) sfx.play(s);
+  if (!wasDead && app.state.dead) {
+    progress.totalDeaths++;
+    progress.levelDeaths[app.state.def.id] = (progress.levelDeaths[app.state.def.id] || 0) + 1;
+    saveProgress(progress);
+    if (window.DeathMusic) window.DeathMusic.onDeath();
+  }
+  if (app.state.dead && app.state.respawnTicksLeft === 0) startLevel(app.currentIdx);
+  if (app.state.won) {
+    if (!app.state.usedAssist && !progress.practiceMode) progress.cleared[app.state.def.id] = true;
+    else progress.assistedClears[app.state.def.id] = true;
+    saveProgress(progress);
+    if (app.currentIdx + 1 < MAX_LEVELS.length) {
+      if (window.DeathMusic) window.DeathMusic.onWin();
+      startLevel(app.currentIdx + 1);
+    } else {
+      if (window.DeathMusic) window.DeathMusic.playVictory();
+      app.screen = "victory";
+    }
+  }
+}
+function frame(now) {
+  const dt = Math.min(0.1, (now - lastT) / 1000); lastT = now; acc += dt;
+  while (acc >= FIXED_DT) { tickGame(); acc -= FIXED_DT; }
+  render();
+  requestAnimationFrame(frame);
+}
+const hashM = (window.location.hash || "").match(/code=TIM-(\d+)/i);
+if (hashM) { const n = parseInt(hashM[1], 10); if (n >= 1 && n <= MAX_LEVELS.length && isLevelUnlocked(n)) startLevel(n - 1); }
+requestAnimationFrame(frame);
+</script>
+<script src="../death_music.js"></script>
+</body>
+</html>

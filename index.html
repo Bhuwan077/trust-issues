@@ -391,6 +391,9 @@ const JUMP_BUFFER_TICKS = 6;   // ~100 ms pre-landing jump buffer
 const RESPAWN_TICKS = 8;       // 133 ms instant respawn (< 200 ms target)
 
 const STORAGE_KEY = "trust_issues_100_v1";
+const GAME_LINKS = {
+  maxUrl: "max/index.html"
+};
 
 const WORLDS = [
   { id: 1,  name: "HONEST FLOORS",     rounds: [1, 6],   unlockNeed: 4 },
@@ -5838,6 +5841,12 @@ function renderTitleScreen() {
 
   const cards = [
     {
+      title: "Trust Issues Max",
+      meta: `Chapter 2 • 15 Max`,
+      btn: "Play Max",
+      onClick: () => { window.location.href = GAME_LINKS.maxUrl; }
+    },
+    {
       title: "Do Not Obey",
       meta: `${g2Cleared}/16 • ${progress.g2TotalFails || 0} Fails`,
       btn: app.g2 ? `Resume` : "Play",
@@ -5865,16 +5874,16 @@ function renderTitleScreen() {
     }
   ];
   cards.forEach((c, i) => {
-    const cx = 36 + i * 226, cy = 282, cw = 212, ch = 132;
+    const cx = 20 + i * 186, cy = 282, cw = 176, ch = 132;
     ctx.fillStyle = PAL.SURFACE; ctx.fillRect(cx, cy, cw, ch);
-    ctx.strokeStyle = PAL.BORDER; ctx.lineWidth = 1.5; ctx.strokeRect(cx, cy, cw, ch);
-    drawPixelText(ctx, c.title, cx + cw / 2, cy + 16, 2, PAL.WHITE, "center", null, cw - 16);
-    drawPixelText(ctx, c.meta, cx + cw / 2, cy + 44, 1, PAL.MUTED, "center", null, cw - 16);
+    ctx.strokeStyle = i === 0 ? PAL.GOLD : PAL.BORDER; ctx.lineWidth = 1.5; ctx.strokeRect(cx, cy, cw, ch);
+    drawPixelText(ctx, c.title, cx + cw / 2, cy + 16, 1.8, PAL.WHITE, "center", null, cw - 12);
+    drawPixelText(ctx, c.meta, cx + cw / 2, cy + 44, 1, PAL.MUTED, "center", null, cw - 12);
     if (c.subBtn) {
-      addButton(cx + 12, cy + 76, 94, 38, c.btn, c.onClick, PAL.STONE, PAL.GOLD, PAL.BORDER);
-      addButton(cx + 112, cy + 76, 88, 38, c.subBtn, c.onSub, PAL.STONE, PAL.WHITE, PAL.BORDER);
+      addButton(cx + 10, cy + 76, 76, 38, c.btn, c.onClick, PAL.STONE, PAL.GOLD, PAL.BORDER);
+      addButton(cx + 90, cy + 76, 76, 38, c.subBtn, c.onSub, PAL.STONE, PAL.WHITE, PAL.BORDER);
     } else {
-      addButton(cx + 12, cy + 76, cw - 24, 38, c.btn, c.onClick, PAL.STONE, PAL.GOLD, PAL.BORDER);
+      addButton(cx + 10, cy + 76, cw - 20, 38, c.btn, c.onClick, i === 0 ? PAL.GOLD : PAL.STONE, i === 0 ? PAL.BG : PAL.GOLD, PAL.BORDER);
     }
   });
 
@@ -6048,12 +6057,13 @@ function renderVictoryScreen() {
   const secretsFound = Object.keys(progress.foundSecrets || {}).length;
   drawPixelText(ctx, "CONGRATULATIONS! 100 ROUNDS CONQUERED!", 480, 76, 3.2, PAL.GOLD, "center", null, 880);
   drawPixelText(ctx, `Total Deaths: ${progress.totalDeaths}  •  Secrets: ${secretsFound}/12`, 480, 152, 2, PAL.CORAL, "center", null, 860);
+  addButton(310, 210, 340, 44, "ENTER TRUST ISSUES MAX ->", () => { window.location.href = GAME_LINKS.maxUrl; }, PAL.GOLD, PAL.BG, PAL.GOLD);
   if (secretsFound >= 12) {
-    addButton(310, 210, 340, 46, "Enter Secret Sanctuary (101)", () => startLevel(LEVELS.length - 1, true), PAL.GOLD, PAL.BG, PAL.GOLD);
+    addButton(310, 260, 340, 38, "Enter Secret Sanctuary (101)", () => startLevel(LEVELS.length - 1, true), PAL.STONE, PAL.GOLD, PAL.GOLD);
   }
-  addButton(340, 282, 280, 44, "Play Again [Enter]", () => startLevel(0, true), PAL.SURFACE, PAL.GOLD, PAL.BORDER);
-  addButton(340, 340, 280, 42, "Level Select [L]", () => { app.screen = "select"; }, PAL.SURFACE, PAL.WHITE, PAL.BORDER);
-  addButton(340, 396, 280, 42, "Main Menu", () => { app.screen = "title"; }, PAL.GOLD, PAL.BG, PAL.GOLD);
+  addButton(340, 306, 280, 40, "Play Again [Enter]", () => startLevel(0, true), PAL.SURFACE, PAL.GOLD, PAL.BORDER);
+  addButton(340, 354, 280, 38, "Level Select [L]", () => { app.screen = "select"; }, PAL.SURFACE, PAL.WHITE, PAL.BORDER);
+  addButton(340, 400, 280, 38, "Main Menu", () => { app.screen = "title"; }, PAL.GOLD, PAL.BG, PAL.GOLD);
 }
 
 function render(alpha) {
