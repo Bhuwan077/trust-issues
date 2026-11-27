@@ -1389,9 +1389,10 @@ addRound({
   mechanic: "Your previous attempt's movement replays backward as a deadly Coral Ghost hunting you.",
   tell: "Translucent coral ghost follows your prior path in reverse; dodge it with a jump.",
   solutionSummary: "After a setup run, jump cleanly over your backward-replaying coral ghost to exit.",
-  grid: buildRoom(g => { g.pit(16, 18, "^"); }),
+  grid: buildRoom(g => { g.pit(10,11,"^"); g.pit(20,21,"^"); }),
   start: { col: 2, row: 13 }, exit: { col: 29, row: 13 },
   replayGhostHazard: true,
+  hazards: [{"kind":"skySpike","x":450,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":85,"offset":0,"warnTicks":32,"fallSpeed":12,"aimed":false},{"kind":"sweep","minX":390,"maxX":540,"y":370,"w":20,"h":20,"period":85}],
   triggers: []
 });
 
@@ -1473,8 +1474,9 @@ addRound({
   mechanic: "Hollow floor tiles ring with a high-pitched step and collapse 14 ticks after contact.",
   tell: "Listening to stepHigh vs stepLow tells you which tiles are hollow C traps.",
   solutionSummary: "Jump past the hollow seam bridge (cols 12..15) onto solid stone to exit.",
-  grid: buildRoom(g => { g.row(14, 12, 15, "C"); g.row(15, 12, 15, "."); g.row(16, 12, 15, "^"); }),
+  grid: buildRoom(g => { g.row(14,12,15,"C"); g.row(15,12,15,"."); g.row(16,12,15,"^"); g.pit(20,21,"^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
+  hazards: [{"kind":"sweep","minX":510,"maxX":750,"y":370,"w":20,"h":20,"period":80},{"kind":"skySpike","x":270,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":85,"offset":15,"warnTicks":30,"fallSpeed":12,"aimed":false}],
   triggers: [{
     id: "r32_pitch", once: true,
     condition: { type: "zoneEnter", rect: { x: 12*30-4, y: 13*30, w: 128, h: 34 } },
@@ -1503,6 +1505,7 @@ addRound({
   solutionSummary: "Cross cols 14..15 between the stutter-beat spike bursts.",
   grid: buildRoom(),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
+  hazards: [{"kind":"sweep","minX":510,"maxX":750,"y":370,"w":20,"h":20,"period":80},{"kind":"skySpike","x":300,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":85,"offset":20,"warnTicks":28,"fallSpeed":12,"aimed":false}],
   triggers: [
     { id: "r34_on", once: false, condition: { type: "cycle", periodTicks: 90, onTick: 45 }, actions: [{ type: "toggleTile", tiles: [{col:14,row:13,to:"^"},{col:15,row:13,to:"^"}] }, { type: "playSound", sound: "trap" }] },
     { id: "r34_off", once: false, condition: { type: "cycle", periodTicks: 90, onTick: 75 }, actions: [{ type: "toggleTile", tiles: [{col:14,row:13,to:"."},{col:15,row:13,to:"."}] }] }
@@ -1517,7 +1520,7 @@ addRound({
   solutionSummary: "Jump the memorized pits at cols 10..11 and cols 20..21.",
   grid: buildRoom(g => { g.pit(10, 11, "^"); g.pit(20, 21, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  hazards: [{ kind: "sweep", minX: 13*30, maxX: 19*30, y: 11*30+10, w: 20, h: 20, period: 80 }],
+  hazards: [{"kind":"sweep","minX":390,"maxX":570,"y":340,"w":20,"h":20,"period":78},{"kind":"skySpike","x":480,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":90,"offset":0,"warnTicks":32,"fallSpeed":12,"aimed":false}],
   camZoomAt: 90, triggers: []
 });
 
@@ -1529,7 +1532,7 @@ addRound({
   solutionSummary: "Ignore the bright bottom-right decoy and climb the ledges to the dim upper door.",
   grid: buildRoom(g => { g.plat(16, 12, 3, "#"); g.plat(22, 10, 4, "#"); }),
   start: { col: 2, row: 13 }, exit: { col: 24, row: 9 },
-  hazards: [{ kind: "sweep", minX: 8*30, maxX: 15*30, y: 12*30+10, w: 20, h: 20, period: 85 }],
+  hazards: [{"kind":"sweep","minX":240,"maxX":450,"y":370,"w":20,"h":20,"period":82},{"kind":"skySpike","x":570,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":85,"offset":10,"warnTicks":30,"fallSpeed":12,"aimed":false}],
   dimExit: true, fakeExit: { col: 28, row: 13 },
   triggers: [{ id: "r36_trap", once: false, condition: { type: "zoneEnter", rect: { x: 28*30, y: 13*30, w: 28, h: 30 } }, actions: [{ type: "kill", reason: "brightFake" }] }]
 });
@@ -1542,7 +1545,7 @@ addRound({
   solutionSummary: "Clear pits 8..9, 15..16 under H, and 22..23 while dodging the air sweeper.",
   grid: buildRoom(g => { g.pit(8, 9, "^"); g.plat(14, 10, 4, "H"); g.pit(15, 16, "^"); g.pit(22, 23, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  hazards: [{ kind: "sweep", minX: 18*30, maxX: 21*30, y: 12*30+10, w: 20, h: 20, period: 75 }],
+  hazards: [{"kind":"sweep","minX":540,"maxX":630,"y":370,"w":20,"h":20,"period":75},{"kind":"skySpike","x":330,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":80,"offset":0,"warnTicks":28,"fallSpeed":12,"aimed":false}],
   secretLetter: { char: "H", col: 16, row: 11 }, triggers: []
 });
 
@@ -1554,7 +1557,7 @@ addRound({
   solutionSummary: "Jump over col 16 when the heartbeat tick speeds up.",
   grid: buildRoom(),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  hazards: [{ kind: "sweep", minX: 19*30, maxX: 26*30, y: 12*30+10, w: 20, h: 20, period: 80 }],
+  hazards: [{"kind":"sweep","minX":570,"maxX":780,"y":370,"w":20,"h":20,"period":78},{"kind":"skySpike","x":360,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":85,"offset":10,"warnTicks":28,"fallSpeed":12,"aimed":false}],
   spikeSeamTells: [{ col: 16, row: 13 }],
   triggers: [
     { id: "r38_warn", once: true, condition: { type: "playerX", x: 10*30, op: ">=" }, actions: [{ type: "playSound", sound: "tick" }] },
@@ -1570,7 +1573,7 @@ addRound({
   solutionSummary: "Track your solid opaque lead character over the two spike gaps.",
   grid: buildRoom(g => { g.pit(10, 12, "^"); g.pit(20, 22, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  hazards: [{ kind: "sweep", minX: 13*30, maxX: 19*30, y: 12*30+10, w: 20, h: 20, period: 80 }],
+  hazards: [{"kind":"sweep","minX":390,"maxX":570,"y":370,"w":20,"h":20,"period":78},{"kind":"skySpike","x":450,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":85,"offset":20,"warnTicks":28,"fallSpeed":12,"aimed":false}],
   clones: true, triggers: []
 });
 
@@ -1653,7 +1656,7 @@ addRound({
   grid: buildRoom(g => { g.pit(10, 11, "^"); g.plat(14, 10, 3, "H"); g.pit(18, 19, "^"); g.col(23, 1, 11, "#"); g.set(23, 12, "L"); g.set(23, 13, "L"); }),
   start: { col: 3, row: 13 }, exit: { col: 28, row: 13 },
   signs: [{ id: "s44", col: 8, row: 8, w: 260, h: 26, text: "WAIT FOR SIMON SAYS..." }],
-  hazards: [{ kind: "sweep", minX: 12*30, maxX: 17*30, y: 12*30+10, w: 20, h: 20, period: 85 }],
+  hazards: [{"kind":"sweep","minX":360,"maxX":510,"y":370,"w":20,"h":20,"period":82},{"kind":"skySpike","x":630,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":90,"offset":15,"warnTicks":30,"fallSpeed":12,"aimed":false}],
   triggers: [
     { id: "r44_fake", once: true, condition: { type: "sequence", steps: [{ type: "timer", ticks: 10 }, { type: "jumpCount", count: 1, op: ">=" }, { type: "playerX", x: 180, op: "<=" }] }, actions: [{ type: "narratorLine", text: "I DIDN'T SAY SIMON SAYS!" }] },
     { id: "r44_ok", once: true, condition: { type: "timer", ticks: 40 }, actions: [{ type: "narratorLine", text: "SIMON SAYS: WALK RIGHT NOW." }, { type: "toggleTile", tiles: [{col:23,row:12,to:"."},{col:23,row:13,to:"."}] }] }
@@ -1710,6 +1713,7 @@ addRound({
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
   signs: [{ id: "s47", col: 10, row: 8, w: 190, h: 26, text: "DOOR LOCKS IN 10S!" }],
   spikeSeamTells: [{ col: 24, row: 13 }],
+  hazards: [{"kind":"sweep","minX":510,"maxX":690,"y":370,"w":20,"h":20,"period":80},{"kind":"skySpike","x":360,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":85,"offset":0,"warnTicks":28,"fallSpeed":12,"aimed":false}],
   triggers: [
     { id: "r47_fall", once: true, condition: { type: "zoneEnter", rect: { x: 14*30-4, y: 13*30, w: 98, h: 34 } }, actions: [{ type: "fallTile", tiles: [{col:14,row:14},{col:15,row:14},{col:16,row:14}], delayTicks: 3, fallSpeed: 9 }] },
     { id: "r47_sp", once: true, condition: { type: "playerX", x: 22*30, op: ">=" }, actions: [{ type: "spawnSpike", col: 24, row: 13, dir: "^", emergeTicks: 5 }] },
@@ -1726,6 +1730,7 @@ addRound({
   grid: buildRoom(g => { g.pit(9, 10, "^"); g.row(14, 14, 15, "N"); g.row(15, 14, 15, "^"); g.plat(12, 9, 9, "#"); g.row(10, 13, 19, "v"); g.pit(22, 23, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
   signs: [{ id: "s48", col: 11, row: 6, w: 200, h: 24, text: "AGREEMENT: STAY LOW" }],
+  hazards: [{"kind":"sweep","minX":480,"maxX":630,"y":370,"w":20,"h":20,"period":78},{"kind":"skySpike","x":330,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":85,"offset":20,"warnTicks":28,"fallSpeed":12,"aimed":false}],
   triggers: []
 });
 
@@ -1785,6 +1790,7 @@ addRound({
   coins: [{ id: "c51", col: 14, row: 15 }],
   rewindEnabled: true,
   rewindPad: { x: 16*30, y: 15*30, w: 30, h: 30 },
+  hazards: [{"kind":"sweep","minX":420,"maxX":630,"y":370,"w":20,"h":20,"period":80},{"kind":"skySpike","x":270,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":85,"offset":0,"warnTicks":28,"fallSpeed":12,"aimed":false}],
   triggers: [{ id: "r51_open", once: true, condition: { type: "collectItem", itemId: "c51" }, actions: [{ type: "toggleTile", tiles: [{col:24,row:12,to:"."},{col:24,row:13,to:"."}] }] }]
 });
 
@@ -1863,6 +1869,7 @@ addRound({
   grid: buildRoom(g => { g.pit(8, 9, "^"); g.row(14, 12, 13, "C"); g.row(15, 12, 13, "."); g.row(16, 12, 13, "^"); g.pit(16, 17, "^"); g.pit(21, 22, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
   spikeSeamTells: [{ col: 25, row: 13 }],
+  hazards: [{"kind":"sweep","minX":540,"maxX":690,"y":370,"w":20,"h":20,"period":75},{"kind":"skySpike","x":390,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":80,"offset":10,"warnTicks":26,"fallSpeed":12,"aimed":false}],
   triggers: [
     { id: "r57_fall", once: true, condition: { type: "zoneEnter", rect: { x: 12*30-4, y: 13*30, w: 68, h: 34 } }, actions: [{ type: "fallTile", tiles: [{col:12,row:14},{col:13,row:14}], delayTicks: 3, fallSpeed: 9 }] },
     { id: "r57_sp", once: true, condition: { type: "playerX", x: 23*30, op: ">=" }, actions: [{ type: "spawnSpike", col: 25, row: 13, dir: "^", emergeTicks: 5 }] },
@@ -1946,7 +1953,7 @@ addRound({
   solutionSummary: "Touch the Shrink Pad at col 10, then walk under the low wall to exit.",
   grid: buildRoom(g => { g.col(18, 1, 12, "#"); g.pit(13, 14, "^"); g.pit(22, 23, "^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  hazards: [{ kind: "sweep", minX: 19*30, maxX: 25*30, y: 12*30+10, w: 20, h: 20, period: 80 }],
+  hazards: [{"kind":"sweep","minX":570,"maxX":750,"y":370,"w":20,"h":20,"period":78},{"kind":"skySpike","x":450,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":85,"offset":0,"warnTicks":28,"fallSpeed":12,"aimed":false}],
   playerScale: 1.55,
   triggers: [{ id: "r62_sh", once: true, condition: { type: "playerX", x: 10*30, op: ">=" }, actions: [{ type: "scalePlayer", scale: 0.65 }, { type: "playSound", sound: "flip" }] }]
 });
@@ -1959,7 +1966,7 @@ addRound({
   solutionSummary: "Walk left off the screen edge to wrap around to the exit side.",
   grid: buildRoom(g => { g.col(0, 1, 13, "."); g.col(31, 1, 13, "."); g.col(20, 1, 13, "#"); g.pit(2, 3, "^"); g.pit(24, 25, "^"); }),
   start: { col: 6, row: 13 }, exit: { col: 28, row: 13 },
-  hazards: [{ kind: "sweep", minX: 22*30, maxX: 26*30, y: 12*30+10, w: 20, h: 20, period: 75 }],
+  hazards: [{"kind":"sweep","minX":660,"maxX":780,"y":370,"w":20,"h":20,"period":75},{"kind":"skySpike","x":750,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":80,"offset":15,"warnTicks":26,"fallSpeed":12,"aimed":false}],
   wrapEdges: true, triggers: []
 });
 
@@ -1971,7 +1978,7 @@ addRound({
   solutionSummary: "Cross the central pit while upright or ride the flipped ceiling to the exit.",
   grid: buildRoom(g => { g.pit(13, 15, "^"); g.plat(10, 2, 12, "#"); g.set(14, 3, "v"); g.set(18, 3, "v"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  hazards: [{ kind: "sweep", minX: 11*30, maxX: 20*30, y: 4*30+10, w: 20, h: 20, period: 85 }],
+  hazards: [{"kind":"sweep","minX":330,"maxX":600,"y":130,"w":20,"h":20,"period":82},{"kind":"skySpike","x":480,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":90,"offset":20,"warnTicks":30,"fallSpeed":12,"aimed":false}],
   triggers: [{ id: "r64_rot", once: false, condition: { type: "cycle", periodTicks: 240, onTick: 120 }, actions: [{ type: "flipGravity" }, { type: "playSound", sound: "flip" }] }]
 });
 
@@ -1986,7 +1993,7 @@ addRound({
     g.plat(14, 4, 3, "H"); g.set(21, 3, "v");
   }),
   start: { col: 2, row: 13 }, exit: { col: 27, row: 5 },
-  hazards: [{ kind: "sweep", minX: 16*30, maxX: 24*30, y: 5*30+10, w: 20, h: 20, period: 85 }],
+  hazards: [{"kind":"sweep","minX":480,"maxX":720,"y":160,"w":20,"h":20,"period":82},{"kind":"fist","x":330,"y":150,"baseY":150,"slamY":390,"w":26,"h":28,"period":80,"warnTicks":24,"slamTicks":16,"offset":0}],
   lavaStartY: 515, lavaRiseSpeed: 0.45, triggers: []
 });
 
@@ -1996,12 +2003,13 @@ addRound({
   mechanic: "Two portals lead out of a walled room: Gold portal warps safely to exit; Coral portal drops onto spikes.",
   tell: "The real portal wears a Bait Gold frame; the lying portal has a Coral frame.",
   solutionSummary: "Jump up to the Bait Gold portal on the middle platform to warp to the exit.",
-  grid: buildRoom(g => { g.col(20, 1, 13, "#"); g.plat(8, 11, 4, "#"); g.set(24, 13, "^"); }),
+  grid: buildRoom(g => { g.col(20,1,13,"#"); g.plat(8,11,4,"#"); g.set(24,13,"^"); g.pit(5,6,"^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
   portals: [
     { x: 15*30, y: 13*30, toX: 24*30, toY: 12*30, color: PAL.CORAL },
     { x: 9*30,  y: 10*30, toX: 26*30, toY: 13*30, color: PAL.GOLD }
   ],
+  hazards: [{"kind":"sweep","minX":330,"maxX":510,"y":370,"w":20,"h":20,"period":75},{"kind":"skySpike","x":390,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":85,"offset":0,"warnTicks":28,"fallSpeed":12,"aimed":false}],
   triggers: []
 });
 
@@ -2014,6 +2022,7 @@ addRound({
   grid: buildRoom(g => { g.plat(12, 5, 6, "#"); g.row(6, 13, 16, "v"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
   magnets: [{ x: 15*30, y: 5*30, range: 200, pull: 1200 }],
+  hazards: [{"kind":"sweep","minX":360,"maxX":540,"y":370,"w":20,"h":20,"period":75},{"kind":"skySpike","x":660,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":80,"offset":15,"warnTicks":26,"fallSpeed":12,"aimed":false}],
   triggers: []
 });
 
@@ -2038,6 +2047,7 @@ addRound({
   solutionSummary: "Climb up and touch the top platform to shatter it, then hop into the center exit.",
   grid: buildRoom(g => { g.plat(8, 12, 4, "#"); g.plat(14, 10, 4, "#"); g.plat(13, 7, 6, "#"); }),
   start: { col: 3, row: 13 }, exit: { col: 15, row: 6 },
+  hazards: [{"kind":"sweep","minX":300,"maxX":570,"y":340,"w":20,"h":20,"period":80},{"kind":"skySpike","x":450,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":85,"offset":20,"warnTicks":28,"fallSpeed":12,"aimed":false}],
   triggers: [
     { id: "r69_break", once: true, condition: { type: "zoneEnter", rect: { x: 13*30 - 6, y: 6*30, w: 6*30 + 12, h: 2*30 + 10 } }, actions: [{ type: "toggleTile", tiles: [{col:14,row:7,to:"."},{col:15,row:7,to:"."},{col:16,row:7,to:"."}] }, { type: "playSound", sound: "bonk" }] },
     { id: "r69_w1", once: true, condition: { type: "timer", ticks: 75 }, actions: [{ type: "spawnSpike", col: 3, row: 13, dir: "^", emergeTicks: 4 }, { type: "spawnSpike", col: 28, row: 13, dir: "^", emergeTicks: 4 }] },
@@ -2063,10 +2073,11 @@ addRound({
   mechanic: "A dim NPC marches steadily right toward a spike pit; race ahead and bridge it before it falls.",
   tell: "Gold NPC walks at 1.2 px/tick; switch at col 14 bridges the col 19..20 spike pit.",
   solutionSummary: "Sprint ahead, step on col 14 switch to pave the pit before the NPC reaches col 19.",
-  grid: buildRoom(g => { g.pit(19, 20, "^"); }),
+  grid: buildRoom(g => { g.row(14,10,11,"N"); g.row(15,10,11,"^"); g.pit(19,20,"^"); }),
   start: { col: 5, row: 13 }, exit: { col: 28, row: 13 },
   npcs: [{ id: "npc71", kind: "escort", x: 60, y: 13*30+8, vx: 1.2 }],
-  triggers: [{ id: "r71_sw", once: true, condition: { type: "playerX", x: 14*30, op: ">=" }, actions: [{ type: "toggleTile", tiles: [{col:19,row:14,to:"#"},{col:20,row:14,to:"#"}] }, { type: "playSound", sound: "coin" }] }]
+  hazards: [{"kind":"sweep","minX":390,"maxX":510,"y":370,"w":20,"h":20,"period":80},{"kind":"skySpike","x":450,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":85,"offset":10,"warnTicks":26,"fallSpeed":12,"aimed":false}],
+  triggers: [{"id":"r71_col","once":false,"condition":{"type":"zoneEnter","rect":{"x":386,"y":390,"w":68,"h":34}},"actions":[{"type":"fallTile","tiles":[{"col":13,"row":14},{"col":14,"row":14}],"delayTicks":8,"fallSpeed":9,"returnTicks":110}]}, { id: "r71_sw", once: true, condition: { type: "playerX", x: 14*30, op: ">=" }, actions: [{ type: "toggleTile", tiles: [{col:19,row:14,to:"#"},{col:20,row:14,to:"#"}] }, { type: "playSound", sound: "coin" }] }]
 });
 
 addRound({
@@ -2075,9 +2086,10 @@ addRound({
   mechanic: "A decoy ally sprints ahead and leaps over spikes at the last pixel; blindly matching it kills you.",
   tell: "Ally visibly pauses/leaps cleanly over spikes without ever touching them.",
   solutionSummary: "Watch the real gap boundaries (cols 12..13 and 20..21) rather than blindly following.",
-  grid: buildRoom(g => { g.pit(12, 13, "^"); g.pit(20, 21, "^"); }),
+  grid: buildRoom(g => { g.pit(12,13,"^"); g.row(14,17,18,"N"); g.row(15,17,18,"^"); g.pit(22,23,"^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
   npcs: [{ id: "npc72", kind: "decoy", x: 110, y: 13*30+6, vx: 3.1, vy: 0 }],
+  hazards: [{"kind":"sweep","minX":420,"maxX":480,"y":370,"w":20,"h":20,"period":75},{"kind":"skySpike","x":600,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":80,"offset":0,"warnTicks":26,"fallSpeed":12,"aimed":false}],
   triggers: []
 });
 
@@ -2087,12 +2099,13 @@ addRound({
   mechanic: "Two shop pedestals offer BOOTS (trap) and KEY (opens exit laser); pick the honest item.",
   tell: "Only the KEY removes the laser lock; BOOTS pedestal hides a 1px coral seam.",
   solutionSummary: "Avoid BOOTS at col 9 and grab KEY at col 15 to unlock the exit.",
-  grid: buildRoom(g => { g.col(23, 1, 11, "#"); g.set(23, 12, "L"); g.set(23, 13, "L"); }),
+  grid: buildRoom(g => { g.row(14,9,10,"N"); g.row(15,9,10,"^"); g.col(23,1,11,"#"); g.set(23,12,"L"); g.set(23,13,"L"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
   signs: [{ id: "s73a", col: 8, row: 10.5, w: 72, h: 22, text: "BOOTS" }, { id: "s73b", col: 14.5, row: 10.5, w: 66, h: 22, text: "KEY" }],
   spikeSeamTells: [{ col: 9, row: 13 }],
   coins: [{ id: "c73_key", col: 15, row: 13 }],
-  triggers: [
+  hazards: [{"kind":"sweep","minX":360,"maxX":540,"y":370,"w":20,"h":20,"period":75},{"kind":"skySpike","x":450,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":80,"offset":20,"warnTicks":26,"fallSpeed":12,"aimed":false}],
+  triggers: [{"id":"r73_col","once":false,"condition":{"type":"zoneEnter","rect":{"x":566,"y":390,"w":68,"h":34}},"actions":[{"type":"fallTile","tiles":[{"col":19,"row":14},{"col":20,"row":14}],"delayTicks":8,"fallSpeed":9,"returnTicks":110}]}, 
     { id: "r73_fake", once: true, condition: { type: "zoneEnter", rect: { x: 8.5*30, y: 12*30, w: 30, h: 60 } }, actions: [{ type: "spawnSpike", col: 9, row: 13, dir: "^", emergeTicks: 4 }] },
     { id: "r73_key", once: true, condition: { type: "collectItem", itemId: "c73_key" }, actions: [{ type: "toggleTile", tiles: [{col:23,row:12,to:"."},{col:23,row:13,to:"."}] }] }
   ]
@@ -2115,7 +2128,8 @@ addRound({
     pads: [{ id: "1", col: 7.5, row: 12 }, { id: "2", col: 12.5, row: 12 }, { id: "3", col: 17.5, row: 12 }],
     unlockTiles: [{ col: 25, row: 12, to: "." }, { col: 25, row: 13, to: "." }]
   },
-  triggers: []
+  hazards: [{"kind":"sweep","minX":330,"maxX":480,"y":370,"w":20,"h":20,"period":75},{"kind":"skySpike","x":630,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":80,"offset":10,"warnTicks":26,"fallSpeed":12,"aimed":false}],
+  triggers: [{"id":"r74_col","once":false,"condition":{"type":"zoneEnter","rect":{"x":626,"y":390,"w":68,"h":34}},"actions":[{"type":"fallTile","tiles":[{"col":21,"row":14},{"col":22,"row":14}],"delayTicks":8,"fallSpeed":9,"returnTicks":110}]}]
 });
 
 addRound({
@@ -2124,9 +2138,10 @@ addRound({
   mechanic: "Beat the 4-second target ghost pace before the exit laser snaps shut at t=240.",
   tell: "Sweeping gold pace marker races toward col 28.",
   solutionSummary: "Sprint directly over the two small pits and reach exit before t=240.",
-  grid: buildRoom(g => { g.pit(9, 10, "^"); g.pit(18, 19, "^"); }),
+  grid: buildRoom(g => { g.row(14,8,9,"N"); g.row(15,8,9,"^"); g.pit(18,19,"^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  triggers: [{ id: "r75_seal", once: true, condition: { type: "timer", ticks: 240 }, actions: [{ type: "toggleTile", tiles: [{col:26,row:12,to:"L"},{col:26,row:13,to:"L"}] }] }]
+  hazards: [{"kind":"sweep","minX":360,"maxX":480,"y":370,"w":20,"h":20,"period":72},{"kind":"skySpike","x":630,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":75,"offset":0,"warnTicks":24,"fallSpeed":12,"aimed":false}],
+  triggers: [{"id":"r75_col","once":false,"condition":{"type":"zoneEnter","rect":{"x":386,"y":390,"w":98,"h":34}},"actions":[{"type":"fallTile","tiles":[{"col":13,"row":14},{"col":14,"row":14},{"col":15,"row":14}],"delayTicks":8,"fallSpeed":9,"returnTicks":100}]}, { id: "r75_seal", once: true, condition: { type: "timer", ticks: 240 }, actions: [{ type: "toggleTile", tiles: [{col:26,row:12,to:"L"},{col:26,row:13,to:"L"}] }] }]
 });
 
 addRound({
@@ -2135,9 +2150,9 @@ addRound({
   mechanic: "Ride on top of a patrolling armored critter across a spike chasm; touching its sides hurts.",
   tell: "Gold-topped critter patrols smoothly over cols 8..22.",
   solutionSummary: "Jump cleanly onto the critter's gold back and ride it to the exit ledge.",
-  grid: buildRoom(g => { g.pit(8, 22, "^"); }),
+  grid: buildRoom(g => { g.pit(9,19,"^"); g.row(14,22,23,"N"); g.row(15,22,23,"^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  hazards: [{ id: "ride76", kind: "ride", solidTop: true, x: 8*30, y: 13*30+8, w: 48, h: 22, moveX: 11*30, period: 160, label: "RIDE" }],
+  hazards: [{"id":"ride76","kind":"ride","x":270,"y":402,"baseX":270,"moveX":240,"w":54,"h":18,"period":160,"solidTop":true},{"kind":"skySpike","x":420,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":80,"offset":0,"warnTicks":26,"fallSpeed":12,"aimed":false},{"kind":"sweep","minX":600,"maxX":750,"y":370,"w":20,"h":20,"period":75}],
   secretLetter: { char: "E", col: 15, row: 9.5 }, triggers: []
 });
 
@@ -2147,9 +2162,9 @@ addRound({
   mechanic: "Control two characters simultaneously with opposite horizontal inputs; both must stay alive.",
   tell: "Gold Twin starts on the right and moves opposite your horizontal input.",
   solutionSummary: "Jump over the shared spike timings so neither you nor your mirror twin hits spikes.",
-  grid: buildRoom(g => { g.pit(9, 10, "^"); g.pit(20, 21, "^"); }),
+  grid: buildRoom(g => { g.pit(9,10,"^"); g.row(14,19,20,"N"); g.row(15,19,20,"^"); }),
   start: { col: 3, row: 13 }, exit: { col: 15, row: 13 },
-  dualControl: { col: 27, row: 13 }, triggers: []
+  dualControl: { col: 27, row: 13 }, triggers: [{"id":"r77_col","once":false,"condition":{"type":"zoneEnter","rect":{"x":386,"y":390,"w":68,"h":34}},"actions":[{"type":"fallTile","tiles":[{"col":13,"row":14},{"col":14,"row":14}],"delayTicks":8,"fallSpeed":9,"returnTicks":110}]}]
 });
 
 addRound({
@@ -2158,10 +2173,11 @@ addRound({
   mechanic: "The key coin flees rightward when approached until cornered at col 20; catch it to open the gate.",
   tell: "Coin darts right at x>=270 until hitting the locked gate.",
   solutionSummary: "Chase the fleeing coin right to col 20, grab it, and pass the unlocked gate.",
-  grid: buildRoom(g => { g.col(23, 1, 11, "#"); g.set(23, 12, "L"); g.set(23, 13, "L"); }),
+  grid: buildRoom(g => { g.row(14,8,9,"N"); g.row(15,8,9,"^"); g.col(23,1,11,"#"); g.set(23,12,"L"); g.set(23,13,"L"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
   coins: [{ id: "c78", col: 10, row: 13 }],
-  triggers: [
+  hazards: [{"kind":"sweep","minX":360,"maxX":540,"y":370,"w":20,"h":20,"period":75},{"kind":"skySpike","x":480,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":80,"offset":10,"warnTicks":26,"fallSpeed":12,"aimed":false}],
+  triggers: [{"id":"r78_col","once":false,"condition":{"type":"zoneEnter","rect":{"x":386,"y":390,"w":98,"h":34}},"actions":[{"type":"fallTile","tiles":[{"col":13,"row":14},{"col":14,"row":14},{"col":15,"row":14}],"delayTicks":8,"fallSpeed":9,"returnTicks":100}]}, 
     { id: "r78_flee", once: true, condition: { type: "playerX", x: 9*30, op: ">=" }, actions: [{ type: "setCoinPos", itemId: "c78", x: 20*30+15, y: 13*30+15 }, { type: "playSound", sound: "flip" }] },
     { id: "r78_open", once: true, condition: { type: "collectItem", itemId: "c78" }, actions: [{ type: "toggleTile", tiles: [{col:23,row:12,to:"."},{col:23,row:13,to:"."}] }] }
   ]
@@ -2173,7 +2189,7 @@ addRound({
   mechanic: "Narrator-judge asks a question recalling Round 1; answer by jumping on YES or NO pad.",
   tell: "YES pad clears the courtroom laser.",
   solutionSummary: "Jump onto the YES pad to win the trial and pass the exit.",
-  grid: buildRoom(g => { g.plat(9,12,2,"#"); g.plat(16,12,2,"#"); g.col(24,1,11,"#"); g.set(24,12,"L"); g.set(24,13,"L"); }),
+  grid: buildRoom(g => { g.row(14,8,9,"N"); g.row(15,8,9,"^"); g.col(24,1,11,"#"); g.set(24,12,"L"); g.set(24,13,"L"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
   riddle: {
     mode: "pads", prompt: "TRIAL: DID ROUND 1 HAVE A 'SAFE' SIGN? (YES / NO)",
@@ -2181,7 +2197,8 @@ addRound({
     pads: [{ id: "YES", col: 9.5, row: 12 }, { id: "NO", col: 16.5, row: 12 }],
     unlockTiles: [{ col: 24, row: 12, to: "." }, { col: 24, row: 13, to: "." }]
   },
-  triggers: []
+  hazards: [{"kind":"sweep","minX":330,"maxX":480,"y":370,"w":20,"h":20,"period":75},{"kind":"skySpike","x":570,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":80,"offset":0,"warnTicks":26,"fallSpeed":12,"aimed":false}],
+  triggers: [{"id":"r79_col","once":false,"condition":{"type":"zoneEnter","rect":{"x":566,"y":390,"w":68,"h":34}},"actions":[{"type":"fallTile","tiles":[{"col":19,"row":14},{"col":20,"row":14}],"delayTicks":8,"fallSpeed":9,"returnTicks":100}]}]
 });
 
 addRound({
@@ -2190,10 +2207,11 @@ addRound({
   mechanic: "The decoy ally from Round 72 returns and genuinely runs ahead to disable the exit laser for you.",
   tell: "Ally runs right and steps onto the laser switch at col 10.",
   solutionSummary: "Follow your reformed ally past the disabled laser and jump the final pit.",
-  grid: buildRoom(g => { g.col(20, 1, 11, "#"); g.set(20, 12, "L"); g.set(20, 13, "L"); g.pit(23, 24, "^"); }),
+  grid: buildRoom(g => { g.row(14,8,9,"N"); g.row(15,8,9,"^"); g.pit(16,17,"^"); g.col(20,1,11,"#"); g.set(20,12,"L"); g.set(20,13,"L"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
   npcs: [{ id: "npc80", kind: "decoy", x: 100, y: 13*30+6, vx: 3.0, vy: 0 }],
-  triggers: [{ id: "r80_help", once: true, condition: { type: "timer", ticks: 65 }, actions: [{ type: "toggleTile", tiles: [{col:20,row:12,to:"."},{col:20,row:13,to:"."}] }, { type: "playSound", sound: "riddleWin" }] }]
+  hazards: [{"kind":"sweep","minX":330,"maxX":420,"y":370,"w":20,"h":20,"period":72},{"kind":"skySpike","x":600,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":75,"offset":10,"warnTicks":24,"fallSpeed":12,"aimed":false}],
+  triggers: [{"id":"r80_col","once":false,"condition":{"type":"zoneEnter","rect":{"x":356,"y":390,"w":98,"h":34}},"actions":[{"type":"fallTile","tiles":[{"col":12,"row":14},{"col":13,"row":14},{"col":14,"row":14}],"delayTicks":8,"fallSpeed":9,"returnTicks":100}]}, { id: "r80_help", once: true, condition: { type: "timer", ticks: 65 }, actions: [{ type: "toggleTile", tiles: [{col:20,row:12,to:"."},{col:20,row:13,to:"."}] }, { type: "playSound", sound: "riddleWin" }] }]
 });
 
 // ---------------- WORLD 11: IMPOSSIBLE-ISH (81..90) ----------------
@@ -2203,9 +2221,10 @@ addRound({
   mechanic: "Solid wall seals the exit completely; waiting 3 seconds bores the narrator into opening it.",
   tell: "At t=180 the narrator sighs and removes the wall.",
   solutionSummary: "Wait 3 seconds until the wall vanishes, then walk to the exit.",
-  grid: buildRoom(g => { g.col(20, 1, 13, "#"); }),
+  grid: buildRoom(g => { g.row(14,9,10,"N"); g.row(15,9,10,"^"); g.col(20,1,13,"#"); }),
   start: { col: 3, row: 13 }, exit: { col: 28, row: 13 },
-  triggers: [{ id: "r81_open", once: true, condition: { type: "timer", ticks: 180 }, actions: [{ type: "toggleTile", tiles: [{col:20,row:12,to:"."},{col:20,row:13,to:"."}] }, { type: "narratorLine", text: "FINE. YOU WIN THE STARING CONTEST." }, { type: "playSound", sound: "riddleWin" }] }]
+  hazards: [{"kind":"sweep","minX":390,"maxX":570,"y":370,"w":20,"h":20,"period":75},{"kind":"skySpike","x":480,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":80,"offset":0,"warnTicks":26,"fallSpeed":12,"aimed":false}],
+  triggers: [{"id":"r81_col","once":false,"condition":{"type":"zoneEnter","rect":{"x":386,"y":390,"w":98,"h":34}},"actions":[{"type":"fallTile","tiles":[{"col":13,"row":14},{"col":14,"row":14},{"col":15,"row":14}],"delayTicks":8,"fallSpeed":9,"returnTicks":100}]}, { id: "r81_open", once: true, condition: { type: "timer", ticks: 180 }, actions: [{ type: "toggleTile", tiles: [{col:20,row:12,to:"."},{col:20,row:13,to:"."}] }, { type: "narratorLine", text: "FINE. YOU WIN THE STARING CONTEST." }, { type: "playSound", sound: "riddleWin" }] }]
 });
 
 addRound({
@@ -2214,10 +2233,11 @@ addRound({
   mechanic: "Touching the SKIP pad kills you 3 times; on your 4th attempt (deathCount >= 3), it opens the exit wall.",
   tell: "Each death increments the skip counter until 3/3.",
   solutionSummary: "Touch the SKIP pad 3 times, then touch it a 4th time to unlock the exit.",
-  grid: buildRoom(g => { g.col(20, 1, 13, "#"); }),
+  grid: buildRoom(g => { g.row(14,14,15,"N"); g.row(15,14,15,"^"); g.col(20,1,13,"#"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
   signs: [{ id: "s82", col: 9.5, row: 11, w: 72, h: 24, text: "SKIP" }],
-  triggers: [
+  hazards: [{"kind":"sweep","minX":510,"maxX":630,"y":370,"w":20,"h":20,"period":72},{"kind":"skySpike","x":330,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":80,"offset":10,"warnTicks":26,"fallSpeed":12,"aimed":false}],
+  triggers: [{"id":"r82_col","once":false,"condition":{"type":"zoneEnter","rect":{"x":536,"y":390,"w":98,"h":34}},"actions":[{"type":"fallTile","tiles":[{"col":18,"row":14},{"col":19,"row":14},{"col":20,"row":14}],"delayTicks":8,"fallSpeed":9,"returnTicks":100}]}, 
     { id: "r82_kill", once: false, condition: { type: "sequence", steps: [{ type: "deathCount", count: 2, op: "<=" }, { type: "zoneEnter", rect: { x: 10*30, y: 12*30, w: 40, h: 60 } }] }, actions: [{ type: "kill", reason: "skipTax" }] },
     { id: "r82_ok", once: true, condition: { type: "deathCount", count: 3, op: ">=" }, actions: [{ type: "toggleTile", tiles: [{col:20,row:12,to:"."},{col:20,row:13,to:"."}] }] }
   ]
@@ -2229,9 +2249,10 @@ addRound({
   mechanic: "A tight precision spike corridor; dying 15+ times automatically reveals exact spike hitboxes.",
   tell: "Exact hitboxes are smaller than drawn spikes.",
   solutionSummary: "Thread two clean jumps through the tight spike spacing.",
-  grid: buildRoom(g => { g.pit(10, 13, "^"); g.pit(18, 21, "^"); }),
+  grid: buildRoom(g => { g.set(8,13,"^"); g.row(14,12,13,"N"); g.row(15,12,13,"^"); g.set(17,13,"^"); g.set(22,13,"^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  triggers: []
+  hazards: [{"kind":"sweep","minX":420,"maxX":480,"y":370,"w":20,"h":20,"period":72},{"kind":"skySpike","x":570,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":75,"offset":0,"warnTicks":24,"fallSpeed":12,"aimed":false}],
+  triggers: [{"id":"r83_col","once":false,"condition":{"type":"zoneEnter","rect":{"x":566,"y":390,"w":68,"h":34}},"actions":[{"type":"fallTile","tiles":[{"col":19,"row":14},{"col":20,"row":14}],"delayTicks":8,"fallSpeed":9,"returnTicks":100}]}]
 });
 
 addRound({
@@ -2240,10 +2261,10 @@ addRound({
   mechanic: "A sweeping Coral Chaser patrols the main floor; hop onto the upper alcove to let it pass.",
   tell: "Upper alcove at cols 14..16 sits safely above the chaser's reach.",
   solutionSummary: "Hop up onto the mid alcove while the Chaser sweeps underneath, then drop to exit.",
-  grid: buildRoom(g => { g.plat(13, 10, 5, "#"); }),
+  grid: buildRoom(g => { g.plat(13,10,4,"#"); g.row(14,8,9,"N"); g.row(15,8,9,"^"); g.pit(21,22,"^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  hazards: [{ id: "chaser84", kind: "sweep", x: 14*30, y: 12*30, w: 30, h: 60, minX: 7*30, maxX: 25*30, period: 140 }],
-  triggers: []
+  hazards: [{"kind":"sweep","minX":180,"maxX":750,"y":400,"w":20,"h":20,"period":115},{"kind":"skySpike","x":450,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":80,"offset":10,"warnTicks":26,"fallSpeed":12,"aimed":false}],
+  triggers: [{"id":"r84_col","once":false,"condition":{"type":"zoneEnter","rect":{"x":506,"y":390,"w":98,"h":34}},"actions":[{"type":"fallTile","tiles":[{"col":17,"row":14},{"col":18,"row":14},{"col":19,"row":14}],"delayTicks":8,"fallSpeed":9,"returnTicks":100}]}]
 });
 
 addRound({
@@ -2252,13 +2273,10 @@ addRound({
   mechanic: "The Narrator's Left and Right Fists telegraph in Bait Gold before slamming onto the floor in alternating rhythm.",
   tell: "Fists glow Bait Gold for 35 ticks right before slamming.",
   solutionSummary: "Run under each fist during its gold warning or cooldown window.",
-  grid: buildRoom(),
+  grid: buildRoom(g => { g.row(14,13,14,"N"); g.row(15,13,14,"^"); g.pit(22,23,"^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  hazards: [
-    { id: "fistL", kind: "fist", x: 9*30,  y: 4*30, w: 90, h: 90, slamY: 11*30, period: 120, warnTicks: 35, slamTicks: 30, offset: 0 },
-    { id: "fistR", kind: "fist", x: 18*30, y: 4*30, w: 90, h: 90, slamY: 11*30, period: 120, warnTicks: 35, slamTicks: 30, offset: 60 }
-  ],
-  triggers: []
+  hazards: [{"kind":"fist","x":300,"y":150,"baseY":150,"slamY":390,"w":26,"h":28,"period":70,"warnTicks":22,"slamTicks":18,"offset":0},{"kind":"fist","x":540,"y":150,"baseY":150,"slamY":390,"w":26,"h":28,"period":70,"warnTicks":22,"slamTicks":18,"offset":35},{"kind":"skySpike","x":480,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":80,"offset":15,"warnTicks":25,"fallSpeed":12,"aimed":false}],
+  triggers: [{"id":"r85_col","once":false,"condition":{"type":"zoneEnter","rect":{"x":506,"y":390,"w":98,"h":34}},"actions":[{"type":"fallTile","tiles":[{"col":17,"row":14},{"col":18,"row":14},{"col":19,"row":14}],"delayTicks":8,"fallSpeed":9,"returnTicks":100}]}]
 });
 
 addRound({
@@ -2267,9 +2285,10 @@ addRound({
   mechanic: "Jumping onto the upper decoy lane shifts the lower exit gate shut; stay on the lower route.",
   tell: "Upper lane ends in a coral laser seam.",
   solutionSummary: "Take the lower floor directly without triggering the upper shift zone.",
-  grid: buildRoom(g => { g.plat(9, 10, 6, "#"); g.col(22, 1, 11, "#"); }),
+  grid: buildRoom(g => { g.plat(10,10,6,"#"); g.pit(8,9,"^"); g.pit(17,18,"^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  triggers: [{ id: "r86_shift", once: true, condition: { type: "zoneEnter", rect: { x: 10*30, y: 8*30, w: 90, h: 60 } }, actions: [{ type: "toggleTile", tiles: [{col:22,row:12,to:"L"},{col:22,row:13,to:"L"}] }] }]
+  hazards: [{"kind":"chaserWall","x":-26,"y":40,"w":28,"h":400,"speed":1.15,"delayTicks":35},{"kind":"skySpike","x":360,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":80,"offset":0,"warnTicks":26,"fallSpeed":12,"aimed":true},{"kind":"sweep","minX":360,"maxX":450,"y":370,"w":20,"h":20,"period":72}],
+  triggers: [{"id":"r86_col","once":false,"condition":{"type":"zoneEnter","rect":{"x":386,"y":390,"w":98,"h":34}},"actions":[{"type":"fallTile","tiles":[{"col":13,"row":14},{"col":14,"row":14},{"col":15,"row":14}],"delayTicks":8,"fallSpeed":9,"returnTicks":100}]}, { id: "r86_shift", once: true, condition: { type: "zoneEnter", rect: { x: 10*30, y: 8*30, w: 90, h: 60 } }, actions: [{ type: "toggleTile", tiles: [{col:22,row:12,to:"L"},{col:22,row:13,to:"L"}] }] }]
 });
 
 addRound({
@@ -2278,9 +2297,10 @@ addRound({
   mechanic: "The room is fully visible for 1.5 seconds (90 ticks) before plunging into total darkness.",
   tell: "Memorize the two spike pits before t=90.",
   solutionSummary: "Jump the memorized pits at cols 11..12 and 20..21.",
-  grid: buildRoom(g => { g.pit(11, 12, "^"); g.pit(20, 21, "^"); }),
+  grid: buildRoom(g => { g.pit(9,10,"^"); g.pit(19,20,"^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  triggers: [{ id: "r87_dark", once: true, condition: { type: "timer", ticks: 90 }, actions: [{ type: "setBlackout", enabled: true }] }]
+  hazards: [{"kind":"chaserWall","x":-26,"y":40,"w":28,"h":400,"speed":1.15,"delayTicks":35},{"kind":"skySpike","x":420,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":80,"offset":0,"warnTicks":26,"fallSpeed":12,"aimed":true},{"kind":"sweep","minX":390,"maxX":510,"y":370,"w":20,"h":20,"period":75}],
+  triggers: [{"id":"r87_col","once":false,"condition":{"type":"zoneEnter","rect":{"x":416,"y":390,"w":98,"h":34}},"actions":[{"type":"fallTile","tiles":[{"col":14,"row":14},{"col":15,"row":14},{"col":16,"row":14}],"delayTicks":8,"fallSpeed":9,"returnTicks":100}]}, { id: "r87_dark", once: true, condition: { type: "timer", ticks: 90 }, actions: [{ type: "setBlackout", enabled: true }] }]
 });
 
 addRound({
@@ -2289,9 +2309,10 @@ addRound({
   mechanic: "You spawn on the right where the exit usually sits, and must run left to the START door.",
   tell: "Left-side door is labeled START in Bait Gold.",
   solutionSummary: "Run left across the two pits into the START door.",
-  grid: buildRoom(g => { g.pit(10, 11, "^"); g.pit(20, 21, "^"); }),
+  grid: buildRoom(g => { g.pit(10,11,"^"); g.pit(20,21,"^"); }),
   start: { col: 28, row: 13 }, exit: { col: 2, row: 13, label: "START" },
-  triggers: []
+  hazards: [{"kind":"chaserWall","x":960,"y":40,"w":28,"h":400,"speed":-1.15,"delayTicks":35},{"kind":"skySpike","x":450,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":80,"offset":0,"warnTicks":26,"fallSpeed":12,"aimed":true},{"kind":"sweep","minX":390,"maxX":540,"y":370,"w":20,"h":20,"period":72}],
+  triggers: [{"id":"r88_col","once":false,"condition":{"type":"zoneEnter","rect":{"x":416,"y":390,"w":98,"h":34}},"actions":[{"type":"fallTile","tiles":[{"col":14,"row":14},{"col":15,"row":14},{"col":16,"row":14}],"delayTicks":8,"fallSpeed":9,"returnTicks":100}]}]
 });
 
 addRound({
@@ -2300,9 +2321,9 @@ addRound({
   mechanic: "A completely honest, trick-free platforming breather—the lie is expecting a lie.",
   tell: "Zero hidden triggers, zero fake tiles.",
   solutionSummary: "Enjoy two completely fair jumps to the exit.",
-  grid: buildRoom(g => { g.pit(10, 11, "^"); g.pit(20, 21, "^"); }),
+  grid: buildRoom(g => { g.pit(9,10,"^"); g.pit(19,20,"^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  secretLetter: { char: "S", col: 15, row: 11 }, triggers: []
+  secretLetter: { char: "S", col: 15, row: 11 }, triggers: [{"id":"r89_col","once":false,"condition":{"type":"zoneEnter","rect":{"x":416,"y":390,"w":98,"h":34}},"actions":[{"type":"fallTile","tiles":[{"col":14,"row":14},{"col":15,"row":14},{"col":16,"row":14}],"delayTicks":8,"fallSpeed":9,"returnTicks":100}]}, {"id":"r89_pop","once":true,"condition":{"type":"playerX","x":510,"op":">="},"actions":[{"type":"spawnSpike","col":16,"row":13,"dir":"^","emergeTicks":5}]}]
 });
 
 addRound({
@@ -2311,10 +2332,11 @@ addRound({
   mechanic: "A grand THE END banner drops at col 16 while the floor opens beneath a decoy door to reveal the real exit.",
   tell: "Lower tunnel glows beneath the fake floor seam.",
   solutionSummary: "Drop down to the lower exit door while the fake ending plays.",
-  grid: buildRoom(g => { g.pit(20, 21, "^"); g.plat(25, 11, 5, "#"); }),
+  grid: buildRoom(g => { g.pit(9,10,"^"); g.row(14,26,28,"."); g.row(15,26,28,"."); g.row(16,26,28,"."); g.plat(25,18,4,"#"); g.col(25,15,17,"#"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
   fakeExit: { col: 28, row: 10 },
-  triggers: [{ id: "r90_end", once: true, condition: { type: "playerX", x: 15*30, op: ">=" }, actions: [{ type: "showFakeUI", variant: "complete", durationTicks: 140, blocksInput: false }] }]
+  hazards: [{"kind":"chaserWall","x":-26,"y":40,"w":28,"h":400,"speed":1.2,"delayTicks":30},{"kind":"skySpike","x":450,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":75,"offset":0,"warnTicks":25,"fallSpeed":12,"aimed":true},{"kind":"sweep","minX":390,"maxX":540,"y":370,"w":20,"h":20,"period":72}],
+  triggers: [{"id":"r90_col","once":false,"condition":{"type":"zoneEnter","rect":{"x":416,"y":390,"w":98,"h":34}},"actions":[{"type":"fallTile","tiles":[{"col":14,"row":14},{"col":15,"row":14},{"col":16,"row":14}],"delayTicks":8,"fallSpeed":9,"returnTicks":100}]}, { id: "r90_end", once: true, condition: { type: "playerX", x: 15*30, op: ">=" }, actions: [{ type: "showFakeUI", variant: "complete", durationTicks: 140, blocksInput: false }] }]
 });
 
 // ---------------- WORLD 12: MICRO ROUNDS (91..100) ----------------
@@ -2331,6 +2353,7 @@ addRound({
     { id: "b_safe", x: 400, y: 200, w: 160, h: 48, label: "SAFE", win: false },
     { id: "b_dont", x: 620, y: 200, w: 180, h: 48, label: "DO NOT CLICK", win: true }
   ],
+  hazards: [{"kind":"chaserWall","x":-26,"y":40,"w":28,"h":400,"speed":1.1,"delayTicks":45},{"kind":"skySpike","x":300,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":75,"offset":0,"warnTicks":26,"fallSpeed":12,"aimed":true}],
   triggers: []
 });
 
@@ -2340,10 +2363,11 @@ addRound({
   mechanic: "Sign flashes a fake 'G0!' before the real 'NOW!' opens the laser at t=90.",
   tell: "Real 'NOW!' opens the laser cleanly at t=90.",
   solutionSummary: "Wait for t=90, then sprint right to the exit.",
-  grid: buildRoom(g => { g.col(16, 1, 11, "#"); g.set(16, 12, "L"); g.set(16, 13, "L"); }),
+  grid: buildRoom(g => { g.pit(10,11,"^"); g.col(16,1,11,"#"); g.set(16,12,"L"); g.set(16,13,"L"); }),
   start: { col: 3, row: 13 }, exit: { col: 27, row: 13 },
   signs: [{ id: "s92", col: 8, row: 9, w: 140, h: 26, text: "WAIT... G0!" }],
-  triggers: [{ id: "r92_go", once: true, condition: { type: "timer", ticks: 90 }, actions: [{ type: "toggleTile", tiles: [{col:16,row:12,to:"."},{col:16,row:13,to:"."}] }, { type: "narratorLine", text: "NOW!" }] }]
+  hazards: [{"kind":"chaserWall","x":-26,"y":40,"w":28,"h":400,"speed":1,"delayTicks":95},{"kind":"skySpike","x":420,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":75,"offset":0,"warnTicks":26,"fallSpeed":12,"aimed":true},{"kind":"sweep","minX":420,"maxX":570,"y":370,"w":20,"h":20,"period":72}],
+  triggers: [{"id":"r92_col","once":false,"condition":{"type":"zoneEnter","rect":{"x":446,"y":390,"w":98,"h":34}},"actions":[{"type":"fallTile","tiles":[{"col":15,"row":14},{"col":16,"row":14},{"col":17,"row":14}],"delayTicks":8,"fallSpeed":9,"returnTicks":100}]}, { id: "r92_go", once: true, condition: { type: "timer", ticks: 90 }, actions: [{ type: "toggleTile", tiles: [{col:16,row:12,to:"."},{col:16,row:13,to:"."}] }, { type: "narratorLine", text: "NOW!" }] }]
 });
 
 addRound({
@@ -2352,8 +2376,9 @@ addRound({
   mechanic: "Sprint across four single-tile pillars over a pit in under 10 seconds.",
   tell: "Exact 1-tile spacing allows smooth full-speed hops.",
   solutionSummary: "Hop cleanly from stone to stone across the pit.",
-  grid: buildRoom(g => { g.pit(7, 23, "^"); g.set(9,14,"#"); g.set(13,14,"#"); g.set(17,14,"#"); g.set(21,14,"#"); g.set(9,15,"."); g.set(13,15,"."); g.set(17,15,"."); g.set(21,15,"."); }),
+  grid: buildRoom(g => { g.pit(7,24,"^"); g.set(10,14,"#"); g.set(14,14,"#"); g.set(18,14,"#"); g.set(22,14,"#"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
+  hazards: [{"kind":"chaserWall","x":-26,"y":40,"w":28,"h":400,"speed":1.2,"delayTicks":35},{"kind":"skySpike","x":420,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":75,"offset":0,"warnTicks":25,"fallSpeed":12,"aimed":true},{"kind":"sweep","minX":330,"maxX":600,"y":340,"w":20,"h":20,"period":72}],
   triggers: []
 });
 
@@ -2363,9 +2388,9 @@ addRound({
   mechanic: "Your character auto-sprints right continuously; Jump is your only working input.",
   tell: "Left/Right keys are locked; time two clean hops.",
   solutionSummary: "Jump cleanly over the two spike pits while auto-running.",
-  grid: buildRoom(g => { g.pit(11, 12, "^"); g.pit(20, 21, "^"); }),
+  grid: buildRoom(g => { g.pit(10,11,"^"); g.pit(19,20,"^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
-  autoRun: true, triggers: []
+  autoRun: true, triggers: [{"id":"r94_col","once":false,"condition":{"type":"zoneEnter","rect":{"x":416,"y":390,"w":98,"h":34}},"actions":[{"type":"fallTile","tiles":[{"col":14,"row":14},{"col":15,"row":14},{"col":16,"row":14}],"delayTicks":8,"fallSpeed":9,"returnTicks":100}]}]
 });
 
 addRound({
@@ -2377,6 +2402,7 @@ addRound({
   grid: buildRoom(g => { g.col(12, 1, 11, "#"); g.set(12, 12, "L"); g.set(12, 13, "L"); }),
   start: { col: 4, row: 13 }, exit: { col: 27, row: 13 },
   riddle: { mode: "idle", prompt: "HANDS OFF! PRESS NOTHING FOR 5 SECONDS.", idleTicksRequired: 300, unlockTiles: [{col:12,row:12,to:"."},{col:12,row:13,to:"."}] },
+  hazards: [{"kind":"skySpike","x":540,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":80,"offset":0,"warnTicks":28,"fallSpeed":12,"aimed":false}],
   triggers: []
 });
 
@@ -2386,10 +2412,11 @@ addRound({
   mechanic: "The unlock coin hops upward when you approach; jump up to snatch it.",
   tell: "Coin moves to row 10 when you pass col 9.",
   solutionSummary: "Trigger the coin dodge at col 9, jump up to col 14 row 10, and exit.",
-  grid: buildRoom(g => { g.col(22, 1, 11, "#"); g.set(22, 12, "L"); g.set(22, 13, "L"); }),
+  grid: buildRoom(g => { g.pit(9,10,"^"); g.col(22,1,11,"#"); g.set(22,12,"L"); g.set(22,13,"L"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
   coins: [{ id: "c96", col: 11, row: 13 }],
-  triggers: [
+  hazards: [{"kind":"chaserWall","x":-26,"y":40,"w":28,"h":400,"speed":1.15,"delayTicks":40},{"kind":"skySpike","x":450,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":75,"offset":0,"warnTicks":25,"fallSpeed":12,"aimed":true},{"kind":"sweep","minX":360,"maxX":540,"y":370,"w":20,"h":20,"period":72}],
+  triggers: [{"id":"r96_col","once":false,"condition":{"type":"zoneEnter","rect":{"x":386,"y":390,"w":98,"h":34}},"actions":[{"type":"fallTile","tiles":[{"col":13,"row":14},{"col":14,"row":14},{"col":15,"row":14}],"delayTicks":8,"fallSpeed":9,"returnTicks":100}]}, 
     { id: "r96_dodge", once: true, condition: { type: "playerX", x: 9*30, op: ">=" }, actions: [{ type: "setCoinPos", itemId: "c96", x: 14*30+15, y: 10*30+15 }] },
     { id: "r96_open", once: true, condition: { type: "collectItem", itemId: "c96" }, actions: [{ type: "toggleTile", tiles: [{col:22,row:12,to:"."},{col:22,row:13,to:"."}] }] }
   ]
@@ -2401,10 +2428,11 @@ addRound({
   mechanic: "Left decoy door has a coral keyhole pixel; only the pure Bait Gold door on the right is real.",
   tell: "Compare the two doors: left has a coral keyhole.",
   solutionSummary: "Walk past the left decoy door into the clean gold right door.",
-  grid: buildRoom(),
+  grid: buildRoom(g => { g.pit(9,10,"^"); g.pit(18,19,"^"); }),
   start: { col: 2, row: 13 }, exit: { col: 26, row: 13 },
   fakeExit: { col: 12, row: 13 },
-  triggers: [{ id: "r97_trap", once: false, condition: { type: "zoneEnter", rect: { x: 12*30, y: 13*30, w: 28, h: 30 } }, actions: [{ type: "kill", reason: "wrongDoor" }] }]
+  hazards: [{"kind":"chaserWall","x":-26,"y":40,"w":28,"h":400,"speed":1.25,"delayTicks":30},{"kind":"skySpike","x":420,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":72,"offset":0,"warnTicks":24,"fallSpeed":12,"aimed":true},{"kind":"sweep","minX":360,"maxX":480,"y":370,"w":20,"h":20,"period":70}],
+  triggers: [{"id":"r97_col","once":false,"condition":{"type":"zoneEnter","rect":{"x":386,"y":390,"w":98,"h":34}},"actions":[{"type":"fallTile","tiles":[{"col":13,"row":14},{"col":14,"row":14},{"col":15,"row":14}],"delayTicks":8,"fallSpeed":9,"returnTicks":100}]}, { id: "r97_trap", once: false, condition: { type: "zoneEnter", rect: { x: 12*30, y: 13*30, w: 28, h: 30 } }, actions: [{ type: "kill", reason: "wrongDoor" }] }]
 });
 
 addRound({
@@ -2416,6 +2444,7 @@ addRound({
   grid: buildRoom(g => { g.col(22, 1, 11, "#"); g.set(22, 12, "L"); g.set(22, 13, "L"); }),
   start: { col: 3, row: 13 }, exit: { col: 28, row: 13 },
   riddle: { mode: "typed", prompt: "TYPE THE WORD 'TRUST' FAST:", answers: ["trust"], unlockTiles: [{col:22,row:12,to:"."},{col:22,row:13,to:"."}] },
+  hazards: [{"kind":"chaserWall","x":-26,"y":40,"w":28,"h":400,"speed":0.95,"delayTicks":50},{"kind":"skySpike","x":240,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":75,"offset":0,"warnTicks":26,"fallSpeed":12,"aimed":true}],
   triggers: [{ id: "r98_time", once: true, condition: { type: "timer", ticks: 360 }, actions: [{ type: "kill", reason: "typedSlow" }] }]
 });
 
@@ -2425,10 +2454,11 @@ addRound({
   mechanic: "Guidance signs alternate: 1st tells truth (HIGH), 2nd lies (LOW -> spikes!), 3rd tells truth.",
   tell: "2nd sign points down toward spikes with a 1px coral seam.",
   solutionSummary: "Follow Sign 1 (jump up), ignore Sign 2 (stay high), follow Sign 3 to exit.",
-  grid: buildRoom(g => { g.plat(8, 11, 6, "#"); g.plat(16, 11, 6, "#"); g.set(17, 13, "^"); g.set(18, 13, "^"); }),
+  grid: buildRoom(g => { g.pit(9,10,"^"); g.set(15,13,"^"); g.pit(20,21,"^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
   signs: [{ id: "s99a", col: 5, row: 8, w: 72, h: 24, text: "UP!" }, { id: "s99b", col: 15, row: 8, w: 80, h: 24, text: "DOWN!" }],
-  triggers: []
+  hazards: [{"kind":"chaserWall","x":-26,"y":40,"w":28,"h":400,"speed":1.3,"delayTicks":30},{"kind":"skySpike","x":420,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":72,"offset":0,"warnTicks":24,"fallSpeed":12,"aimed":true},{"kind":"sweep","minX":360,"maxX":540,"y":370,"w":20,"h":20,"period":68}],
+  triggers: [{"id":"r99_col","once":false,"condition":{"type":"zoneEnter","rect":{"x":356,"y":390,"w":98,"h":34}},"actions":[{"type":"fallTile","tiles":[{"col":12,"row":14},{"col":13,"row":14},{"col":14,"row":14}],"delayTicks":8,"fallSpeed":9,"returnTicks":100}]}]
 });
 
 addRound({
@@ -2437,10 +2467,12 @@ addRound({
   mechanic: "Final micro gauntlet combining hologram floor, control-flip jump, and a 10-second dash to Round 100 exit.",
   tell: "Scanline tiles fall through; every jump flips your color & controls.",
   solutionSummary: "Jump across the hologram pit (controls flip), then hold Left to clear the final gap.",
-  grid: buildRoom(g => { g.row(14, 9, 12, "N"); g.row(15, 9, 12, "^"); g.pit(21, 22, "^"); }),
+  grid: buildRoom(g => { g.row(14,6,8,"N"); g.row(15,6,8,"^"); g.pit(13,14,"^"); g.row(14,16,18,"."); g.row(15,16,18,"."); g.plat(16,14,3,"#"); g.pit(20,21,"^"); }),
   start: { col: 2, row: 13 }, exit: { col: 28, row: 13 },
   secretLetter: { char: "!", col: 16, row: 11 },
-  triggers: [{ id: "r100_flip", once: false, condition: { type: "everyJump" }, actions: [{ type: "toggleReverseControls" }, { type: "playSound", sound: "flip" }] }]
+  hazards: [{"kind":"chaserWall","x":-26,"y":40,"w":28,"h":400,"speed":1.35,"delayTicks":30},{"kind":"skySpike","x":360,"y":30,"baseY":30,"targetY":420,"w":20,"h":22,"period":70,"offset":0,"warnTicks":24,"fallSpeed":12,"aimed":true},{"kind":"sweep","minX":450,"maxX":570,"y":370,"w":20,"h":20,"period":68},{"kind":"fist","x":690,"y":150,"baseY":150,"slamY":390,"w":26,"h":28,"period":70,"warnTicks":20,"slamTicks":16,"offset":0}],
+  fakeExit: {"col":25,"row":13},
+  triggers: [{"id":"r100_col","once":false,"condition":{"type":"zoneEnter","rect":{"x":476,"y":390,"w":98,"h":34}},"actions":[{"type":"fallTile","tiles":[{"col":16,"row":14},{"col":17,"row":14},{"col":18,"row":14}],"delayTicks":8,"fallSpeed":9,"returnTicks":95}]}, {"id":"r100_pop","once":true,"condition":{"type":"playerX","x":660,"op":">="},"actions":[{"type":"spawnSpike","col":21,"row":13,"dir":"^","emergeTicks":5}]}, {"id":"r100_fakefin","once":false,"condition":{"type":"zoneEnter","rect":{"x":750,"y":390,"w":28,"h":30}},"actions":[{"type":"kill","reason":"fakeExit"}]}, { id: "r100_flip", once: false, condition: { type: "everyJump" }, actions: [{ type: "toggleReverseControls" }, { type: "playSound", sound: "flip" }] }]
 });
 
 // ---------------- SECRET ENDING (101) ----------------
@@ -2504,19 +2536,19 @@ const LEVEL_SOLUTIONS = {
   24: { setupRuns: [[{ticks:42,right:true},{ticks:16,right:true,jump:true},{ticks:40,right:true}]], solve: [{"ticks":52,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":32,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":60,"right":true}] },
   25: [{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":24,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":112,"right":true}],
   26: [{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":12},{"ticks":6},{"jump":true,"ticks":8},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"left":true,"jump":true,"ticks":8},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":18},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":40}],
-  27: { setupRuns: [[{ticks:50,right:true},{ticks:10,right:true,jump:true},{ticks:40,right:true}]], solve: [{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":80,"right":true}] },
+  27: [{"right":true,"jump":true,"ticks":48},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":64},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":56}],
   28: [{"ticks":16,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":28,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":8,"right":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true}],
   29: [{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":48},{"right":true,"ticks":1}],
   30: [{"ticks":8,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":28,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":28,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":20,"right":true}],
   31: [{"right":true,"jump":true,"ticks":48},{"ticks":6},{"right":true,"jump":true,"ticks":32},{"ticks":6},{"right":true,"jump":true,"ticks":24},{"jump":true,"ticks":8},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":5}],
-  32: [{"ticks":72,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":100,"right":true}],
+  32: [{"right":true,"jump":true,"ticks":40},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":24},{"left":true,"ticks":12},{"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":48},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":3}],
   33: [{"right":true,"jump":true,"ticks":48},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":56},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":6},{"jump":true,"ticks":16},{"right":true,"jump":true,"ticks":31}],
-  34: [{"ticks":28,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true}],
-  35: [{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":56},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":48},{"right":true,"ticks":4}],
+  34: [{"right":true,"jump":true,"ticks":48},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":120},{"right":true,"ticks":6}],
+  35: [{"right":true,"jump":true,"ticks":48},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":64},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":4}],
   36: [{"ticks":80,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":28,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":20,"right":true}],
   37: [{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":48},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":24}],
-  38: [{"ticks":88,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":84,"right":true}],
-  39: [{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":56},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":48},{"right":true,"ticks":4}],
+  38: [{"right":true,"jump":true,"ticks":56},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":112}],
+  39: [{"right":true,"jump":true,"ticks":48},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":48},{"right":true,"ticks":4}],
   40: [{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":40,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":32,"right":true}],
   41: [{"ticks":112,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true}],
   42: [{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":24},{"left":true,"ticks":6},{"jump":true,"ticks":8},{"ticks":6},{"right":true,"jump":true,"ticks":48},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":12},{"left":true,"jump":true,"ticks":8},{"jump":true,"ticks":8},{"right":true,"jump":true,"ticks":24},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":5}],
@@ -2524,60 +2556,60 @@ const LEVEL_SOLUTIONS = {
   44: [{"right":true,"jump":true,"ticks":48},{"ticks":6},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":72},{"right":true,"ticks":5}],
   45: [{"ticks":48,"right":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":8,"left":true},{"ticks":12},{"ticks":4,"jump":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"jump":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true},{"ticks":4},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":12,"right":true},{"ticks":4,"left":true},{"ticks":4},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"jump":true},{"ticks":8},{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true}],
   46: [{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":12,"right":true},{"ticks":16,"left":true},{"ticks":4,"right":true},{"ticks":20,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true,"jump":true},{"ticks":40,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":100,"right":true}],
-  47: [{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":12,"right":true},{"ticks":8,"left":true},{"ticks":12,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":32,"right":true}],
+  47: [{"right":true,"jump":true,"ticks":48},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":24},{"jump":true,"ticks":8},{"left":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":32},{"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"left":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":1}],
   48: [{"ticks":52,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":28,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true}],
   49: [{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":6},{"ticks":6},{"right":true,"jump":true,"ticks":56},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":5}],
   50: [{"ticks":24,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":60,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":16,"right":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":12,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":92,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true}],
-  51: [{"ticks":80,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":76,"right":true}],
+  51: [{"right":true,"jump":true,"ticks":80},{"left":true,"ticks":6},{"jump":true,"ticks":8},{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":12},{"right":true,"jump":true,"ticks":80},{"right":true,"ticks":4}],
   52: [{"ticks":44,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"left":true},{"ticks":20,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"jump":true},{"ticks":12,"left":true},{"ticks":12,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true},{"ticks":8,"left":true},{"ticks":16,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":28,"right":true}],
   53: [{"ticks":40,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":60,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":80,"right":true}],
   54: [{"ticks":32,"right":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4},{"ticks":4,"right":true},{"ticks":8},{"ticks":4,"right":true},{"ticks":24,"right":true,"jump":true},{"ticks":4,"left":true},{"ticks":16,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":16,"right":true},{"ticks":8,"left":true},{"ticks":12,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true}],
   55: { setupRuns: [[{ticks:30,right:true},{ticks:180}]], solve: [{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":32,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":32,"right":true}] },
   56: [{"ticks":12,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":28,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":12,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true}],
-  57: [{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":16,"right":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":24,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":24,"right":true,"jump":true},{"ticks":28,"right":true}],
+  57: [{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":6},{"ticks":6},{"right":true,"jump":true,"ticks":48},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"left":true,"ticks":12},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":12},{"left":true,"ticks":6},{"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":2}],
   58: [{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"jump":true,"ticks":16},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"left":true,"ticks":6},{"jump":true,"ticks":8},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":18},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":5}],
   59: [{"ticks":8,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true},{"ticks":8,"left":true},{"ticks":8,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":8,"right":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true,"jump":true},{"ticks":60,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":40,"right":true}],
   60: [{"ticks":84,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true}],
   61: [{"right":true,"jump":true,"ticks":56},{"left":true,"ticks":6},{"ticks":6},{"jump":true,"ticks":8},{"right":true,"jump":true,"ticks":64},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":48}],
-  62: [{"right":true,"jump":true,"ticks":56},{"right":true,"ticks":12},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":12},{"right":true,"jump":true,"ticks":40},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":48}],
+  62: [{"right":true,"jump":true,"ticks":72},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":64},{"right":true,"ticks":12},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":6}],
   63: [{"ticks":8,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":36,"left":true}],
   64: [{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":16,"right":true},{"ticks":4,"left":true},{"ticks":8,"left":true,"jump":true},{"ticks":4,"right":true,"jump":true},{"ticks":8,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"jump":true},{"ticks":16,"right":true},{"ticks":8,"left":true},{"ticks":8,"right":true},{"ticks":4,"left":true},{"ticks":8,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"left":true},{"ticks":8,"right":true},{"ticks":4},{"ticks":8,"right":true,"jump":true},{"ticks":4,"jump":true},{"ticks":8,"left":true,"jump":true},{"ticks":4,"right":true},{"ticks":4},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"right":true},{"ticks":4},{"ticks":8,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true,"jump":true},{"ticks":8},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":8},{"ticks":8,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":24,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":28,"right":true}],
   65: [{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"left":true,"ticks":6},{"left":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":39}],
   66: [{"ticks":20,"right":true},{"ticks":16,"right":true,"jump":true},{"ticks":24,"right":true}],
-  67: [{"ticks":176,"right":true}],
+  67: [{"right":true,"jump":true,"ticks":128},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":32}],
   68: [{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"left":true,"ticks":12},{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":36},{"right":true,"jump":true,"ticks":56},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":27}],
   69: [{"ticks":16,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":12,"right":true},{"ticks":24,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4},{"ticks":8,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":16,"right":true,"jump":true},{"ticks":16,"right":true}],
   70: [{"ticks":28,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":32,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":52,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true},{"ticks":4,"right":true,"jump":true}],
-  71: [{"ticks":156,"right":true}],
-  72: [{"ticks":72,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true}],
-  73: [{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":36,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":56,"right":true}],
-  74: [{"ticks":52,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":8,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":44,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true}],
-  75: [{"ticks":52,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":60,"right":true}],
-  76: [{"ticks":68},{"ticks":40,"right":true},{"ticks":14,"right":true,"jump":true},{"ticks":96},{"ticks":16,"right":true,"jump":true},{"ticks":80,"right":true}],
-  77: [{"ticks":36,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":40,"right":true}],
-  78: [{"ticks":176,"right":true}],
-  79: [{"ticks":32,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":12,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":32,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":80,"right":true}],
-  80: [{"ticks":144,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":28,"right":true}],
-  81: [{ticks:190},{ticks:180,right:true}],
-  82: { setupRuns: [[{ticks:70,right:true}],[{ticks:70,right:true}],[{ticks:70,right:true}]], solve: [{ticks:180,right:true}] },
-  83: [{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":52,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":60,"right":true}],
-  84: [{"ticks":92,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":76,"right":true}],
-  85: [{ticks:70},{ticks:180,right:true}],
-  86: [{"ticks":176,"right":true}],
-  87: [{"ticks":64,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true}],
-  88: [{"ticks":8,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"left":true},{"ticks":4,"right":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":8,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":68,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"right":true},{"ticks":8,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":20,"left":true}],
-  89: [{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":64,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true}],
-  90: [{"ticks":124,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true}],
+  71: [{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"ticks":6},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":120},{"right":true,"ticks":3}],
+  72: [{"right":true,"jump":true,"ticks":64},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":64},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":4}],
+  73: [{"right":true,"jump":true,"ticks":40},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"left":true,"jump":true,"ticks":8},{"right":true,"jump":true,"ticks":64},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":5}],
+  74: [{"right":true,"jump":true,"ticks":56},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":12},{"left":true,"jump":true,"ticks":8},{"left":true,"ticks":6},{"left":true,"jump":true,"ticks":8},{"right":true,"ticks":24},{"right":true,"jump":true,"ticks":48},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":6}],
+  75: [{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":6},{"ticks":6},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":6},{"left":true,"ticks":6},{"ticks":6},{"jump":true,"ticks":16},{"right":true,"jump":true,"ticks":16},{"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":56},{"right":true,"ticks":6}],
+  76: [{"right":true,"jump":true,"ticks":48},{"ticks":6},{"jump":true,"ticks":8},{"ticks":6},{"jump":true,"ticks":8},{"left":true,"ticks":6},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":24},{"jump":true,"ticks":8},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"jump":true,"ticks":16},{"left":true,"ticks":12},{"left":true,"jump":true,"ticks":8},{"right":true,"jump":true,"ticks":16},{"left":true,"jump":true,"ticks":8},{"right":true,"jump":true,"ticks":8},{"left":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":40}],
+  77: [{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":6},{"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":7}],
+  78: [{"right":true,"ticks":42},{"left":true,"jump":true,"ticks":8},{"ticks":12},{"left":true,"ticks":6},{"ticks":6},{"right":true,"ticks":6},{"left":true,"jump":true,"ticks":8},{"ticks":6},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":111}],
+  79: [{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":6},{"ticks":6},{"right":true,"jump":true,"ticks":80},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":64},{"right":true,"ticks":1}],
+  80: [{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":6},{"ticks":6},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":56},{"right":true,"ticks":2}],
+  81: [{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":6},{"ticks":6},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"left":true,"ticks":6},{"jump":true,"ticks":8},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":56},{"right":true,"ticks":5}],
+  82: { setupRuns: [[{ticks:70,right:true}],[{ticks:70,right:true}],[{ticks:70,right:true}]], solve: [{"right":true,"jump":true,"ticks":56},{"left":true,"ticks":6},{"jump":true,"ticks":8},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":6},{"left":true,"jump":true,"ticks":8},{"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":56},{"left":true,"ticks":6},{"right":true,"ticks":18},{"right":true,"jump":true,"ticks":56}] },
+  83: [{"right":true,"jump":true,"ticks":32},{"ticks":12},{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"left":true,"jump":true,"ticks":8},{"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":6},{"left":true,"jump":true,"ticks":8},{"right":true,"jump":true,"ticks":64}],
+  84: [{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":6},{"ticks":6},{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":15}],
+  85: [{"right":true,"jump":true,"ticks":72},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":56},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":4}],
+  86: [{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":6},{"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":48},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":88},{"right":true,"ticks":2}],
+  87: [{"right":true,"jump":true,"ticks":48},{"ticks":6},{"right":true,"jump":true,"ticks":24},{"jump":true,"ticks":16},{"right":true,"jump":true,"ticks":16},{"right":true,"ticks":12},{"right":true,"jump":true,"ticks":80},{"right":true,"ticks":3}],
+  88: [{"left":true,"jump":true,"ticks":48},{"ticks":6},{"left":true,"jump":true,"ticks":24},{"jump":true,"ticks":8},{"right":true,"jump":true,"ticks":8},{"left":true,"jump":true,"ticks":16},{"left":true,"ticks":6},{"left":true,"jump":true,"ticks":80}],
+  89: [{"right":true,"jump":true,"ticks":48},{"ticks":6},{"right":true,"jump":true,"ticks":48},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":80},{"right":true,"ticks":3}],
+  90: [{"right":true,"jump":true,"ticks":48},{"ticks":6},{"right":true,"jump":true,"ticks":48},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":88},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":14}],
   91: [{"ticks":2,"click":{"id":"b_dont"}}],
-  92: [{"ticks":80,"right":true},{"ticks":4,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":76,"right":true}],
-  93: [{"ticks":36,"right":true},{"ticks":16,"right":true,"jump":true},{"ticks":28,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":28,"right":true},{"ticks":8,"right":true,"jump":true},{"ticks":4,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true}],
-  94: [{"ticks":64,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":56,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":48,"right":true}],
-  95: [{ticks:310},{ticks:160,right:true}],
-  96: [{"ticks":76,"right":true},{"ticks":12,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":64,"right":true}],
-  97: [{"ticks":60,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":96,"right":true}],
+  92: [{"right":true,"jump":true,"ticks":48},{"ticks":6},{"right":true,"jump":true,"ticks":48},{"left":true,"jump":true,"ticks":8},{"right":true,"ticks":12},{"right":true,"jump":true,"ticks":64},{"right":true,"ticks":6}],
+  93: [{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"ticks":6},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":24},{"left":true,"jump":true,"ticks":8},{"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":24},{"left":true,"ticks":12},{"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":48},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":15}],
+  94: [{"right":true,"jump":true,"ticks":48},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":40},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":80},{"right":true,"ticks":3}],
+  95: [{"ticks":310},{"ticks":220,"right":true}],
+  96: [{"right":true,"ticks":42},{"left":true,"ticks":6},{"ticks":6},{"left":true,"ticks":6},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":112}],
+  97: [{"right":true,"jump":true,"ticks":48},{"ticks":6},{"right":true,"jump":true,"ticks":24},{"jump":true,"ticks":16},{"right":true,"jump":true,"ticks":16},{"left":true,"ticks":6},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":72},{"right":true,"ticks":5}],
   98: [{"ticks":2,"typed":"trust"},{"ticks":170,"right":true}],
-  99: [{"ticks":20,"right":true},{"ticks":16,"right":true,"jump":true},{"ticks":48,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":88,"right":true}],
-  100: [{"ticks":52,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":4,"left":true},{"ticks":4,"right":true},{"ticks":12,"left":true},{"ticks":4,"left":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":28,"left":true},{"ticks":4,"right":true,"jump":true},{"ticks":20,"right":true},{"ticks":4,"right":true,"jump":true},{"ticks":16,"left":true}],
+  99: [{"right":true,"jump":true,"ticks":48},{"ticks":6},{"right":true,"jump":true,"ticks":32},{"left":true,"ticks":6},{"jump":true,"ticks":8},{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":12},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":32},{"right":true,"ticks":2}],
+  100: [{"right":true,"ticks":6},{"left":true,"jump":true,"ticks":56},{"right":true,"ticks":6},{"left":true,"ticks":6},{"right":true,"jump":true,"ticks":24},{"right":true,"ticks":6},{"left":true,"jump":true,"ticks":8},{"ticks":6},{"right":true,"jump":true,"ticks":8},{"left":true,"jump":true,"ticks":32},{"right":true,"ticks":6},{"right":true,"jump":true,"ticks":8},{"right":true,"ticks":6},{"left":true,"jump":true,"ticks":8},{"ticks":6},{"jump":true,"ticks":8},{"left":true,"ticks":6},{"left":true,"jump":true,"ticks":16},{"left":true,"ticks":5}],
   101: [{"ticks":160,"right":true}]
 };
 
@@ -2742,7 +2774,385 @@ function isSpikeChar(ch) {
   return ch === "^" || ch === "v" || ch === "<" || ch === ">";
 }
 
+const RIDDLE_HINTS = {
+  27: {
+    tell: "Reverse ghost shadow & sky-drop floor shadows",
+    r1: "Yesterday's footsteps learned how to hold a grudge.",
+    r2: "Your own ghost walks backward while the ceiling drops its shade.",
+    r3: "The crimson twin repeats your past; the floor marks where sky-teeth land."
+  },
+  32: {
+    tell: "High-pitched hollow step sound & crumbling seams",
+    r1: "Not every stone has a bone inside it.",
+    r2: "Listen to your boots: the brightest ring is an empty promise.",
+    r3: "A high chime means the floor is already packing its bags—and blades patrol the air."
+  },
+  34: {
+    tell: "Ticking beat before floor spikes & sky shadows",
+    r1: "The room stutters on purpose, and it keeps a strict metronome.",
+    r2: "Count the ticks beneath your heels and watch the darkening tiles.",
+    r3: "Every beat wakes floor-teeth and drops a shadow from the rafters."
+  },
+  35: {
+    tell: "Opening full-room view before camera zoom & air blades",
+    r1: "The lens is generous only while you are still.",
+    r2: "Borrow the wide view before the frame closes around your shoes.",
+    r3: "Two dark mouths wait in the floor while steel sweeps the narrow air."
+  },
+  36: {
+    tell: "Faint 35% alpha upper door vs bright decoy",
+    r1: "What shouts the loudest in this room is a liar.",
+    r2: "Ignore the neon crown; the true door barely dares to glow.",
+    r3: "The dimmest frame sits high above, past patrolling blades and shadowed drops."
+  },
+  37: {
+    tell: "Low H ceiling dust & sky-drop shadows",
+    r1: "The sky has teeth, and the ceiling hangs low.",
+    r2: "Respect the dusty overhang and the red marks painted on the floor.",
+    r3: "Duck beneath the low stone brow while blades and sky-shadows take turns."
+  },
+  38: {
+    tell: "Rising tempo ticks & 1px coral floor seams",
+    r1: "The room's pulse speeds up when you step toward its secret.",
+    r2: "A faster heartbeat and a tiny crimson seam betray the hidden needle.",
+    r3: "Watch the 1-pixel scar on the stone while a shadow gathers overhead."
+  },
+  39: {
+    tell: "40% opacity trailing clones vs solid lead",
+    r1: "Only one of you actually casts a real shadow on the stone.",
+    r2: "The ghosts behind you are theatre; keep your eyes on the brightest white.",
+    r3: "Lead the pale echoes over two floor mouths and under the sweeping blade."
+  },
+  44: {
+    tell: "SIMON SAYS banner prefix & H ceiling dust",
+    r1: "Obedience is a trap unless the king signs his own name.",
+    r2: "Wait for the full royal title before trusting the open gate.",
+    r3: "When the true banner speaks, thread the low brow and the falling shade."
+  },
+  47: {
+    tell: "Rapidly ticking clock & crumbling C seams",
+    r1: "The clock wears a polite mask to hide how little sand remains.",
+    r2: "A ten-second promise only lasts seven heartbeats—and the bridge is hollow.",
+    r3: "Trust the frantic beep, not the printed ten, across seams and sky-shadows."
+  },
+  48: {
+    tell: "Hologram N scanlines & row 10 ceiling teeth",
+    r1: "Read the fine print before your head meets the ceiling.",
+    r2: "Scanlines never hold weight, and the roof wears crimson fangs.",
+    r3: "Pass the flickering mirage low and watch the shadows beneath the overhang."
+  },
+  51: {
+    tell: "Gold << rewind pad & patrolling air blade",
+    r1: "Sometimes the fastest way up is to remember where you began.",
+    r2: "The golden arrows carry you home once the key is yours.",
+    r3: "Snatch the prize below, dodge the sweeping steel, and kiss the golden arrows."
+  },
+  57: {
+    tell: "8-second timer, crumbling seams & sky-drop shadows",
+    r1: "Eight heartbeats sounds generous until the floor starts yawning.",
+    r2: "Hollow seams give way, and shadows fall right behind your heels.",
+    r3: "Keep moving past the 1-pixel scars; the roof drops where you linger."
+  },
+  62: {
+    tell: "Gold shrink pad & low stone tunnel",
+    r1: "Pride makes you too tall for the door ahead.",
+    r2: "A golden mark humbles your size so the narrow hall will let you pass.",
+    r3: "Shrink at the gold pad, then thread the tunnel past pits and sweeping steel."
+  },
+  63: {
+    tell: "Open left/right screen edges",
+    r1: "A wall in front of you only means the world is round.",
+    r2: "The stone barrier laughs at your right shoulder, while the left edge has no frame.",
+    r3: "Step off the open margin, dodge the blade, and watch the sky-shadows on the far side."
+  },
+  64: {
+    tell: "Flip chime & ceiling spikes on row 3",
+    r1: "The ceiling is just a floor waiting for its turn.",
+    r2: "Listen for the chime that trades your boots for the roof's crown.",
+    r3: "Mind the upside-down teeth and the high blade when the world turns over."
+  },
+  65: {
+    tell: "Rising coral tide & low H brow overhead",
+    r1: "The tide below is patient, and the roof above is not.",
+    r2: "Climb before the coral sea rises, but mind the dusty overhang.",
+    r3: "Don't bang your crown on the low stone while the upper blade sweeps."
+  },
+  66: {
+    tell: "Gold portal frame vs Coral portal frame",
+    r1: "Two doors promise a shortcut; only one matches the color of truth.",
+    r2: "Crimson frames bite; golden frames keep their word.",
+    r3: "Cross the blades to reach the gilded frame on the middle ledge."
+  },
+  67: {
+    tell: "Coral M magnet blocks & row 6 ceiling teeth",
+    r1: "The ceiling loves you a little too much in the middle of the hall.",
+    r2: "Beneath the crimson M, leaping is an invitation to the roof's fangs.",
+    r3: "Keep your boots humble under the magnets while timing the floor blade."
+  },
+  69: {
+    tell: "Inward side spikes & top center stone barrier",
+    r1: "The walls are closing in, and the roof is softer than it looks.",
+    r2: "Climb fast; the stone sealing the crown shatters at your touch.",
+    r3: "Outrun the inward teeth and brush the top ledge to break your way out."
+  },
+  71: {
+    tell: "Gold NPC march & floor switch",
+    r1: "Your golden companion has courage, not eyesight.",
+    r2: "He walks a steady line straight toward an open mouth unless you pave it.",
+    r3: "Outrun the chaser and press the switch before his boots meet the pit."
+  },
+  72: {
+    tell: "White decoy runner & sky-drop shadows",
+    r1: "A reckless guide makes a terrible teacher.",
+    r2: "He leaps on the final pixel; copy his timing and you'll kiss the spikes.",
+    r3: "Break rhythm from the decoy and watch the shadows falling from above."
+  },
+  73: {
+    tell: "Shop pedestals: BOOTS vs KEY",
+    r1: "One bargain buys your freedom; the other buys a coffin.",
+    r2: "Doors respect keys, not fancy shoes.",
+    r3: "Pass the sweeping blade, skip the tempting boots, and claim the key."
+  },
+  74: {
+    tell: "Three numbered chat pads (#1, #2, #3)",
+    r1: "Never trust a loud crowd to vote for your survival.",
+    r2: "The loudest number is a lie; the middle voice opens the lock.",
+    r3: "Dodge the air hazards and step on the quiet second pad."
+  },
+  75: {
+    tell: "4-second laser & target ghost",
+    r1: "The ghost ahead isn't racing you—it's setting the curfew.",
+    r2: "When the fourth second chimes, the crimson gate shuts forever.",
+    r3: "Beat the clock across the crumbling tiles and under the sweeping steel."
+  },
+  76: {
+    tell: "Gold-topped critter over spike chasm",
+    r1: "Even a monster has a polite hat if you land on it gently.",
+    r2: "Its sides are knives, but its golden crown is a ferry.",
+    r3: "Ride the armored back across the chasm while dodging sky-shadows."
+  },
+  77: {
+    tell: "Gold twin mirroring opposite horizontal inputs",
+    r1: "Two bodies, one mind—and neither agrees on which way is right.",
+    r2: "Your shadow twin walks opposite to your hand; keep both boots dry.",
+    r3: "Watch the twin's pit and the falling shades before you commit."
+  },
+  78: {
+    tell: "Fleeing gold coin & closing wall",
+    r1: "Treasure has legs when it doesn't want to be spent.",
+    r2: "Herd the golden coward into the corner wall.",
+    r3: "Chase it past the crumbling seam and sky-drops until it runs out of room."
+  },
+  79: {
+    tell: "YES vs NO pads & Round 1 memory",
+    r1: "The judge remembers your very first betrayal.",
+    r2: "Did Round 1's sign tell the truth? Answer with your feet.",
+    r3: "Cross the sweeping hazards to stand on the honest verdict."
+  },
+  80: {
+    tell: "Reformed ally & layered air/floor traps",
+    r1: "Even a former liar can unlock a door—if you survive the hall.",
+    r2: "Let your ally reach the switch while you dodge the storm.",
+    r3: "Stay alive through the collapsing seams and sky-drops until the laser dies."
+  },
+  81: {
+    tell: "Solid wall & narrator boredom timer",
+    r1: "Nothing frustrates a showman more than an audience that refuses to move.",
+    r2: "Patience bores the wall open—just don't stand under a falling shadow.",
+    r3: "Hold your ground calmly, dodge the aimed drops, and watch the barrier yield."
+  },
+  82: {
+    tell: "SKIP pad & death counter >= 3",
+    r1: "Sometimes the 'Skip' button demands a toll in blood.",
+    r2: "Three sacrifices satisfy the crimson pad before it keeps its word.",
+    r3: "Pay the toll or brave the upper air blades and collapsing floor."
+  },
+  83: {
+    tell: "Razor-thin spike gaps & hitbox tells",
+    r1: "The needles look wider than their bite.",
+    r2: "Trust the narrow air between the tips and the shadows above.",
+    r3: "Thread the tight floor gaps while the sky-spikes telegraph on the stone."
+  },
+  84: {
+    tell: "Sweeping Coral Chaser & upper alcove",
+    r1: "When the tide sweeps the floor, high ground is your only umbrella.",
+    r2: "Climb the alcove while the red wave passes, then watch the crumbling return.",
+    r3: "Use the upper perch to dodge the chaser and the aimed sky-drop."
+  },
+  85: {
+    tell: "Alternating Bait Gold fist telegraphs",
+    r1: "Two giant hands clap on a steady beat—never stand between the palms.",
+    r2: "Gold above means a fist is about to kiss the stone.",
+    r3: "Read the alternating gold warnings while hopping the collapsing seams."
+  },
+  86: {
+    tell: "Upper decoy lane vs lower safe lane",
+    r1: "Taking the high road here slams the front door in your face.",
+    r2: "The upper ledge looks inviting only to lock the gate below.",
+    r3: "Stay low through the collapsing tiles, aimed sky-drops, and chasing wall."
+  },
+  87: {
+    tell: "1.5s light window before blackout",
+    r1: "Memorize the room before someone blows out the candle.",
+    r2: "Ninety ticks of daylight show every pit, blade, and shadow.",
+    r3: "Lock the layout in your head, then trust your rhythm in the dark."
+  },
+  88: {
+    tell: "Spawn on right, exit on left",
+    r1: "Habit will walk you straight into the wrong corner.",
+    r2: "Look at where you stand—your goal is behind your back.",
+    r3: "Outrun the wall from the right and weave left through the aimed drops."
+  },
+  89: {
+    tell: "Honest layout with layered hazards",
+    r1: "No trick signs today—just steel, shadows, and your own nerves.",
+    r2: "Every hazard wears its true color; read the floor and the sky.",
+    r3: "Time the collapsing tiles, the chaser, and the aimed sky-spikes."
+  },
+  90: {
+    tell: "Fake THE END banner & opening floor",
+    r1: "Applause before the final curtain is always a trap.",
+    r2: "When THE END drops from the sky, watch the floor beneath the false door.",
+    r3: "Survive the chaser and aimed sky-drops until the real exit opens below."
+  },
+  91: {
+    tell: "DO NOT CLICK vs WIN/SAFE trap buttons",
+    r1: "The buttons marked 'Safe' are sharpened for your thumb.",
+    r2: "Disobey the polite warning while dodging the room's teeth.",
+    r3: "Stay alive past the aimed drops and press the forbidden button."
+  },
+  92: {
+    tell: "Fake G0! vs real NOW! & chaser wall",
+    r1: "False starts feed the spikes; wait for the true word.",
+    r2: "Zeroes lie ('G0!'); only 'NOW!' opens the gate—while the wall creeps.",
+    r3: "Dodge the aimed sky-shadows until 'NOW!' drops the laser."
+  },
+  93: {
+    tell: "Single-tile pillars, aimed sky-drops & chaser",
+    r1: "Four narrow stones above a hungry pit, and the sky knows your stride.",
+    r2: "Don't linger on any pillar—shadows aim where you are going.",
+    r3: "Hop pillar to pillar ahead of the wall and step out of aimed drops."
+  },
+  94: {
+    tell: "Auto-sprint right, jump-only control",
+    r1: "Your boots won't stop running, so your thumb must do all the thinking.",
+    r2: "You cannot brake—only rise over pits, seams, and aimed sky-shadows.",
+    r3: "Time every leap cleanly as the chaser and sky-spikes converge."
+  },
+  95: {
+    tell: "Fake alarms & aimed sky-spike shadows",
+    r1: "Panic is loud; survival is still—except when the ceiling aims at you.",
+    r2: "Ignore the screaming banners, but never stand inside a crimson shadow.",
+    r3: "Wait out the stillness test while stepping clear of telegraphed drops."
+  },
+  96: {
+    tell: "Hopping coin, collapsing tiles & chaser",
+    r1: "The golden key jumps shyly whenever your shadow nears it.",
+    r2: "Rise to meet the hopping coin before the floor gives way.",
+    r3: "Snatch it mid-air ahead of the chasing wall and aimed sky-spikes."
+  },
+  97: {
+    tell: "1px coral keyhole pixel vs pure Bait Gold door",
+    r1: "Two identical doors—yet one hides a single drop of blood.",
+    r2: "Squint at the keyhole: pure gold lives, crimson pixel bites.",
+    r3: "Outrun the chaser and aimed drops to enter the spotless gilded door."
+  },
+  98: {
+    tell: "Typed word 'TRUST' & closing hazards",
+    r1: "Spell the one thing this game never deserved.",
+    r2: "Five letters unlock the room before the walls and sky close in.",
+    r3: "Dodge the aimed shadows while typing the five-letter lie."
+  },
+  99: {
+    tell: "Alternating truth/lie signs & full hazard stack",
+    r1: "Truth, then lie, then truth—even the signs walk in a pattern.",
+    r2: "Follow the odd signs, betray the even ones, and watch every shadow.",
+    r3: "Thread the collapsing floor, aimed sky-spikes, and chaser on the alternating route."
+  },
+  100: {
+    tell: "Hologram scanlines, flip flag, chaser, aimed sky-spikes & fake finish",
+    r1: "Everything you learned is in this room, and the first door is a liar.",
+    r2: "Scanlines drop, controls invert, shadows aim ahead, and the wall hungers.",
+    r3: "Survive the whole orchestra, trigger the lying door, and claim the true exit behind it."
+  }
+};
+
+const GENERIC_RIDDLE_FALLBACKS = [
+  { tag: "skySpike", text: "It never whispers as it falls, yet its shadow arrives first." },
+  { tag: "skySpike", text: "The floor blushes crimson a heartbeat before the ceiling bites." },
+  { tag: "skySpike", text: "It doesn't chase where you stood—it aims where your boots are bound." },
+  { tag: "chaserWall", text: "Silence is patient. A wall of teeth is not." },
+  { tag: "chaserWall", text: "Look behind your heels: the room is growing smaller." },
+  { tag: "crusher", text: "Count the ceiling's heavy heartbeat, then borrow the quiet between." },
+  { tag: "crusher", text: "Gold above is a polite warning before stone kisses floor." },
+  { tag: "saw", text: "Steel paces on an invisible leash; learn its turnarounds." },
+  { tag: "saw", text: "A blade on a rail never improvises—only your panic does." },
+  { tag: "collapse", text: "Stand on me too long and I'll forget I ever held you." },
+  { tag: "collapse", text: "Cracked seams remember every footstep, then vanish." },
+  { tag: "collapse", text: "Even fallen stone returns when its timer finishes counting." },
+  { tag: "fakeSafe", text: "The kindest-looking tile on the map often has the sharpest teeth." },
+  { tag: "fakeSafe", text: "Scanlines are theatre—solid stone doesn't flicker." },
+  { tag: "popBehind", text: "Some traps wait until you celebrate passing them." },
+  { tag: "popBehind", text: "A 1-pixel scar on the floor is never just decoration." },
+  { tag: "bounce", text: "A springboard loves sending hurried boots straight into the roof." },
+  { tag: "bounce", text: "What lifts you high only helps if the ceiling is friendly." },
+  { tag: "movingPlat", text: "The gold-rimmed raft keeps its rhythm even when your nerves don't." },
+  { tag: "movingPlat", text: "If the loading bar hits zero, even digital promises drop." },
+  { tag: "controlTwist", text: "Your hands are honest. Your hands are also completely backwards." },
+  { tag: "controlTwist", text: "When the player turns gold, left and right have traded coats." },
+  { tag: "controlTwist", text: "Ice remembers momentum long after your thumb lets go." },
+  { tag: "fakeFinish", text: "Doors that shout 'WELCOME' rarely mean well." },
+  { tag: "fakeFinish", text: "A single crimson pixel can turn victory into a punchline." },
+  { tag: "fakeFinish", text: "The loudest exit is a decoy; look for the quiet truth." }
+];
+
+function getActiveRiddleHint(state) {
+  if (!state || !state.levelDef) return null;
+  const mode = progress.riddleMode || "deaths";
+  if (mode === "off") return null;
+  if (state.tick < 120) return null; // Never show in first 2 seconds after respawn
+  if (state.decodedText) return { text: state.decodedText, tier: "DECODED", alpha: 1 };
+
+  const deaths = state.levelDeaths || 0;
+  let tier = 0;
+  if (deaths >= 12) tier = 3;
+  else if (deaths >= 8) tier = 2;
+  else if (deaths >= 4) tier = 1;
+  else if (mode === "always") tier = 1;
+  if (tier === 0) return null;
+
+  // Show for 5 seconds (300 ticks: t=120..420), fade out at end
+  if (state.tick > 420) return null;
+  const fadeAlpha = progress.streamerSafe ? 1 : (state.tick > 390 ? Math.max(0, (420 - state.tick) / 30) : 1);
+
+  const def = state.levelDef;
+  const entry = RIDDLE_HINTS[def.id];
+  let text = "";
+  if (entry) {
+    text = tier === 3 ? entry.r3 : (tier === 2 ? entry.r2 : entry.r1);
+  } else {
+    // Pick obstacle-tagged fallback matching level traps
+    let tag = "skySpike";
+    if ((def.hazards || []).some(h => h.kind === "chaserWall")) tag = "chaserWall";
+    else if ((def.hazards || []).some(h => h.kind === "fist")) tag = "crusher";
+    else if ((def.hazards || []).some(h => h.kind === "sweep")) tag = "saw";
+    else if (def.allIce || def.mirrorX !== undefined) tag = "controlTwist";
+    else if (def.fakeExit) tag = "fakeFinish";
+    else if ((def.platforms || []).length > 0) tag = "movingPlat";
+    const pool = GENERIC_RIDDLE_FALLBACKS.filter(g => g.tag === tag);
+    const chosen = pool.length ? pool[(def.id + tier) % pool.length] : GENERIC_RIDDLE_FALLBACKS[def.id % GENERIC_RIDDLE_FALLBACKS.length];
+    text = chosen.text;
+  }
+
+  if (!progress.streamerSafe) {
+    const chars = Math.min(text.length, Math.floor((state.tick - 120) * 1.4) + 1);
+    text = text.slice(0, chars);
+  }
+  return { text, tier: `RIDDLE ${tier}/3`, alpha: fadeAlpha };
+}
+
 function getSpikeHitbox(col, row, dir, emergeRatio = 1) {
+
   const tx = col * TILE, ty = row * TILE;
   const h = Math.round(11 * emergeRatio);
   if (h <= 1) return null;
@@ -2805,7 +3215,7 @@ function executeAction(act, state, persistStore, rawInput) {
         const ch = state.grid[t.row] && state.grid[t.row][t.col];
         if (ch && ch !== ".") {
           state.grid[t.row][t.col] = ".";
-          state.fallingTiles.push({ col: t.col, row: t.row, ch, yOffset: 0, vy: 0, delay: act.delayTicks || 0, fallSpeed: act.fallSpeed || 8 });
+          state.fallingTiles.push({ col: t.col, row: t.row, ch, yOffset: 0, vy: 0, delay: act.delayTicks || 0, fallSpeed: act.fallSpeed || 8, returnTicks: act.returnTicks || 0, returnTimer: 0 });
         }
       }
       break;
@@ -2971,10 +3381,19 @@ function stepSingleTick(state, rawInput, persistStore, assistSlow) {
   for (let i = state.fallingTiles.length - 1; i >= 0; i--) {
     const ft = state.fallingTiles[i];
     if (ft.delay > 0) ft.delay--;
-    else {
+    else if (ft.returnTimer > 0) {
+      ft.returnTimer--;
+      if (ft.returnTimer === 0) {
+        if (state.grid[ft.row]) state.grid[ft.row][ft.col] = ft.ch;
+        state.fallingTiles.splice(i, 1);
+      }
+    } else {
       ft.vy = Math.min(ft.fallSpeed, ft.vy + 0.9);
       ft.yOffset += ft.vy;
-      if (ft.row * TILE + ft.yOffset > LOGICAL_H + 40) state.fallingTiles.splice(i, 1);
+      if (ft.row * TILE + ft.yOffset > LOGICAL_H + 40) {
+        if (ft.returnTicks > 0) ft.returnTimer = ft.returnTicks;
+        else state.fallingTiles.splice(i, 1);
+      }
     }
   }
   for (const sp of state.emergingSpikes) {
@@ -3140,13 +3559,42 @@ function stepSingleTick(state, rawInput, persistStore, assistSlow) {
         const prevX = h.x;
         h.x = h.baseX + (0.5 - 0.5 * Math.cos(t * Math.PI * 2)) * h.moveX;
         h.dx = h.x - prevX;
+      } else if (h.kind === "skySpike") {
+        const period = h.period || 90;
+        const cycle = (state.simTick + (h.offset || 0)) % period;
+        const warnTicks = h.warnTicks || 30;
+        if (cycle === 0) {
+          if (h.aimed) {
+            h.x = Math.max(45, Math.min(LOGICAL_W - 65, p.x + p.vx * (h.leadSec || 0.25)));
+          } else if (h.waveCols && h.waveCols.length) {
+            const wi = Math.floor((state.simTick + (h.offset || 0)) / period) % h.waveCols.length;
+            h.x = h.waveCols[wi] * TILE + 5;
+          }
+          h.y = h.baseY !== undefined ? h.baseY : 30;
+          h.landed = false;
+        }
+        if (cycle < warnTicks) {
+          h.warning = true;
+          h.y = h.baseY !== undefined ? h.baseY : 30;
+        } else {
+          h.warning = false;
+          const floorY = (h.targetY !== undefined ? h.targetY : 14 * TILE) - h.h;
+          h.y = Math.min(floorY, h.y + (h.fallSpeed || 12));
+        }
+      } else if (h.kind === "chaserWall") {
+        if (state.simTick >= (h.delayTicks || 20)) {
+          h.x += (h.speed || 1.4);
+        }
       }
     }
-    if (h.solidTop && rectsOverlap(pRect, h)) {
-      if (p.vy >= 0 && (p.y + p.h - p.vy * FIXED_DT) <= h.y + 12) {
-        p.y = h.y - p.h; p.vy = 0; p.onGround = true; p.x += (h.dx || 0);
+    const hb = h.kind === "skySpike"
+      ? (h.warning ? { x: -999, y: -999, w: 0, h: 0 } : { x: h.x + 4, y: h.y + 4, w: Math.max(6, h.w - 8), h: Math.max(6, h.h - 6) })
+      : (h.kind === "chaserWall" ? { x: h.x + 2, y: h.y + 4, w: h.w - 4, h: h.h - 8 } : h);
+    if (h.solidTop && rectsOverlap(pRect, hb)) {
+      if (p.vy >= 0 && (p.y + p.h - p.vy * FIXED_DT) <= hb.y + 12) {
+        p.y = hb.y - p.h; p.vy = 0; p.onGround = true; p.x += (h.dx || 0);
       } else { killPlayer(state, "hazard"); return; }
-    } else if (!h.solidTop && rectsOverlap(pRect, h)) {
+    } else if (!h.solidTop && rectsOverlap(pRect, hb)) {
       killPlayer(state, "hazard"); return;
     }
   }
@@ -3487,6 +3935,7 @@ const defaultProgress = () => ({
   colorBlind: false,
   muted: false,
   bigDeathOverlay: false,
+  riddleMode: "deaths", // "off" | "deaths" | "always"
   sandboxUnlock: false,
   keys: { left: "ArrowLeft", right: "ArrowRight", jump: "Space", restart: "KeyR" }
 });
@@ -4331,9 +4780,43 @@ function renderEntities(state, alpha) {
     }
   }
   for (const h of state.hazards) {
-    ctx.fillStyle = h.warning ? PAL.GOLD : (h.solidTop ? PAL.GOLD : PAL.CORAL);
-    ctx.fillRect(Math.round(h.x), Math.round(h.y), h.w, h.h);
-    if (h.label) drawPixelText(ctx, h.label, h.x + h.w / 2, h.y + 4, 1, PAL.ACCENT_TEXT, "center");
+    if (h.kind === "skySpike") {
+      const ty = h.targetY !== undefined ? h.targetY : 14 * TILE;
+      if (h.warning) {
+        ctx.save();
+        ctx.globalAlpha = 0.45 + 0.35 * Math.sin(state.tick * 0.45);
+        ctx.fillStyle = PAL.CORAL;
+        ctx.fillRect(Math.round(h.x), ty - 5, h.w, 5);
+        ctx.fillStyle = PAL.GOLD;
+        ctx.fillRect(Math.round(h.x + h.w / 2 - 2), 36, 4, 8);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = PAL.CORAL;
+        ctx.beginPath();
+        ctx.moveTo(h.x, h.y);
+        ctx.lineTo(h.x + h.w, h.y);
+        ctx.lineTo(h.x + h.w / 2, h.y + h.h);
+        ctx.closePath();
+        ctx.fill();
+      }
+    } else if (h.kind === "chaserWall") {
+      ctx.fillStyle = PAL.CORAL;
+      ctx.fillRect(Math.round(h.x), Math.round(h.y), h.w - 6, h.h);
+      const dirRight = (h.speed || 1.4) >= 0;
+      for (let sy = h.y + 6; sy < h.y + h.h - 10; sy += 22) {
+        ctx.beginPath();
+        if (dirRight) {
+          ctx.moveTo(h.x + h.w - 6, sy); ctx.lineTo(h.x + h.w + 6, sy + 8); ctx.lineTo(h.x + h.w - 6, sy + 16);
+        } else {
+          ctx.moveTo(h.x + 6, sy); ctx.lineTo(h.x - 6, sy + 8); ctx.lineTo(h.x + 6, sy + 16);
+        }
+        ctx.closePath(); ctx.fill();
+      }
+    } else {
+      ctx.fillStyle = h.warning ? PAL.GOLD : (h.solidTop ? PAL.GOLD : PAL.CORAL);
+      ctx.fillRect(Math.round(h.x), Math.round(h.y), h.w, h.h);
+      if (h.label) drawPixelText(ctx, h.label, h.x + h.w / 2, h.y + 4, 1, PAL.ACCENT_TEXT, "center");
+    }
   }
   for (const npc of state.npcs) {
     if (!npc.alive) continue;
@@ -4478,11 +4961,31 @@ function renderHUD(state) {
 
   addButton(786, 10, 76, 26, "RETRY", () => { if (window.DeathMusic) window.DeathMusic.stop(); startLevel(app.currentLevelIndex, false); }, PAL.STONE, PAL.WHITE, PAL.BORDER);
   addButton(868, 10, 76, 26, "PAUSE", openPauseMenu, PAL.STONE, PAL.WHITE, PAL.BORDER);
+  if ((state.levelDeaths || 0) >= 25 && (progress.riddleMode || "deaths") !== "off" && !state.decodedText) {
+    addButton(694, 10, 86, 26, "DECODE", () => {
+      app.pityActive = true;
+      state.decodedText = def.solutionSummary || "Watch the tells and time the gaps.";
+    }, PAL.STONE, PAL.GOLD, PAL.GOLD);
+  }
 
   if (app.fakeAlertTicks > 0) {
     ctx.fillStyle = PAL.CORAL; ctx.fillRect(180, 48, 600, 36);
     ctx.strokeStyle = PAL.WHITE; ctx.lineWidth = 1.5; ctx.strokeRect(180, 48, 600, 36);
     drawPixelText(ctx, app.fakeAlertText, 480, 58, 2, PAL.ACCENT_TEXT, "center", null, 576);
+  }
+
+  // Bottom-center Narrator Riddle-Hint Bar (above controls/footer)
+  const rHint = getActiveRiddleHint(state);
+  if (rHint) {
+    ctx.save();
+    ctx.globalAlpha = rHint.alpha;
+    ctx.fillStyle = PAL.PANEL; ctx.fillRect(90, LOGICAL_H - 72, 780, 34);
+    ctx.strokeStyle = PAL.GOLD; ctx.lineWidth = 1.5; ctx.strokeRect(90, LOGICAL_H - 72, 780, 34);
+    // Small narrator eye icon
+    ctx.fillStyle = PAL.GOLD; ctx.beginPath(); ctx.ellipse(112, LOGICAL_H - 55, 10, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = PAL.BG; ctx.beginPath(); ctx.arc(112, LOGICAL_H - 55, 3, 0, Math.PI * 2); ctx.fill();
+    drawPixelText(ctx, rHint.text, 492, LOGICAL_H - 62, 1.4, PAL.GOLD, "center", null, 725);
+    ctx.restore();
   }
 
   ctx.fillStyle = PAL.SURFACE; ctx.fillRect(0, LOGICAL_H - 34, LOGICAL_W, 34);
@@ -5459,7 +5962,13 @@ function renderPauseMenu() {
   }
 
   addButton(220, 158, 520, 34, `Streamer Safe (No Flash): ${progress.streamerSafe ? "ON" : "OFF"}`, () => { progress.streamerSafe = !progress.streamerSafe; saveProgress(progress); }, PAL.SURFACE, PAL.WHITE, PAL.BORDER);
-  addButton(220, 200, 520, 34, `Color-Blind Shapes: ${progress.colorBlind ? "ON" : "OFF"}`, () => { progress.colorBlind = !progress.colorBlind; saveProgress(progress); }, PAL.SURFACE, PAL.WHITE, PAL.BORDER);
+  addButton(220, 200, 252, 34, `Color-Blind Shapes: ${progress.colorBlind ? "ON" : "OFF"}`, () => { progress.colorBlind = !progress.colorBlind; saveProgress(progress); }, PAL.SURFACE, PAL.WHITE, PAL.BORDER);
+  const rModeLabel = progress.riddleMode === "off" ? "Off" : (progress.riddleMode === "always" ? "Always On" : "After Deaths");
+  addButton(488, 200, 252, 34, `Riddles: ${rModeLabel}`, () => {
+    const order = ["deaths", "always", "off"];
+    progress.riddleMode = order[(order.indexOf(progress.riddleMode || "deaths") + 1) % order.length];
+    saveProgress(progress);
+  }, PAL.SURFACE, PAL.GOLD, PAL.BORDER);
   addButton(220, 242, 252, 34, `Audio: ${progress.muted ? "Muted" : "On"}`, () => { progress.muted = !progress.muted; sfx.muted = progress.muted; saveProgress(progress); }, PAL.SURFACE, PAL.WHITE, PAL.BORDER);
   addButton(488, 242, 252, 34, `OBS Counter [O]: ${progress.bigDeathOverlay ? "ON" : "OFF"}`, () => { progress.bigDeathOverlay = !progress.bigDeathOverlay; saveProgress(progress); }, PAL.SURFACE, PAL.WHITE, PAL.BORDER);
 
