@@ -1146,6 +1146,10 @@ const defaultProgress = () => ({
 });
 function loadProgress() {
   try {
+    if (!localStorage.getItem("ti_reset_v2_done")) {
+      ["trust_issues_save_v1", "dont_drop_cake_v1", "parking_spot_panic_v1", "sneakysnack_save_v1"].forEach(k => localStorage.removeItem(k));
+      localStorage.setItem("ti_reset_v2_done", "1");
+    }
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? { ...defaultProgress(), ...JSON.parse(raw) } : defaultProgress();
   } catch (e) { return defaultProgress(); }
@@ -1614,7 +1618,8 @@ function renderSummary(st) {
   if (st.won) {
     const sb = st.scoreBreakdown;
     ctx.fillStyle = PAL.GOLD; ctx.font = "bold 28px monospace";
-    ctx.fillText(`DELIVERED! ${"*".repeat(sb.stars)} (${sb.total} PTS)`, 480, 96);
+    const allDone = app.currentIdx + 1 >= LEVELS.length;
+    ctx.fillText(allDone ? `CONGRATULATIONS! ALL 72 VENUES DONE!` : `DELIVERED! ${"*".repeat(sb.stars)} (${sb.total} PTS)`, 480, 96);
     // Polaroid Photo summary box
     ctx.fillStyle = PAL.WHITE; ctx.fillRect(365, 118, 230, 160);
     ctx.fillStyle = PAL.BG; ctx.fillRect(377, 130, 206, 118);
@@ -1794,7 +1799,10 @@ function tick() {
       progress.stars[app.state.def.id] = Math.max(progress.stars[app.state.def.id] || 0, sb.stars);
       progress.bestScores[app.state.def.id] = Math.max(progress.bestScores[app.state.def.id] || 0, sb.total);
       saveProgress(progress);
-      if (window.DeathMusic) window.DeathMusic.onWin();
+      if (window.DeathMusic) {
+        if (app.currentIdx + 1 >= LEVELS.length) window.DeathMusic.playVictory();
+        else window.DeathMusic.onWin();
+      }
       app.screen = "summary";
     } else if (app.state.failed) {
       progress.fails[app.state.def.id] = (progress.fails[app.state.def.id] || 0) + 1;

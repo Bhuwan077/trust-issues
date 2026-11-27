@@ -1596,6 +1596,10 @@ const defaultProgress = () => ({
 });
 function loadProgress() {
   try {
+    if (!localStorage.getItem("ti_reset_v2_done")) {
+      ["trust_issues_save_v1", "dont_drop_cake_v1", "parking_spot_panic_v1", "sneakysnack_save_v1"].forEach(k => localStorage.removeItem(k));
+      localStorage.setItem("ti_reset_v2_done", "1");
+    }
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? { ...defaultProgress(), ...JSON.parse(raw) } : defaultProgress();
   } catch (e) { return defaultProgress(); }
@@ -2201,8 +2205,9 @@ function renderSummary(st) {
   ctx.textAlign = "center";
   if (st.won) {
     const sb = st.scoreBreakdown;
+    const allDone = app.currentIdx + 1 >= LEVELS.length;
     ctx.fillStyle = PAL.MINT; ctx.font = "bold 28px monospace";
-    ctx.fillText(`SNACK SECURED! ${"*".repeat(sb.stars)}`, 480, 110);
+    ctx.fillText(allDone ? `CONGRATULATIONS! ALL 50 NIGHTS DONE!` : `SNACK SECURED! ${"*".repeat(sb.stars)}`, 480, 110);
     ctx.fillStyle = PAL.GOLD; ctx.font = "bold 18px monospace";
     ctx.fillText(`SNACK OF THE NIGHT: ${st.def.snack.toUpperCase()}`, 480, 160);
     ctx.fillStyle = PAL.WHITE; ctx.font = "bold 15px monospace";
@@ -2398,7 +2403,10 @@ function tick() {
       const bt = progress.bestTimes[st.def.id];
       if (bt === undefined || Number(st.scoreBreakdown.elapsed) < bt) progress.bestTimes[st.def.id] = Number(st.scoreBreakdown.elapsed);
       app.narratorText = pickNarratorLine();
-      if (window.DeathMusic) window.DeathMusic.onWin();
+      if (window.DeathMusic) {
+        if (app.currentIdx + 1 >= LEVELS.length) window.DeathMusic.playVictory();
+        else window.DeathMusic.onWin();
+      }
     } else {
       progress.totalFails++;
       progress.fails[st.def.id] = (progress.fails[st.def.id] || 0) + 1;

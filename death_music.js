@@ -1,6 +1,7 @@
 (function () {
   const TRACK_FIRST = "XI9sH6w_DYw";   // Played on death #1 & #2
   const TRACK_STREAK = "69QF_87XoNE";  // Played after 2 repeated deaths (streak >= 3)
+  const TRACK_VICTORY = "kDMEx29RlE8"; // Played when all levels of a game are completed
 
   let streak = 0;
   let frameWrap = null;
@@ -153,6 +154,11 @@
     stop();
   }
 
+  function playVictory() {
+    streak = 0;
+    playVideo(TRACK_VICTORY);
+  }
+
   function resetStreak() {
     streak = 0;
     stop();
@@ -164,5 +170,5 @@
   window.addEventListener("pagehide", stop);
   window.addEventListener("beforeunload", stop);
 
-  window.DeathMusic = { onDeath, stop, onWin, resetStreak, getStreak: () => streak, isPlaying: () => isPlaying };
+  window.DeathMusic = { onDeath, stop, onWin, playVictory, resetStreak, getStreak: () => streak, isPlaying: () => isPlaying };
 })();

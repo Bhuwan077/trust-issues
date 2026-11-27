@@ -3494,6 +3494,10 @@ const defaultProgress = () => ({
 
 function loadProgress() {
   try {
+    if (!localStorage.getItem("ti_reset_v2_done")) {
+      ["trust_issues_save_v1", "dont_drop_cake_v1", "parking_spot_panic_v1", "sneakysnack_save_v1"].forEach(k => localStorage.removeItem(k));
+      localStorage.setItem("ti_reset_v2_done", "1");
+    }
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultProgress();
     const p = JSON.parse(raw);
@@ -3644,7 +3648,6 @@ function handleDeathTransition() {
 }
 
 function handleWinTransition() {
-  if (window.DeathMusic) window.DeathMusic.onWin();
   const def = app.state.levelDef;
   const elapsed = app.state.tick / 60;
   progress.cleared[def.id] = true;
@@ -3655,9 +3658,11 @@ function handleWinTransition() {
   saveProgress(progress);
 
   if (def.id < 100 && app.currentLevelIndex + 1 < LEVELS.length) {
+    if (window.DeathMusic) window.DeathMusic.onWin();
     app.narratorText = `CLEARED "${def.name}" IN ${elapsed.toFixed(2)}S.`;
     startLevel(app.currentLevelIndex + 1, true);
   } else {
+    if (window.DeathMusic) window.DeathMusic.playVictory();
     app.screen = "victory";
   }
 }
@@ -4586,13 +4591,14 @@ function winMindLevel() {
   const g2 = app.g2;
   if (!g2 || g2.failTicks > 0) return;
   sfx.play("riddleWin");
-  if (window.DeathMusic) window.DeathMusic.onWin();
   progress.g2Cleared[g2.def.id] = true;
   saveProgress(progress);
   app.narratorText = `M${String(g2.def.id).padStart(2,"0")} CLEARED. DON'T GET COMFORTABLE.`;
   if (app.g2CurrentIdx + 1 < MIND_LEVELS.length) {
+    if (window.DeathMusic) window.DeathMusic.onWin();
     startMindLevel(app.g2CurrentIdx + 1);
   } else {
+    if (window.DeathMusic) window.DeathMusic.playVictory();
     app.screen = "g2win";
   }
 }
@@ -5532,7 +5538,7 @@ function renderVictoryScreen() {
   ctx.fillStyle = PAL.BG; ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
   drawAtmosphereAndEye(app.mouse.x, app.mouse.y, 200);
   const secretsFound = Object.keys(progress.foundSecrets || {}).length;
-  drawPixelText(ctx, "100 ROUNDS CONQUERED!", 480, 82, 4, PAL.GOLD, "center", null, 860);
+  drawPixelText(ctx, "CONGRATULATIONS! 100 ROUNDS CONQUERED!", 480, 76, 3.2, PAL.GOLD, "center", null, 880);
   drawPixelText(ctx, `Total Deaths: ${progress.totalDeaths}  •  Secrets: ${secretsFound}/12`, 480, 152, 2, PAL.CORAL, "center", null, 860);
   if (secretsFound >= 12) {
     addButton(310, 210, 340, 46, "Enter Secret Sanctuary (101)", () => startLevel(LEVELS.length - 1, true), PAL.GOLD, PAL.BG, PAL.GOLD);

@@ -1456,6 +1456,10 @@ const defaultProgress = () => ({
 });
 function loadProgress() {
   try {
+    if (!localStorage.getItem("ti_reset_v2_done")) {
+      ["trust_issues_save_v1", "dont_drop_cake_v1", "parking_spot_panic_v1", "sneakysnack_save_v1"].forEach(k => localStorage.removeItem(k));
+      localStorage.setItem("ti_reset_v2_done", "1");
+    }
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? { ...defaultProgress(), ...JSON.parse(raw) } : defaultProgress();
   } catch (e) { return defaultProgress(); }
@@ -1811,7 +1815,8 @@ function renderSummary(st) {
   ctx.textAlign = "center"; ctx.font = "bold 28px monospace";
   if (st.won) {
     const sb = st.scoreBreakdown;
-    ctx.fillStyle = PAL.GOLD; ctx.fillText(`PARKED! ${"*".repeat(sb.stars)} (${sb.total} PTS)`, 480, 92);
+    const allDone = app.currentIdx + 1 >= LEVELS.length;
+    ctx.fillStyle = PAL.GOLD; ctx.fillText(allDone ? `CONGRATULATIONS! ALL 40 SPOTS DONE!` : `PARKED! ${"*".repeat(sb.stars)} (${sb.total} PTS)`, 480, 92);
     ctx.fillStyle = PAL.WHITE; ctx.font = "bold 15px monospace";
     ctx.fillText(`PRECISION: ${sb.cmStr}  |  ${sb.angStr}  |  TIME: ${sb.elapsed}S`, 480, 130);
   } else {
@@ -1973,7 +1978,10 @@ function tick() {
       progress.stars[app.state.def.id] = Math.max(progress.stars[app.state.def.id] || 0, sb.stars);
       progress.bestScores[app.state.def.id] = Math.max(progress.bestScores[app.state.def.id] || 0, sb.total);
       saveProgress(progress);
-      if (window.DeathMusic) window.DeathMusic.onWin();
+      if (window.DeathMusic) {
+        if (app.currentIdx + 1 >= LEVELS.length) window.DeathMusic.playVictory();
+        else window.DeathMusic.onWin();
+      }
       app.screen = "summary";
       sfx.updateEngine(0, false);
     } else if (app.state.timedOut) {
